@@ -66,8 +66,7 @@ namespace SEAL_Hackathon
             });
 
             var app = builder.Build();
-            if (app.Environment.IsDevelopment())
-            {
+          
                 // Add OpenAPI 3.0 document serving middleware
                 // Available at: http://localhost:<port>/swagger/v1/swagger.json
                 app.UseOpenApi();
@@ -82,7 +81,7 @@ namespace SEAL_Hackathon
                 {
                     options.Path = "/redoc";
                 });
-            }
+           
             // Configure the HTTP request pipeline.
 
             app.UseHttpsRedirection();
