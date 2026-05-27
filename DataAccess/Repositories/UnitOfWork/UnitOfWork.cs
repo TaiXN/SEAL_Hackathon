@@ -1,16 +1,12 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
-using DataAccess.Repositories.Categories;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.TeacherRepository;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DataAccess.Repositories.UnitOfWork
 {

@@ -7,6 +7,6 @@ namespace DataAccess.Repositories.RoundRepository
 {
     public interface IRoundRepository
     {
-        void Update(Round round)
+        void Update(Round round);
     }
 }
