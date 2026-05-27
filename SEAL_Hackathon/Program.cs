@@ -23,6 +23,15 @@ namespace SEAL_Hackathon
             // Add services to the container.
 
             builder.Services.AddControllers();
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: "_myAllowSpecificOrigins",
+                                  policy =>
+                                  {
+                                      policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+
+                                  });
+            });
             builder.Services.AddMemoryCache();
 
             builder.Services.AddOpenApiDocument();
@@ -79,6 +88,7 @@ namespace SEAL_Hackathon
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
+            app.UseCors("_myAllowSpecificOrigins");
 
 
             app.MapControllers();
