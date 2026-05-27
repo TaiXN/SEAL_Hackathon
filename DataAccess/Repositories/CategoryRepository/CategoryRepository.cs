@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DataAccess.Repositories.CategoryRepository
 {
-    internal class CategoryRepository
+    public class CategoryRepository
     {
     }
 }
