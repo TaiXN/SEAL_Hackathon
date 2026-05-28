@@ -1,7 +1,10 @@
-﻿using DataAccess.Repositories.AccountRepository;
+﻿using DataAccess.Entities;
+using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
+using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.PlayerRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
+using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
@@ -22,6 +25,8 @@ namespace DataAccess.Repositories.UnitOfWork
 
         ITeamRepository Team { get; }
         IPlayerRepository Player { get; }
+
+        ICategoryRepository Category { get; }
         Task SaveAsync();
     }
 }

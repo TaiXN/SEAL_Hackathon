@@ -6,6 +6,7 @@ using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.PlayerRepository;
 using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
+using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.TeacherRepository;
@@ -29,6 +30,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public IRoundRepository Round { get; private set; }
         public ITeamRepository Team { get; private set; }
         public IPlayerRepository Player { get; private set; }
+        public ICategoryRepository Category { get; private set; }
 
         public UnitOfWork(SealHackathonContext context)
         {
@@ -43,6 +45,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Round = new RoundRepository.RoundRepository(context);
             Team = new TeamRepository.TeamRepository(context);
             Player = new PlayerRepository.PlayerRepository(context);
+            Category = new CategoryRepository.CategoryRepository(context);
 
 
         }

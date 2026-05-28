@@ -86,6 +86,17 @@ namespace Services.TeamService
 
         public async Task<bool> CreateTeamAsync(string accountId, string teamName, string categoryId, string description)
         {
+            if (string.IsNullOrWhiteSpace(teamName) || string.IsNullOrWhiteSpace(categoryId))
+            {
+                throw new Exception("team name and track cant not be empty");
+            }
+
+            //var checkCategory = await _uow.Category.GetFirstOrDefaultAsync(c => c.CategoryId == categoryId);
+            //if (checkCategory == null)
+            //{
+            //    throw new Exception("Hạng mục thi đấu này không tồn tại trên hệ thống!");
+            //}
+
             // 1. Tìm thằng đang đăng nhập
             var player = await _uow.Player.GetFirstOrDefaultAsync(p => p.AccountId == accountId, "UserTeams");
             if (player == null) return false;
