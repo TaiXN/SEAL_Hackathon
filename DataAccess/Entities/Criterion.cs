@@ -15,6 +15,8 @@ public partial class Criterion
 
     public double Weight { get; set; }
 
+    public bool IsActive { get; set; }
+
     public virtual ICollection<Evaluation> Evaluations { get; set; } = new List<Evaluation>();
 
     public virtual Round Round { get; set; } = null!;

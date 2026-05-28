@@ -9,8 +9,8 @@ namespace DataAccess.Repositories.PrizeRepository
 {
     public class PrizeRepository:Repository<Prize>,IPrizeRepository
     {
-        private readonly SealHackathonContext _db;
-        public PrizeRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public PrizeRepository(SealContext db) : base(db)
         {
             _db = db;
 

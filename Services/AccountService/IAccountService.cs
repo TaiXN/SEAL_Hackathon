@@ -10,7 +10,7 @@ namespace Services.AccountService
     {
         Task<Account> CheckLoginAsync(string email, string password);
         Task<Account> GetAccountByIdAsync(string accountId);
-        Task UpdateAccountAsync(Account account);
         Task<bool> UpdatePassword(string accId, string oldpassword, string newPassword);
+
     }
 }

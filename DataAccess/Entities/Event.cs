@@ -7,7 +7,7 @@ public partial class Event
 {
     public string EventId { get; set; } = null!;
 
-    public string AdminId { get; set; } = null!;
+    public string Creator { get; set; } = null!;
 
     public string EventName { get; set; } = null!;
 
@@ -21,9 +21,9 @@ public partial class Event
 
     public string DisqualifyReason { get; set; } = null!;
 
-    public virtual Admin Admin { get; set; } = null!;
-
     public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
+
+    public virtual Account CreatorNavigation { get; set; } = null!;
 
     public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
 

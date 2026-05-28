@@ -1,6 +1,7 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
+using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
@@ -12,7 +13,7 @@ namespace DataAccess.Repositories.UnitOfWork
 {
     public class UnitOfWork:IUnitOfWork
     {
-        private readonly SealHackathonContext _context;
+        private readonly SealContext _context;
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
@@ -21,8 +22,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public IEventRepository Event { get; private set; }
         public IPrizeRepository Prize { get; private set; }
         public IRoundRepository Round { get; private set; }
+        public ICategoryRepository Category { get; private set; }
 
-        public UnitOfWork(SealHackathonContext context)
+        public UnitOfWork(SealContext context)
         {
             _context = context;
             Account = new AccountRepository.AccountRepository(context);
@@ -33,8 +35,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Event = new EventRepository.EventRepository(context);
             Prize = new PrizeRepository.PrizeRepository(context);
             Round = new RoundRepository.RoundRepository(context);
-
-
+            Category = new CategoryRepository.CategoryRepository(context);
         }
 
         public async Task SaveAsync()

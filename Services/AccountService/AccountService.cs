@@ -33,11 +33,6 @@ namespace Services.AccountService
             return await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId.Equals(accountId));
         }
 
-        public Task UpdateAccountAsync(Account account)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task<bool> UpdatePassword(string accId, string oldpassword, string newPassword)
         {
             try

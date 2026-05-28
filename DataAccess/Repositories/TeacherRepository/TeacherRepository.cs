@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.TeacherRepository
 {
     public class TeacherRepository : Repository<Teacher>, ITeacherRepository
     {
-        private readonly SealHackathonContext _db;
-        public TeacherRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public TeacherRepository(SealContext db) : base(db)
         {
             _db = db;
         }

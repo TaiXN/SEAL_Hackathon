@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.AdminRepository
 {
     public class AdminRepository:Repository<Admin>,IAdminRepository
     {
-        private readonly SealHackathonContext _db;
-        public AdminRepository(SealHackathonContext db):base(db) 
+        private readonly SealContext _db;
+        public AdminRepository(SealContext db):base(db) 
         {
             _db = db;
             

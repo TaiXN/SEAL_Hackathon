@@ -4,13 +4,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess.Entities;
 
-public partial class SealHackathonContext : DbContext
+public partial class SealContext : DbContext
 {
-    public SealHackathonContext()
+    public SealContext()
     {
     }
 
-    public SealHackathonContext(DbContextOptions<SealHackathonContext> options)
+    public SealContext(DbContextOptions<SealContext> options)
         : base(options)
     {
     }
@@ -117,20 +117,19 @@ public partial class SealHackathonContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("CategoryID");
-            entity.Property(e => e.AdminId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("AdminID");
             entity.Property(e => e.CategoryName).HasMaxLength(400);
+            entity.Property(e => e.Creator)
+                .HasMaxLength(400)
+                .IsUnicode(false);
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
 
-            entity.HasOne(d => d.Admin).WithMany(p => p.Categories)
-                .HasForeignKey(d => d.AdminId)
+            entity.HasOne(d => d.CreatorNavigation).WithMany(p => p.Categories)
+                .HasForeignKey(d => d.Creator)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Categorie__Admin__3E52440B");
+                .HasConstraintName("FK_Categories_Account");
 
             entity.HasOne(d => d.Event).WithMany(p => p.Categories)
                 .HasForeignKey(d => d.EventId)
@@ -209,18 +208,17 @@ public partial class SealHackathonContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
-            entity.Property(e => e.AdminId)
+            entity.Property(e => e.Creator)
                 .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("AdminID");
+                .IsUnicode(false);
             entity.Property(e => e.DisqualifyReason).HasMaxLength(255);
             entity.Property(e => e.EventName).HasMaxLength(400);
             entity.Property(e => e.Season).HasMaxLength(50);
 
-            entity.HasOne(d => d.Admin).WithMany(p => p.Events)
-                .HasForeignKey(d => d.AdminId)
+            entity.HasOne(d => d.CreatorNavigation).WithMany(p => p.Events)
+                .HasForeignKey(d => d.Creator)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Event__AdminID__37A5467C");
+                .HasConstraintName("FK_Event_Account");
         });
 
         modelBuilder.Entity<JudgeAssignment>(entity =>
@@ -411,7 +409,7 @@ public partial class SealHackathonContext : DbContext
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE3AB2D7BD8F");
+            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE3A56D2DEB6");
 
             entity.ToTable("Role");
 
@@ -432,10 +430,9 @@ public partial class SealHackathonContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("RoundID");
-            entity.Property(e => e.AdminId)
+            entity.Property(e => e.Creator)
                 .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("AdminID");
+                .IsUnicode(false);
             entity.Property(e => e.EndDate).HasColumnType("datetime");
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
@@ -445,10 +442,10 @@ public partial class SealHackathonContext : DbContext
             entity.Property(e => e.StartDate).HasColumnType("datetime");
             entity.Property(e => e.TopNpromotion).HasColumnName("TopNPromotion");
 
-            entity.HasOne(d => d.Admin).WithMany(p => p.Rounds)
-                .HasForeignKey(d => d.AdminId)
+            entity.HasOne(d => d.CreatorNavigation).WithMany(p => p.Rounds)
+                .HasForeignKey(d => d.Creator)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Round__AdminID__4222D4EF");
+                .HasConstraintName("FK_Round_Account");
 
             entity.HasOne(d => d.Event).WithMany(p => p.Rounds)
                 .HasForeignKey(d => d.EventId)
@@ -541,7 +538,7 @@ public partial class SealHackathonContext : DbContext
 
         modelBuilder.Entity<University>(entity =>
         {
-            entity.HasKey(e => e.UniversityId).HasName("PK__Universi__9F19E19CAC4556A2");
+            entity.HasKey(e => e.UniversityId).HasName("PK__Universi__9F19E19CADDAE3B1");
 
             entity.ToTable("University");
 

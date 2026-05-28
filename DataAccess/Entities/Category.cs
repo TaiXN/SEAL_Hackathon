@@ -9,13 +9,13 @@ public partial class Category
 
     public string EventId { get; set; } = null!;
 
-    public string AdminId { get; set; } = null!;
+    public string Creator { get; set; } = null!;
 
     public string CategoryName { get; set; } = null!;
 
     public bool IsActive { get; set; }
 
-    public virtual Admin Admin { get; set; } = null!;
+    public virtual Account CreatorNavigation { get; set; } = null!;
 
     public virtual Event Event { get; set; } = null!;
 

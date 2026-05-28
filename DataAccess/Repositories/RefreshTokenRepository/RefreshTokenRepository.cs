@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.RefreshTokenRepository
 {
     public class RefreshTokenRepository:Repository<RefreshToken>,IRefreshTokenRepository
     {
-        private readonly SealHackathonContext _db;
-        public RefreshTokenRepository(SealHackathonContext db):base(db)
+        private readonly SealContext _db;
+        public RefreshTokenRepository(SealContext db):base(db)
         {
             _db = db;
         }

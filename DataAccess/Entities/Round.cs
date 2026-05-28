@@ -9,7 +9,7 @@ public partial class Round
 
     public string EventId { get; set; } = null!;
 
-    public string AdminId { get; set; } = null!;
+    public string Creator { get; set; } = null!;
 
     public string RoundName { get; set; } = null!;
 
@@ -19,7 +19,11 @@ public partial class Round
 
     public int TopNpromotion { get; set; }
 
-    public virtual Admin Admin { get; set; } = null!;
+    public int MaxTeam { get; set; }
+
+    public bool IsActive { get; set; }
+
+    public virtual Account CreatorNavigation { get; set; } = null!;
 
     public virtual ICollection<Criterion> Criteria { get; set; } = new List<Criterion>();
 
