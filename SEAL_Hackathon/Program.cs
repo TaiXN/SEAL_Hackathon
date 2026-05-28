@@ -11,6 +11,7 @@ using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.TeacherService;
 using System.Text;
+using Services.TeamService;
 
 namespace SEAL_Hackathon
 {
@@ -25,7 +26,22 @@ namespace SEAL_Hackathon
             builder.Services.AddControllers();
             builder.Services.AddMemoryCache();
 
-            builder.Services.AddOpenApiDocument();
+            builder.Services.AddOpenApiDocument(config =>
+            {
+                config.Title = "SEAL Hackathon API";
+
+                // Tạo cái ổ khóa nhập Token
+                config.AddSecurity("Bearer", Enumerable.Empty<string>(), new NSwag.OpenApiSecurityScheme
+                {
+                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
+                    Name = "Authorization",
+                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
+                    Description = "Copy Token dán vào đây, nhớ thêm chữ 'Bearer ' phía trước nha (VD: Bearer eyJhbG...)"
+                });
+
+                // Ép Swagger phải đính kèm cái Token đó vào mỗi lần gọi API
+                config.OperationProcessors.Add(new NSwag.Generation.Processors.Security.AspNetCoreOperationSecurityScopeProcessor("Bearer"));
+            });
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -54,6 +70,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
+                builder.RegisterType<TeamService>().As<ITeamService>();
             });
 
             var app = builder.Build();

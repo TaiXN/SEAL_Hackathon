@@ -219,5 +219,44 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest("Password is incorrect");
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost("player/login")]
+        public async Task<IActionResult> PlayerLogin(LoginAPIViewModel info)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    //check login
+                    Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
+                    if (accountDb != null)
+                    {
+                        // Kiểm tra đúng RoleName là "Player" (khớp với database của ông)
+                        if (accountDb.Role.RoleName.Equals("Player"))
+                        {
+                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
+                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            return Ok(new LoginResultAPIViewModel()
+                            {
+                                AccessToken = accessToken,
+                                RefreshToken = refreshToken
+                            });
+                        }
+                        else
+                        {
+                            return Unauthorized("Tài khoản này không phải là Thí sinh (Player)!");
+                        }
+                    }
+                    else return BadRequest("Email or password is incorrect");
+
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, "Error occurred: " + ex.Message);
+                }
+            }
+            else return BadRequest();
+        }
     }
 }

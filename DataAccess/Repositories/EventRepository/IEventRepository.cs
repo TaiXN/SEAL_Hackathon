@@ -8,6 +8,6 @@ namespace DataAccess.Repositories.EventRepository
     public interface IEventRepository
     {
         void Update(Event events);
-        }
+        
     }
 }
