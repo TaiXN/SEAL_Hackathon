@@ -23,13 +23,5 @@ public partial class Round
 
     public bool IsActive { get; set; }
 
-    public virtual Account CreatorNavigation { get; set; } = null!;
-
-    public virtual ICollection<Criterion> Criteria { get; set; } = new List<Criterion>();
-
     public virtual Event Event { get; set; } = null!;
-
-    public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
-
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

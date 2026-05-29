@@ -17,17 +17,9 @@ public partial class Event
 
     public bool IsActive { get; set; }
 
-    public bool IsDiqualified { get; set; }
-
-    public string DisqualifyReason { get; set; } = null!;
-
     public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
 
     public virtual Account CreatorNavigation { get; set; } = null!;
-
-    public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
-
-    public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();
 
     public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
 }

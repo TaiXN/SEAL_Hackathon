@@ -29,6 +29,8 @@ namespace Services.EventService
             }
         }
 
+        
+
         public async Task<List<Event>> GetAllEventsAsync()
         {
             try

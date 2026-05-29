@@ -7,8 +7,7 @@ namespace APIViewModels.Teacher
 {
     public class CreateTeacherAPIViewModel
     {
-        [Required]
-        public string RoleId { get; set; }
+      
         [Required]
         [EmailAddress]
         public string Email { get; set; }

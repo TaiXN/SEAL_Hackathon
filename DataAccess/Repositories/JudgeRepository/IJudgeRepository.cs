@@ -4,10 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace DataAccess.Repositories.PrizeRepository
+namespace DataAccess.Repositories.JudgeRepository
 {
-    public interface IPrizeRepository:IRepository<Prize>
+    public interface IJudgeRepository:IRepository<Judge>
     {
-        void Update(Prize prize);
     }
 }

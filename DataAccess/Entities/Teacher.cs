@@ -13,9 +13,7 @@ public partial class Teacher
 
     public virtual Account Account { get; set; } = null!;
 
-    public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
+    public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
 
-    public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
-
-    public virtual ICollection<MentorAssignment> MentorAssignments { get; set; } = new List<MentorAssignment>();
+    public virtual ICollection<Judge> Judges { get; set; } = new List<Judge>();
 }

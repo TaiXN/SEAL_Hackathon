@@ -1,12 +1,8 @@
-﻿using APIViewModels.Admin;
-using APIViewModels.Event;
+﻿using APIViewModels.Event;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Services.AccountService;
 using Services.AdminService;
 using Services.EventService;
-using Services.RoleService;
 using System.Security.Claims;
 
 namespace SEAL_Hackathon.Controllers
@@ -29,6 +25,7 @@ namespace SEAL_Hackathon.Controllers
         {
             if (ModelState.IsValid)
             {
+              
                 string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 DataAccess.Entities.Event newEvent = new DataAccess.Entities.Event()
                 {
@@ -38,8 +35,7 @@ namespace SEAL_Hackathon.Controllers
                     Season = info.Season,
                     Year = info.Year,
                     IsActive = true,
-                    IsDiqualified = false,
-                    DisqualifyReason = info.DisqualifyReason,
+                  
                 };
                 bool isCreated = await _event.CreateEventAsync(newEvent);
                 if (isCreated)
@@ -103,7 +99,7 @@ namespace SEAL_Hackathon.Controllers
             existingEvent.EventName = info.EventName;
             existingEvent.Season = info.Season;
             existingEvent.Year = info.Year;
-            existingEvent.DisqualifyReason = info.DisqualifyReason;
+
 
             bool isUpdated = await _event.UpdateEventAsync(existingEvent);
 

@@ -1,12 +1,8 @@
 ﻿using APIViewModels.Category;
-using APIViewModels.Event;
-using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.AdminService;
 using Services.CategoryService;
-using Services.EventService;
 using System.Security.Claims;
 
 namespace SEAL_Hackathon.Controllers
@@ -24,28 +20,19 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPost]
-        public async Task<IActionResult> Create(CreateCategoryAPIViewModel info)
+        [HttpPost("judge")]
+        public async Task<IActionResult> AddJudge(AddJudgeAPIViewModel judgeInfo)
         {
             if (ModelState.IsValid)
             {
-                string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                DataAccess.Entities.Category newCategory = new DataAccess.Entities.Category()
+                string result = await _category.AddJudgeAsync(judgeInfo);
+                if (result.Equals("Ok"))
                 {
-                    CategoryId = Guid.NewGuid().ToString(),
-                    EventId = info.EventID,
-                    Creator = accId,
-                    CategoryName = info.CategoryName,
-                    IsActive = true
-                };
-                bool isCreated = await _category.CreateCategoryAsync(newCategory);
-                if (isCreated)
-                {
-                    return Ok("Create category successfully");
+                    return Ok("Add judge successful");
                 }
                 else
                 {
-                    return BadRequest("Error while creating category");
+                    return BadRequest(result);
                 }
             }
             else
@@ -55,77 +42,67 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
+        [HttpPut("mentor")]
+        public async Task<IActionResult> ChangeMentor(ChangeMentorAPIViewModel mentorInfo)
         {
-            var category = await _category.GetAllCategorysAsync();
-            return Ok(category);
+            if (ModelState.IsValid)
+            {
+                bool isChanged = await _category.ChangeMentorAsync(mentorInfo);
+                if (isChanged)
+                {
+                    return Ok("Update mentor successful");
+                }
+                else
+                {
+                    return BadRequest();
+                }
+            }
+            else
+            {
+                return BadRequest();
+            }
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(string id)
+        [HttpPost]
+        public async Task<IActionResult> Create(CreateCategoryAPIViewModel cateInfo)
         {
-            if (string.IsNullOrEmpty(id))
+            if (ModelState.IsValid)
             {
-                return BadRequest("Invalid category ID.");
+                Dictionary<string, CreateJudgeAPIViewModel> checkDuplicateList = new Dictionary<string, CreateJudgeAPIViewModel>();
+                
+                foreach (CreateJudgeAPIViewModel judge in cateInfo.Judges)
+                {
+                    try
+                    {
+                        checkDuplicateList.Add(judge.TeacherId, judge);
+                    }
+                    catch(Exception ex)
+                    {
+                        return BadRequest("Jugde is duplicate");
+                    }
+                    if(judge.TeacherId == cateInfo.MentorId)
+                    {
+                        return BadRequest("Jugde already is a mentor for this category");
+                    }
+                }
+                string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;//middeware
+
+                bool isCreated = await _category.CreateAsync(cateInfo, accId);
+                if (isCreated)
+                {
+                    return Ok("Create category successful");
+                }
+                else return StatusCode(StatusCodes.Status500InternalServerError);
             }
-
-            var currentCategory = await _category.GetCategoryByIdAsync(id);
-
-            if (currentCategory == null)
+            else
             {
-                return NotFound("No category found.");
+                return BadRequest();
             }
+          
 
-            return Ok(currentCategory);
+
         }
 
-        [Authorize(Roles = "Admin")]
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, UpdateCategoryAPIViewModel info)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var existingCategory = await _category.GetCategoryByIdAsync(id);
-            if (existingCategory == null)
-            {
-                return NotFound("No category found to update.");
-            }
-
-            existingCategory.CategoryName = info.CategoryName;
-            existingCategory.EventId = info.EventID;
-
-            bool isUpdated = await _category.UpdateCategoryAsync(existingCategory);
-
-            if (isUpdated)
-            {
-                return Ok("Category update successful!");
-            }
-
-            return BadRequest("Error occurred during the category update process.");
-        }
-
-        [Authorize(Roles = "Admin")]
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
-        {
-            if (string.IsNullOrEmpty(id))
-            {
-                return BadRequest("Invalid category ID.");
-            }
-
-            bool isDeleted = await _category.DeleteCategoryAsync(id);
-
-            if (isDeleted)
-            {
-                return Ok("Category successfully deleted.");
-            }
-
-            return BadRequest("The category was not found, or an error occurred while deleting.");
-        }
     }
 }

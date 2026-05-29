@@ -3,7 +3,7 @@ using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.EventRepository;
-using DataAccess.Repositories.PrizeRepository;
+using DataAccess.Repositories.JudgeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
@@ -20,9 +20,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public IAdminRepository Admin { get; private set; }
         public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
-        public IPrizeRepository Prize { get; private set; }
         public IRoundRepository Round { get; private set; }
         public ICategoryRepository Category { get; private set; }
+        public IJudgeRepository Judge { get; private set; }
 
         public UnitOfWork(SealContext context)
         {
@@ -33,9 +33,10 @@ namespace DataAccess.Repositories.UnitOfWork
             Admin = new AdminRepository.AdminRepository(context);
             Teacher = new TeacherRepository.TeacherRepository(context);
             Event = new EventRepository.EventRepository(context);
-            Prize = new PrizeRepository.PrizeRepository(context);
+           
             Round = new RoundRepository.RoundRepository(context);
             Category = new CategoryRepository.CategoryRepository(context);
+            Judge = new JudgeRepository.JudgeRepository(context);
         }
 
         public async Task SaveAsync()

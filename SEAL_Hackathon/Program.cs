@@ -9,7 +9,6 @@ using Services.AccountService;
 using Services.AdminService;
 using Services.CategoryService;
 using Services.EventService;
-using Services.PrizeService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.RoundService;
@@ -70,7 +69,6 @@ namespace SEAL_Hackathon
                 builder.RegisterType<RoundService>().As<IRoundService>();
                 builder.RegisterType<EventService>().As<IEventService>();
                 builder.RegisterType<CategoryService>().As<ICategoryService>();
-                builder.RegisterType<PrizeService>().As<IPrizeService>();
             });
 
             var app = builder.Build();

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace APIViewModels.Category
 {
@@ -11,5 +8,16 @@ namespace APIViewModels.Category
         public string CategoryName { get; set; }
         [Required]
         public string EventID { get; set; }
+        [Required]
+        public string MentorId { get; set; }
+        [Required]
+        [MinLength(1)]
+        public List<CreateJudgeAPIViewModel> Judges { get; set; }
+
+    }
+    public class CreateJudgeAPIViewModel
+    {
+        [Required]
+        public string TeacherId { get; set; }
     }
 }

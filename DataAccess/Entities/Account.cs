@@ -23,8 +23,6 @@ public partial class Account
 
     public virtual ICollection<Admin> Admins { get; set; } = new List<Admin>();
 
-    public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
-
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
     public virtual ICollection<Player> Players { get; set; } = new List<Player>();
@@ -32,8 +30,6 @@ public partial class Account
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
     public virtual Role Role { get; set; } = null!;
-
-    public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
 
     public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
 }

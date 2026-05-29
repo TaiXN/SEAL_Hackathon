@@ -13,7 +13,6 @@ namespace APIViewModels.Event
         public string Season { get; set; }
         [Required]
         public int Year { get; set; }
-        [Required]
-        public string DisqualifyReason { get; set; }
+   
     }
 }

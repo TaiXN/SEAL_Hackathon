@@ -15,13 +15,13 @@ public partial class Category
 
     public bool IsActive { get; set; }
 
-    public virtual Account CreatorNavigation { get; set; } = null!;
+    public string Mentor { get; set; } = null!;
 
     public virtual Event Event { get; set; } = null!;
 
-    public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
+    public virtual ICollection<Judge> Judges { get; set; } = new List<Judge>();
 
-    public virtual ICollection<MentorAssignment> MentorAssignments { get; set; } = new List<MentorAssignment>();
+    public virtual Teacher MentorNavigation { get; set; } = null!;
 
-    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+    public virtual ICollection<TeamJoined> TeamJoineds { get; set; } = new List<TeamJoined>();
 }
