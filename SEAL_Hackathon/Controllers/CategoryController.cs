@@ -20,6 +20,42 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        [HttpGet("event/{eventId}")]
+        public async Task<IActionResult> GetAllByEventId(string eventId)
+        {
+            if (eventId == null) return BadRequest("You must enter eventId");
+            List<BasicCategoryAPIViewModel> result = await _category.GetAllByEventIdAsync(eventId);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("activeevent/{eventId}")]
+        public async Task<IActionResult> GetAllByEventIdActive(string eventId)
+        {
+            if (eventId == null) return BadRequest("You must enter eventId");
+            List<BasicCategoryAPIViewModel> result = await _category.GetAllByEventIdAsync(eventId, true);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("judge")]
+        public async Task<IActionResult> RemoveJudge(RemoveJudgeAPIViewModel judgeInfo)
+        {
+            if (ModelState.IsValid)
+            {
+                bool removed = await _category.RemoveJudgeAsync(judgeInfo);
+                if (removed)
+                {
+                    return Ok($"Remove Judge: {judgeInfo.TeacherId} successful");
+                }
+                else
+                {
+                    return BadRequest();
+                }
+            }
+            else return BadRequest();
+        }
+        [Authorize(Roles = "Admin")]
         [HttpPost("judge")]
         public async Task<IActionResult> AddJudge(AddJudgeAPIViewModel judgeInfo)
         {
@@ -70,18 +106,18 @@ namespace SEAL_Hackathon.Controllers
             if (ModelState.IsValid)
             {
                 Dictionary<string, CreateJudgeAPIViewModel> checkDuplicateList = new Dictionary<string, CreateJudgeAPIViewModel>();
-                
+
                 foreach (CreateJudgeAPIViewModel judge in cateInfo.Judges)
                 {
                     try
                     {
                         checkDuplicateList.Add(judge.TeacherId, judge);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         return BadRequest("Jugde is duplicate");
                     }
-                    if(judge.TeacherId == cateInfo.MentorId)
+                    if (judge.TeacherId == cateInfo.MentorId)
                     {
                         return BadRequest("Jugde already is a mentor for this category");
                     }
@@ -99,10 +135,9 @@ namespace SEAL_Hackathon.Controllers
             {
                 return BadRequest();
             }
-          
-
-
         }
+
+        
 
     }
 }

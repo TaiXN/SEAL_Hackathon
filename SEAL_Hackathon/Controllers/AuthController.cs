@@ -4,11 +4,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Identity.Client;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.RefreshTokenService;
-using System.Security.Claims;
 using Services.Utils;
+using System.Security.Claims;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -26,6 +27,30 @@ namespace SEAL_Hackathon.Controllers
             _account = account;
             _refreshToken = refreshToken;
             _cache = cache;
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refreshtoken")]
+        public async Task<IActionResult> RefreshToken()
+        {
+            if (!Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+            {
+                return BadRequest("Refresh token is required");
+            }
+            Account accountInfo = await _refreshToken.CheckRefreshToken(refreshToken);
+            if (accountInfo != null)
+            {
+                string accessToken = _accessToken.GenerateJwtToken(accountInfo.AccountId, accountInfo.Email, accountInfo.Role.RoleName);
+                return Ok(new LoginResultAPIViewModel()
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken
+                });
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
 
         [Authorize]

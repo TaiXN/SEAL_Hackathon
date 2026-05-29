@@ -11,7 +11,77 @@ namespace Services.CategoryService
         {
             _uow = uow;
         }
+        public async Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id,bool isActive)
+        {
+            //check exist event 
+            List<Category> categories = await _uow.Category.GetAllAsync(q => q.EventId == id && q.IsActive == isActive, null, "Event,MentorNavigation");
+            if (categories != null && categories.Count > 0)
+            {
+                List<BasicCategoryAPIViewModel> result = new List<BasicCategoryAPIViewModel>();
+                foreach (Category cate in categories)
+                {
+                    Account mentorAcc = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId == cate.MentorNavigation.AccountId);
+                    result.Add(new BasicCategoryAPIViewModel()
+                    {
+                        CategoryId = cate.CategoryId,
+                        CategoryName = cate.CategoryName,
+                        Event = new APIViewModels.Event.BasicEventAPIViewModel()
+                        {
+                            Id = cate.Event.EventId,
+                            Name = cate.Event.EventName
+                        },
+                        IsActive = cate.IsActive,
+                        Mentor = new APIViewModels.Mentor.MentorAPIViewModel()
+                        {
+                            Id = cate.Mentor,
+                            Email = mentorAcc.Email,
+                            Name = mentorAcc.FullName
+                        }
+                    });
+                }
+                return result;
+            }
+            else
+            {
+                return new List<BasicCategoryAPIViewModel>();
+            }
+        }
 
+        public async Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id)
+        {
+            //check exist event 
+            List<Category> categories = await _uow.Category.GetAllAsync(q => q.EventId == id,null, "Event,MentorNavigation");
+            if (categories != null && categories.Count > 0)
+            {
+                List<BasicCategoryAPIViewModel> result = new List<BasicCategoryAPIViewModel>();
+                foreach(Category cate in categories)
+                {
+                    Account mentorAcc = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId == cate.MentorNavigation.AccountId);
+                    result.Add(new BasicCategoryAPIViewModel()
+                    {
+                        CategoryId = cate.CategoryId,
+                        CategoryName = cate.CategoryName,
+                        Event = new APIViewModels.Event.BasicEventAPIViewModel()
+                        {
+                            Id = cate.Event.EventId,
+                            Name = cate.Event.EventName
+                        },
+                        IsActive = cate.IsActive,
+                        Mentor = new APIViewModels.Mentor.MentorAPIViewModel()
+                        {
+                            Id = cate.Mentor,
+                            Email = mentorAcc.Email,
+                            Name = mentorAcc.FullName
+                        }
+                    });
+                }
+                return result;
+            }
+            else
+            {
+                return new List<BasicCategoryAPIViewModel>();
+            }
+        }
 
         private async Task<bool> IsDuplicate(string categoryName)
         {
@@ -26,6 +96,34 @@ namespace Services.CategoryService
             }
         }
 
+        public async Task<bool> RemoveJudgeAsync(RemoveJudgeAPIViewModel judgeInfo)
+        {
+            //categroy
+            try
+            {
+                Category cate = await _uow.Category.GetFirstOrDefaultAsync(q=> q.CategoryId == judgeInfo.CategoryId);
+                if (cate != null)
+                {
+                    //check Judge exist
+                    Judge judge = await _uow.Judge.GetFirstOrDefaultAsync(q=> q.TeacherId == judgeInfo.TeacherId && q.CategoryId == judgeInfo.CategoryId);
+                    if(judge != null)
+                    {
+                        _uow.Judge.Remove(judge);
+                        await _uow.SaveAsync();
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else return false;
+            }
+            catch(Exception ex)
+            {
+                return false;
+            }
+        }
         public async Task<string> AddJudgeAsync(AddJudgeAPIViewModel judgesInfo)
         {
             try
@@ -36,6 +134,10 @@ namespace Services.CategoryService
                 {
                     foreach(CreateJudgeAPIViewModel judge in judgesInfo.NewJudges)
                     {
+                        if(judge.TeacherId == cate.Mentor)
+                        {
+                            return $"Judge {judge.TeacherId} is already a mentor";
+                        }
                         //check judge is teacher exist
                         Teacher existed = await _uow.Teacher.GetFirstOrDefaultAsync(q => q.Id == judge.TeacherId);
                         if(existed != null)
