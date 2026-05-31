@@ -24,24 +24,14 @@ namespace SEAL_Hackathon.Controllers
             _role = role;
         }
 
-        private async Task<bool> IsAdminRole(string roleId)
-        {
-            Role roleDb = await _role.GetByRoleId(roleId);
-            if (roleDb != null && roleDb.RoleName.Equals("Admin"))
-            {
-                return true;
-            }
-            else return false;
-        }
-
+      
         [Authorize(Roles ="Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(CreateAdminAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-                if (await IsAdminRole(info.RoleId))
-                {
+            
                     string accountId = Guid.NewGuid().ToString();
 
                     bool isAdminCreated = await _admin.CreateAsync(new DataAccess.Entities.Account()
@@ -51,8 +41,8 @@ namespace SEAL_Hackathon.Controllers
                         Email = info.Email,
                         FullName = info.FullName,
                         Password = info.Password,
-                        Phone = info.Phone,
-                        RoleId = info.RoleId
+                        Phone = info.Phone
+                     
                     });
                     if (isAdminCreated)
                     {
@@ -62,11 +52,7 @@ namespace SEAL_Hackathon.Controllers
                     {
                         return BadRequest("Error while create admin");
                     }
-                }
-                else
-                {
-                    return BadRequest();
-                }
+               
 
             }
             else return BadRequest();

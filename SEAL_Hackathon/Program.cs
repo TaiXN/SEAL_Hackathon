@@ -7,8 +7,11 @@ using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.AdminService;
+using Services.CategoryService;
+using Services.EventService;
 using Services.RefreshTokenService;
 using Services.RoleService;
+using Services.RoundService;
 using Services.TeacherService;
 using System.Text;
 
@@ -56,13 +59,16 @@ namespace SEAL_Hackathon
             builder.Host.ConfigureContainer<ContainerBuilder>(builder =>
             {
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
-                builder.RegisterType<SealHackathonContext>().AsSelf();
+                builder.RegisterType<SealContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
                 builder.RegisterType<AdminService>().As<IAdminService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
                 builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
+                builder.RegisterType<RoundService>().As<IRoundService>();
+                builder.RegisterType<EventService>().As<IEventService>();
+                builder.RegisterType<CategoryService>().As<ICategoryService>();
             });
 
             var app = builder.Build();

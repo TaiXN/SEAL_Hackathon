@@ -9,8 +9,8 @@ namespace DataAccess.Repositories.EventRepository
 {
     public class EventRepository:Repository<Event>,IEventRepository
     {
-        private readonly SealHackathonContext _db;
-        public EventRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public EventRepository(SealContext db) : base(db)
         {
             _db = db;
 

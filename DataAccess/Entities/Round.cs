@@ -9,7 +9,7 @@ public partial class Round
 
     public string EventId { get; set; } = null!;
 
-    public string AdminId { get; set; } = null!;
+    public string Creator { get; set; } = null!;
 
     public string RoundName { get; set; } = null!;
 
@@ -19,13 +19,9 @@ public partial class Round
 
     public int TopNpromotion { get; set; }
 
-    public virtual Admin Admin { get; set; } = null!;
+    public int MaxTeam { get; set; }
 
-    public virtual ICollection<Criterion> Criteria { get; set; } = new List<Criterion>();
+    public bool IsActive { get; set; }
 
     public virtual Event Event { get; set; } = null!;
-
-    public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
-
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

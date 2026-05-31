@@ -39,6 +39,7 @@ namespace Services.AdminService
                 if (!(await IsDuplicateEmail(account.Email)))
                 {
                     string hashedPassword = HashBuilder.ComputeSha256Hash(account.Password + PRIVATEKEY);
+                    string roleId = (await _uow.Role.GetFirstOrDefaultAsync(q => q.RoleName.Equals("Admin"))).RoleId;
                     Account newAccount = new Account()
                     {
                         AccountId = account.AccountId,
@@ -48,8 +49,7 @@ namespace Services.AdminService
                         FullName = account.FullName,
                         Password = hashedPassword,
                         Phone = account.Phone,
-                        RoleId = account.RoleId
-
+                        RoleId = roleId
                     };
                     await _uow.Account.AddAsync(newAccount);
                     Admin newAdmin = new Admin()

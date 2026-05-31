@@ -38,6 +38,7 @@ namespace Services.TeacherService
                 if (!(await IsDuplicateEmail(account.Email)))
                 {
                     string hashedPassword = HashBuilder.ComputeSha256Hash(account.Password + PRIVATEKEY);
+                    string roleId = (await _uow.Role.GetFirstOrDefaultAsync(q => q.RoleName.Equals("Teacher"))).RoleId;
                     Account newAccount = new Account()
                     {
                         AccountId = account.AccountId,
@@ -47,7 +48,7 @@ namespace Services.TeacherService
                         FullName = account.FullName,
                         Password = hashedPassword,
                         Phone = account.Phone,
-                        RoleId = account.RoleId
+                        RoleId = roleId
 
                     };
                     await _uow.Account.AddAsync(newAccount);
