@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.AccountRepository
 {
     public class AccountRepository:Repository<Account>, IAccountRepository
     {
-        private readonly SealHackathonContext _db;
-        public AccountRepository(SealHackathonContext db):base(db) 
+        private readonly SealContext _db;
+        public AccountRepository(SealContext db):base(db) 
         {
             _db = db;
         }

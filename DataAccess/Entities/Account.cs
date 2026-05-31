@@ -23,6 +23,8 @@ public partial class Account
 
     public virtual ICollection<Admin> Admins { get; set; } = new List<Admin>();
 
+    public virtual ICollection<Event> Events { get; set; } = new List<Event>();
+
     public virtual ICollection<Player> Players { get; set; } = new List<Player>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

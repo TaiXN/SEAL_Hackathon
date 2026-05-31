@@ -23,23 +23,13 @@ namespace SEAL_Hackathon.Controllers
             _role = role;
         }
 
-        private async Task<bool> IsTeacherRole(string roleId)
-        {
-            Role roleDb = await _role.GetByRoleId(roleId);
-            if (roleDb != null && roleDb.RoleName.Equals("Teacher"))
-            {
-                return true;
-            }
-            else return false;
-        }
-
+      
         [HttpPost]
         public async Task<IActionResult> Create(CreateTeacherAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-                if (await IsTeacherRole(info.RoleId))
-                {
+              
                     string accountId = Guid.NewGuid().ToString();
 
 
@@ -50,8 +40,7 @@ namespace SEAL_Hackathon.Controllers
                         Email = info.Email,
                         FullName = info.FullName,
                         Password = info.Password,
-                        Phone = info.Phone,
-                        RoleId = info.RoleId
+                        Phone = info.Phone
                     }, info.IsGuest);
                     if (isTeacherCreated)
                     {
@@ -61,11 +50,7 @@ namespace SEAL_Hackathon.Controllers
                     {
                         return BadRequest("Error while create teacher");
                     }
-                }
-                else
-                {
-                    return BadRequest();
-                }
+              
 
             }
             else return BadRequest();

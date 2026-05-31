@@ -13,7 +13,17 @@ namespace Services.RefreshTokenService
         {
             _uow = uow;
         }
-
+        public async Task<Account> CheckRefreshToken(string refreshToken)
+        {
+            RefreshToken rToken = await _uow.RefreshToken.GetFirstOrDefaultAsync(q=> q.TokenValue == refreshToken && q.IsRevoked ==false && q.ExpiredDate > DateTime.Now, "Account");
+            if (rToken == null) return null;
+            else
+            {
+                Role role = await _uow.Role.GetFirstOrDefaultAsync(q => q.RoleId == rToken.Account.RoleId);
+                rToken.Account.Role = role;
+                return rToken.Account;
+            }
+        }
         public async Task<bool> RevokeTokenAsync(string accId)
         {
             RefreshToken rTokenDb = await _uow.RefreshToken.GetFirstOrDefaultAsync(q => q.AccountId == accId);
