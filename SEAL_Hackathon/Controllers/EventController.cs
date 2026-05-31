@@ -23,35 +23,16 @@ namespace SEAL_Hackathon.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreateEventAPIViewModel info)
         {
-            if (ModelState.IsValid)
-            {
-              
-                string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                DataAccess.Entities.Event newEvent = new DataAccess.Entities.Event()
-                {
-                    EventId = Guid.NewGuid().ToString(),
-                    Creator = accId,
-                    EventName = info.EventName,
-                    Season = info.Season,
-                    Year = info.Year,
-                    IsActive = true,
-                  
-                };
-                bool isCreated = await _event.CreateEventAsync(newEvent);
-                if (isCreated)
-                {
-                    return Ok("Create event successfully");
-                }
-                else
-                {
-                    return BadRequest("Error while creating event");
-                }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            }
-            else
-            {
-                return BadRequest();
-            }
+            string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accId)) return Unauthorized("Not found Admin.");
+
+            bool isCreated = await _event.CreateEventAsync(info, accId);
+
+            if (isCreated) return Ok("Create event successfully");
+
+            return BadRequest("Error while creating event");
         }
 
         [Authorize(Roles = "Admin")]
@@ -62,21 +43,14 @@ namespace SEAL_Hackathon.Controllers
             return Ok(events);
         }
 
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                return BadRequest("Invalid event ID.");
-            }
+            if (string.IsNullOrEmpty(id)) return BadRequest("Invalid event ID.");
 
             var currentEvent = await _event.GetEventByIdAsync(id);
-
-            if (currentEvent == null)
-            {
-                return NotFound("No event found.");
-            }
+            if (currentEvent == null) return NotFound("No event found.");
 
             return Ok(currentEvent);
         }
@@ -85,47 +59,23 @@ namespace SEAL_Hackathon.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, UpdateEventAPIViewModel info)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var existingEvent = await _event.GetEventByIdAsync(id);
-            if (existingEvent == null)
-            {
-                return NotFound("No event found to update.");
-            }
+            bool isUpdated = await _event.UpdateEventAsync(id, info);
 
-            existingEvent.EventName = info.EventName;
-            existingEvent.Season = info.Season;
-            existingEvent.Year = info.Year;
+            if (isUpdated) return Ok("Event update successful!");
 
-
-            bool isUpdated = await _event.UpdateEventAsync(existingEvent);
-
-            if (isUpdated)
-            {
-                return Ok("Event update successful!");
-            }
-
-            return BadRequest("Error occurred during the event update process.");
+            return BadRequest("Error occurred during the event update process or event not found.");
         }
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                return BadRequest("Invalid event ID.");
-            }
+            if (string.IsNullOrEmpty(id)) return BadRequest("Invalid event ID.");
 
             bool isDeleted = await _event.DeleteEventAsync(id);
-
-            if (isDeleted)
-            {
-                return Ok("Event successfully deleted.");
-            }
+            if (isDeleted) return Ok("Event successfully deleted.");
 
             return BadRequest("The event was not found, or an error occurred while deleting.");
         }

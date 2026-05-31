@@ -1,4 +1,5 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Event;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -14,13 +15,22 @@ namespace Services.EventService
             _uow = uow;
         }
 
-        public async Task<bool> CreateEventAsync(Event newEvent)
+        public async Task<bool> CreateEventAsync(CreateEventAPIViewModel info, string accId)
         {
             try
             {
+                Event newEvent = new Event()
+                {
+                    EventId = Guid.NewGuid().ToString(),
+                    Creator = accId,
+                    EventName = info.EventName,
+                    Season = info.Season,
+                    Year = info.Year,
+                    IsActive = true,
+                };
+
                 await _uow.Event.AddAsync(newEvent);
                 await _uow.SaveAsync();
-
                 return true;
             }
             catch (Exception ex)
@@ -28,8 +38,6 @@ namespace Services.EventService
                 return false;
             }
         }
-
-        
 
         public async Task<List<Event>> GetAllEventsAsync()
         {
@@ -56,12 +64,19 @@ namespace Services.EventService
             }
         }
 
-        public async Task<bool> UpdateEventAsync(Event eventToUpdate)
+        public async Task<bool> UpdateEventAsync(string id, UpdateEventAPIViewModel info)
         {
             try
-            {      
-                _uow.Event.Update(eventToUpdate);
-                await _uow.SaveAsync(); 
+            {
+                var existingEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == id);
+                if (existingEvent == null) return false;
+
+                existingEvent.EventName = info.EventName;
+                existingEvent.Season = info.Season;
+                existingEvent.Year = info.Year;
+
+                _uow.Event.Update(existingEvent);
+                await _uow.SaveAsync();
                 return true;
             }
             catch (Exception ex)
@@ -75,11 +90,9 @@ namespace Services.EventService
             try
             {
                 var ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId.Equals(eventId));
-
                 if (ev == null) return false;
 
                 ev.IsActive = false;
-
                 _uow.Event.Update(ev);
                 await _uow.SaveAsync();
 
