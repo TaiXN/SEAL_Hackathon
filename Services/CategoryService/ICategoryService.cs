@@ -11,8 +11,7 @@ namespace Services.CategoryService
 
         Task<bool> CreateAsync(CreateCategoryAPIViewModel cateInfo, string creator);
         Task<bool> ChangeMentorAsync(ChangeMentorAPIViewModel mentorInfo);
-        Task<string> AddJudgeAsync(AddJudgeAPIViewModel judgesInfo);
-        Task<bool> RemoveJudgeAsync(RemoveJudgeAPIViewModel judgeInfo);
+        
         Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id);
         Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id, bool isActive);
     }

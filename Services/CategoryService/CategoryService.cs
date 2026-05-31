@@ -11,40 +11,52 @@ namespace Services.CategoryService
         {
             _uow = uow;
         }
+
+
+       
         public async Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id,bool isActive)
         {
             //check exist event 
-            List<Category> categories = await _uow.Category.GetAllAsync(q => q.EventId == id && q.IsActive == isActive, null, "Event,MentorNavigation");
-            if (categories != null && categories.Count > 0)
+            Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(q => q.EventId == id && q.IsActive);
+            if(eventDb != null)
             {
-                List<BasicCategoryAPIViewModel> result = new List<BasicCategoryAPIViewModel>();
-                foreach (Category cate in categories)
+                List<Category> categories = await _uow.Category.GetAllAsync(q => q.EventId == id && q.IsActive == isActive, null, "Event,MentorNavigation");
+                if (categories != null && categories.Count > 0)
                 {
-                    Account mentorAcc = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId == cate.MentorNavigation.AccountId);
-                    result.Add(new BasicCategoryAPIViewModel()
+                    List<BasicCategoryAPIViewModel> result = new List<BasicCategoryAPIViewModel>();
+                    foreach (Category cate in categories)
                     {
-                        CategoryId = cate.CategoryId,
-                        CategoryName = cate.CategoryName,
-                        Event = new APIViewModels.Event.BasicEventAPIViewModel()
+                        Account mentorAcc = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId == cate.MentorNavigation.AccountId);
+                        result.Add(new BasicCategoryAPIViewModel()
                         {
-                            Id = cate.Event.EventId,
-                            Name = cate.Event.EventName
-                        },
-                        IsActive = cate.IsActive,
-                        Mentor = new APIViewModels.Mentor.MentorAPIViewModel()
-                        {
-                            Id = cate.Mentor,
-                            Email = mentorAcc.Email,
-                            Name = mentorAcc.FullName
-                        }
-                    });
+                            CategoryId = cate.CategoryId,
+                            CategoryName = cate.CategoryName,
+                            Event = new APIViewModels.Event.BasicEventAPIViewModel()
+                            {
+                                Id = cate.Event.EventId,
+                                Name = cate.Event.EventName
+                            },
+                            IsActive = cate.IsActive,
+                            Mentor = new APIViewModels.Mentor.MentorAPIViewModel()
+                            {
+                                Id = cate.Mentor,
+                                Email = mentorAcc.Email,
+                                Name = mentorAcc.FullName
+                            }
+                        });
+                    }
+                    return result;
                 }
-                return result;
+                else
+                {
+                    return new List<BasicCategoryAPIViewModel>();
+                }
             }
             else
             {
                 return new List<BasicCategoryAPIViewModel>();
             }
+           
         }
 
         public async Task<List<BasicCategoryAPIViewModel>> GetAllByEventIdAsync(string id)
@@ -96,90 +108,7 @@ namespace Services.CategoryService
             }
         }
 
-        public async Task<bool> RemoveJudgeAsync(RemoveJudgeAPIViewModel judgeInfo)
-        {
-            //categroy
-            try
-            {
-                Category cate = await _uow.Category.GetFirstOrDefaultAsync(q=> q.CategoryId == judgeInfo.CategoryId);
-                if (cate != null)
-                {
-                    //check Judge exist
-                    Judge judge = await _uow.Judge.GetFirstOrDefaultAsync(q=> q.TeacherId == judgeInfo.TeacherId && q.CategoryId == judgeInfo.CategoryId);
-                    if(judge != null)
-                    {
-                        _uow.Judge.Remove(judge);
-                        await _uow.SaveAsync();
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else return false;
-            }
-            catch(Exception ex)
-            {
-                return false;
-            }
-        }
-        public async Task<string> AddJudgeAsync(AddJudgeAPIViewModel judgesInfo)
-        {
-            try
-            {
-                //check category exist
-                Category cate = await _uow.Category.GetFirstOrDefaultAsync(q=> q.CategoryId == judgesInfo.CategoryId, "Judges");
-                if(cate != null)
-                {
-                    foreach(CreateJudgeAPIViewModel judge in judgesInfo.NewJudges)
-                    {
-                        if(judge.TeacherId == cate.Mentor)
-                        {
-                            return $"Judge {judge.TeacherId} is already a mentor";
-                        }
-                        //check judge is teacher exist
-                        Teacher existed = await _uow.Teacher.GetFirstOrDefaultAsync(q => q.Id == judge.TeacherId);
-                        if(existed != null)
-                        {
-                            //check duplicate
-
-                            Judge judgeDb = cate.Judges.Where(q => q.TeacherId == judge.TeacherId).FirstOrDefault();
-                            if (judgeDb == null)
-                            {
-                                Judge newJudge = new Judge()
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    CategoryId = judgesInfo.CategoryId,
-                                    TeacherId = judge.TeacherId
-                                };
-                                await _uow.Judge.AddAsync(newJudge);
-                            }
-                            else
-                            {
-                                return $"Judge {judgeDb.TeacherId} is already assgined";
-                            }
-                        }
-                        else
-                        {
-                            return $"Judge {judge.TeacherId} is not existed";
-                        }
-                      
-                    }
-                    await _uow.SaveAsync();
-                    return "Ok";
-                }
-                else
-                {
-                    return string.Empty;
-                }
-            }
-            catch (Exception ex) {
-                return string.Empty;
-            }
-           
-        }
-
+        
         public async Task<bool> ChangeMentorAsync(ChangeMentorAPIViewModel mentorInfo)
         {
             try
