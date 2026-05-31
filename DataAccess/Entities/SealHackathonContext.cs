@@ -120,7 +120,7 @@ public partial class SealHackathonContext : DbContext
             entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("AdminID");
+                .HasColumnName("Creator");
             entity.Property(e => e.CategoryName).HasMaxLength(400);
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
@@ -212,7 +212,7 @@ public partial class SealHackathonContext : DbContext
             entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("AdminID");
+                .HasColumnName("Creator");
             entity.Property(e => e.DisqualifyReason).HasMaxLength(255);
             entity.Property(e => e.EventName).HasMaxLength(400);
             entity.Property(e => e.Season).HasMaxLength(50);
@@ -435,7 +435,7 @@ public partial class SealHackathonContext : DbContext
             entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("AdminID");
+                .HasColumnName("Creator");
             entity.Property(e => e.EndDate).HasColumnType("datetime");
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)

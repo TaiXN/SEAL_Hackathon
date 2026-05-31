@@ -158,5 +158,20 @@ namespace Services.TeamService
             return leaderboard;
         }
 
+        public async Task<DateTime?> GetCountdownDeadlineAsync()
+        {
+            // Lấy tất cả các vòng thi từ Database
+            var rounds = await _uow.Round.GetAllAsync();
+
+            // Lọc ra vòng thi chưa kết thúc và lấy cái gần nhất
+            var currentRound = rounds
+                .Where(r => r.EndDate > DateTime.Now)
+                .OrderBy(r => r.EndDate)
+                .FirstOrDefault();
+
+            // Nếu có vòng thi thì trả về EndDate, không thì trả về null
+            return currentRound?.EndDate;
+        }
+
     }
 }

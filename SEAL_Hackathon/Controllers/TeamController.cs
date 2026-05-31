@@ -113,6 +113,28 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest(new { Message = ex.Message });
             }
         }
+        [HttpGet("countdown")]
+        public async Task<IActionResult> GetCountdown()
+        {
+            try
+            {
+                var deadline = await _team.GetCountdownDeadlineAsync();
+
+                if (deadline == null)
+                {
+                    // Trả về null nếu giải đấu đã kết thúc hết hoặc chưa có data
+                    return Ok(new { message = "None event are happening.", deadline = (DateTime?)null });
+                }
+
+                // Trả về đúng cái mốc thời gian cho FE
+                return Ok(new { deadline = deadline });
+            }
+            catch (Exception ex)
+            {
+                // Áp dụng luôn chiêu bắt lỗi tận gốc lúc nãy
+                return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
+            }
+        }
 
 
     }

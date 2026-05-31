@@ -32,6 +32,8 @@ namespace DataAccess.Repositories.UnitOfWork
         public IPlayerRepository Player { get; private set; }
         public ICategoryRepository Category { get; private set; }
 
+
+
         public UnitOfWork(SealHackathonContext context)
         {
             _context = context;
@@ -46,6 +48,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Team = new TeamRepository.TeamRepository(context);
             Player = new PlayerRepository.PlayerRepository(context);
             Category = new CategoryRepository.CategoryRepository(context);
+
 
 
         }
