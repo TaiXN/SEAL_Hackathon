@@ -8,6 +8,7 @@ using Services.AccessTokenService;
 using Services.AccountService;
 using Services.AdminService;
 using Services.CategoryService;
+using Services.CriteriaService;
 using Services.EventService;
 using Services.JudgeService;
 using Services.RefreshTokenService;
@@ -54,7 +55,7 @@ namespace SEAL_Hackathon
             ValidateIssuerSigningKey = true,
             ValidIssuer = "SEAL",
             ValidAudience = "SEAL_Client",
-           IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("!@#!@#!@awodjasocdoajdxojasodj!@#!@$!@49293r913jdxadocans"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("!@#!@#!@awodjasocdoajdxojasodj!@#!@$!@49293r913jdxadocans"))
         };
     });
 
@@ -75,25 +76,26 @@ namespace SEAL_Hackathon
                 builder.RegisterType<EventService>().As<IEventService>();
                 builder.RegisterType<JudgeService>().As<IJudgeService>();
                 builder.RegisterType<CategoryService>().As<ICategoryService>();
+                builder.RegisterType<CriteriaService>().As<ICriteriaService>();
             });
 
             var app = builder.Build();
-          
-                // Add OpenAPI 3.0 document serving middleware
-                // Available at: http://localhost:<port>/swagger/v1/swagger.json
-                app.UseOpenApi();
 
-                // Add web UIs to interact with the document
-                // Available at: http://localhost:<port>/swagger
-                app.UseSwaggerUi(o =>
-                {
-                    o.Path = "";
-                }); // UseSwaggerUI Protected by if (env.IsDevelopment())
-                app.UseReDoc(options =>
-                {
-                    options.Path = "/redoc";
-                });
-           
+            // Add OpenAPI 3.0 document serving middleware
+            // Available at: http://localhost:<port>/swagger/v1/swagger.json
+            app.UseOpenApi();
+
+            // Add web UIs to interact with the document
+            // Available at: http://localhost:<port>/swagger
+            app.UseSwaggerUi(o =>
+            {
+                o.Path = "";
+            }); // UseSwaggerUI Protected by if (env.IsDevelopment())
+            app.UseReDoc(options =>
+            {
+                options.Path = "/redoc";
+            });
+
             // Configure the HTTP request pipeline.
 
             app.UseHttpsRedirection();

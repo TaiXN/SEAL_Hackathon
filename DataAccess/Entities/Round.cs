@@ -23,5 +23,7 @@ public partial class Round
 
     public bool IsActive { get; set; }
 
+    public virtual ICollection<Criterion> Criteria { get; set; } = new List<Criterion>();
+
     public virtual Event Event { get; set; } = null!;
 }

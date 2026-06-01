@@ -21,6 +21,8 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Category> Categories { get; set; }
 
+    public virtual DbSet<Criterion> Criteria { get; set; }
+
     public virtual DbSet<Event> Events { get; set; }
 
     public virtual DbSet<Judge> Judges { get; set; }
@@ -128,6 +130,26 @@ public partial class SealContext : DbContext
                 .HasForeignKey(d => d.Mentor)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Categories_Teacher");
+        });
+
+        modelBuilder.Entity<Criterion>(entity =>
+        {
+            entity.HasKey(e => e.CriteriaId);
+
+            entity.Property(e => e.CriteriaId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaID");
+            entity.Property(e => e.CriteriaName).HasMaxLength(100);
+            entity.Property(e => e.RoundId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("RoundID");
+
+            entity.HasOne(d => d.Round).WithMany(p => p.Criteria)
+                .HasForeignKey(d => d.RoundId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Criteria_Round");
         });
 
         modelBuilder.Entity<Event>(entity =>
@@ -303,6 +325,10 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
+            entity.Property(e => e.CategoryId)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("CategoryID");
             entity.Property(e => e.Description).HasMaxLength(255);
             entity.Property(e => e.TeamName).HasMaxLength(255);
         });

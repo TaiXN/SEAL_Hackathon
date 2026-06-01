@@ -256,7 +256,7 @@ namespace SEAL_Hackathon.Controllers
                 else
                 {
                     return BadRequest("Password is incorrect");
-                }         
+                }
             }
             else
             {

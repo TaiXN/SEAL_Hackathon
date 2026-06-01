@@ -11,6 +11,8 @@ public partial class Team
 
     public string Description { get; set; } = null!;
 
+    public string CategoryId { get; set; } = null!;
+
     public virtual ICollection<TeamJoined> TeamJoineds { get; set; } = new List<TeamJoined>();
 
     public virtual ICollection<UserTeam> UserTeams { get; set; } = new List<UserTeam>();

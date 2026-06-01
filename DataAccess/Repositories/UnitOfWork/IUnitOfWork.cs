@@ -1,6 +1,7 @@
 ﻿using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CategoryRepository;
+using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.JudgeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
@@ -21,6 +22,7 @@ namespace DataAccess.Repositories.UnitOfWork
         ICategoryRepository Category { get; }
         IEventRepository Event { get; }
         IJudgeRepository Judge { get; }
+        ICriteriaRepository Criteria { get; }
         Task SaveAsync();
     }
 }
