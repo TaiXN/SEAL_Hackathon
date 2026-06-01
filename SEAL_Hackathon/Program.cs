@@ -25,17 +25,21 @@ namespace SEAL_Hackathon
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
+            string[] allowOrigins = [];
             builder.Services.AddControllers();
+
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy(name: "_myAllowSpecificOrigins",
-                                  policy =>
-                                  {
-                                      policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-
-                                  });
+                options.AddDefaultPolicy(
+                    policy =>
+                    {
+                        policy.SetIsOriginAllowed(_ => true)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                    });
             });
+
             builder.Services.AddMemoryCache();
 
             builder.Services.AddOpenApiDocument();
@@ -95,7 +99,7 @@ namespace SEAL_Hackathon
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
-            app.UseCors("_myAllowSpecificOrigins");
+            app.UseCors();
 
 
             app.MapControllers();
