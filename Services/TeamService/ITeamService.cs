@@ -14,5 +14,15 @@ namespace Services.TeamService
         Task<List<APIViewModels.Team.LeaderboardViewModel>> GetLeaderboardAsync();
         Task<bool> CreateTeamAsync(string accountId, string teamName, string categoryId, string description);
         Task<DateTime?> GetCountdownDeadlineAsync();
+              
+        Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId);
+                
+        Task<bool> LeaveTeamAsync(string teamId, string requesterAccountId);
+        Task<bool> TransferLeaderRoleAsync(string teamId, string newLeaderPlayerId, string requesterAccountId);
+
+        Task<bool> JoinTeamDirectlyAsync(string teamId, string requesterAccountId);
+
+        Task<TeamDashboardViewModel> GetMyTeamDashboardAsync(string accountId);
     }
 }
+    

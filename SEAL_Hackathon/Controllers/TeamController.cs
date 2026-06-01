@@ -71,33 +71,41 @@ namespace SEAL_Hackathon.Controllers
 
 
 
-        [HttpPost("submit-track")] //tao link
-
+        [HttpPost("submit-track")]
         public async Task<IActionResult> SubmitTrack(SubmitTrackAPIViewModel info)
         {
             if (ModelState.IsValid)
-            { // kiem tra du lieu 
-                //ClaimTypes.NameIdentifier: Dòng chứa ID của người dùng" (Tương đương với cái chữ NameId lúc tạo thẻ).
-                // ==> find id and give id to accountID
-                string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            {
+                try
+                {
+                    // 1. Get user ID from Token
+                    string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                if (string.IsNullOrEmpty(accountId))
-                {
-                    return Unauthorized("please login");
-                }
+                    if (string.IsNullOrEmpty(accountId))
+                    {
+                        return Unauthorized(new { message = "Please login first." });
+                    }
 
-                bool isSuccess = await _team.SubmitTrackAsync(accountId, info.CategoryID);//lum trong teamService
-                if (isSuccess)
-                {
-                    return Ok("Team track has been confirmed");
+                    // 2. Call Service - It will throw an Exception if rules are violated (e.g. < 3 members)
+                    bool isSuccess = await _team.SubmitTrackAsync(accountId, info.CategoryID);
+
+                    if (isSuccess)
+                    {
+                        return Ok(new { message = "Team track has been confirmed successfully!" });
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = "Failed to confirm team track." });
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    return BadRequest("ERROR: cannot find team, or not you dont have permission");
+                    // 3. Catch the specific error from TeamService (e.g., "Your team must have at least 3 members...")
+                    return BadRequest(new { message = ex.Message });
                 }
             }
 
-            return BadRequest(ModelState);// exception error }
+            return BadRequest(ModelState);
         }
 
         [HttpGet("leaderboard")]
@@ -134,6 +142,88 @@ namespace SEAL_Hackathon.Controllers
                 // Áp dụng luôn chiêu bắt lỗi tận gốc lúc nãy
                 return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
             }
+        }
+
+        [Authorize]
+        [HttpDelete("{teamId}/kick/{memberPlayerId}")]
+        public async Task<IActionResult> KickMember(string teamId, string memberPlayerId)
+        {
+            try
+            {
+                // Lấy AccountId của người đang đăng nhập (Leader) từ JWT Token
+                string requesterAccountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(requesterAccountId)) return Unauthorized();
+
+                // Gọi Service để xử lý
+                await _team.KickMemberAsync(teamId, memberPlayerId, requesterAccountId);
+
+                return Ok(new { message = "successfully kicked!" });
+            }
+            catch (Exception ex)
+            {
+                // Nhả ra câu chửi (Lỗi) nếu vi phạm 3 chốt chặn ở trên
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPut("{teamId}/transfer-leader/{newLeaderPlayerId}")]
+        public async Task<IActionResult> TransferLeaderRole(string teamId, string newLeaderPlayerId)
+        {
+            try
+            {
+                // Extract AccountId from the current JWT token
+                string requesterAccountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(requesterAccountId)) return Unauthorized();
+
+                // Call the service to perform the role transfer
+                await _team.TransferLeaderRoleAsync(teamId, newLeaderPlayerId, requesterAccountId);
+
+                return Ok(new { message = "Leadership role has been successfully transferred!" });
+            }
+            catch (Exception ex)
+            {
+                // Return 400 Bad Request if any validation rule is violated
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{teamId}/join-via-link")]
+        public async Task<IActionResult> JoinTeamDirectly(string teamId)
+        {
+            try
+            {
+                // Extract AccountId from the current JWT token
+                string requesterAccountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(requesterAccountId)) return Unauthorized();
+
+                // Call the service to join the team directly
+                await _team.JoinTeamDirectlyAsync(teamId, requesterAccountId);
+
+                return Ok(new { message = "You have successfully joined the team!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        [Authorize]
+        [HttpGet("my-team-dashboard")]
+        public async Task<IActionResult> GetMyTeamDashboard()
+        {
+            string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountId)) return Unauthorized();
+
+            var dashboardInfo = await _team.GetMyTeamDashboardAsync(accountId);
+
+            if (dashboardInfo == null)
+                return NotFound(new { message = "You are not in any team." });
+
+            return Ok(dashboardInfo);
         }
 
 

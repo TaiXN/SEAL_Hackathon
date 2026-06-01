@@ -11,6 +11,7 @@ using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
+using DataAccess.Repositories.UserTeamRepository;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -31,6 +32,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITeamRepository Team { get; private set; }
         public IPlayerRepository Player { get; private set; }
         public ICategoryRepository Category { get; private set; }
+        public IUserTeamRepository UserTeam { get; private set; }
+
+       
 
 
 
@@ -48,6 +52,8 @@ namespace DataAccess.Repositories.UnitOfWork
             Team = new TeamRepository.TeamRepository(context);
             Player = new PlayerRepository.PlayerRepository(context);
             Category = new CategoryRepository.CategoryRepository(context);
+
+            UserTeam = new UserTeamRepository.UserTeamRepository(context);
 
 
 

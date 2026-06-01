@@ -12,5 +12,6 @@ namespace Services.AccountService
         Task<Account> GetAccountByIdAsync(string accountId);
         Task UpdateAccountAsync(Account account);
         Task<bool> UpdatePassword(string accId, string oldpassword, string newPassword);
+        Task<bool> RegisterPlayerAsync(APIViewModels.Auth.RegisterAPIViewModel info);
     }
 }

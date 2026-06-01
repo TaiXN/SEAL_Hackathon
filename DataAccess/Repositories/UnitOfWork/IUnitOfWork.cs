@@ -11,6 +11,7 @@ using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
+using DataAccess.Repositories.UserTeamRepository;
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,8 @@ namespace DataAccess.Repositories.UnitOfWork
         IEventRepository Event { get; }
         IPrizeRepository Prize { get; }
         IRoundRepository Round { get; }
+
+        IUserTeamRepository UserTeam { get; }
 
         Task SaveAsync();
     }

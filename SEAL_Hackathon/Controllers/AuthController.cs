@@ -258,5 +258,31 @@ namespace SEAL_Hackathon.Controllers
             }
             else return BadRequest();
         }
+
+        [AllowAnonymous]
+        [HttpPost("player/register")]
+        public async Task<IActionResult> PlayerRegister(RegisterAPIViewModel info)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    bool isSuccess = await _account.RegisterPlayerAsync(info);
+                    if (isSuccess)
+                    {
+                        return Ok(new { message = "Đăng ký tài khoản thí sinh thành công!" });
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = "Email này đã được sử dụng. Vui lòng chọn Email khác!" });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
+                }
+            }
+            return BadRequest(ModelState);
+        }
     }
 }

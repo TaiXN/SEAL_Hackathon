@@ -67,6 +67,54 @@ namespace Services.AccountService
 
         }
 
+        public async Task<bool> RegisterPlayerAsync(APIViewModels.Auth.RegisterAPIViewModel info)
+        {
+            // 1. Kiểm tra Email đã tồn tại trong hệ thống chưa
+            var existingAcc = await _uow.Account.GetFirstOrDefaultAsync(a => a.Email == info.Email);
+            if (existingAcc != null)
+            {
+                return false; // Email đã bị người khác đăng ký
+            }
+
+            // 2. Tìm RoleID của "Player" dưới Database
+            var playerRole = await _uow.Role.GetFirstOrDefaultAsync(r => r.RoleName == "Player");
+            if (playerRole == null)
+            {
+                throw new Exception("ERROR: cant find player in database");
+            }
+
+            // 3. Tạo tài khoản đăng nhập (Bảng Account)
+            string newAccountId = Guid.NewGuid().ToString();
+            var newAccount = new Account
+            {
+                AccountId = newAccountId,
+                RoleId = playerRole.RoleId,
+                Email = info.Email,
+                Password = HashBuilder.ComputeSha256Hash(info.Password + PRIVATEKEY),
+                FullName = info.FullName,
+                Address = info.Address,
+                Phone = info.Phone,
+                IsActive = true // Vừa đăng ký xong là cho hoạt động luôn
+            };
+            await _uow.Account.AddAsync(newAccount);
+
+            // 4. Tạo hồ sơ thí sinh (Bảng Player)
+            var newPlayer = new Player
+            {
+                PlayerId = Guid.NewGuid().ToString(),
+                AccountId = newAccountId,
+                UniversityId = info.UniversityId,
+                StudentId = info.StudentId,
+                IsApproved = true // Nếu cần admin duyệt thì set thành false, ở đây cho true luôn cho tiện
+            };
+            await _uow.Player.AddAsync(newPlayer);
+
+            // 5. Lưu toàn bộ xuống SQL Server
+            await _uow.SaveAsync();
+
+            return true;
+        }
+
 
     }
 }
