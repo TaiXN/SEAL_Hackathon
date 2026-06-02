@@ -7,11 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.AdminService;
+using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.TeacherService;
-using System.Text;
 using Services.TeamService;
+using System.Text;
 
 namespace SEAL_Hackathon
 {
@@ -71,6 +72,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
                 builder.RegisterType<TeamService>().As<ITeamService>();
+                builder.RegisterType<PlayerService>().As<IPlayerService>();
             });
 
             var app = builder.Build();

@@ -1,14 +1,15 @@
 ﻿using APIViewModels.Auth;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.RefreshTokenService;
 using System.Security.Claims;
-using Services.Utils;
+using System.Threading.Tasks;
+using System.Linq;
+using System;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -20,6 +21,7 @@ namespace SEAL_Hackathon.Controllers
         private readonly IAccessTokenService _accessToken;
         private readonly IRefreshTokenService _refreshToken;
         private readonly IMemoryCache _cache;
+
         public AuthController(IAccountService account, IAccessTokenService accessToken, IRefreshTokenService refreshToken, IMemoryCache cache)
         {
             _accessToken = accessToken;
@@ -35,7 +37,7 @@ namespace SEAL_Hackathon.Controllers
             string header = Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(header))
             {
-                string tokenValue = header.Split(" ")[1];// "BEARER asdosamdxosandiasn"
+                string tokenValue = header.Split(" ")[1];
                 if (!CheckBlackList(tokenValue))
                 {
                     string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -52,14 +54,13 @@ namespace SEAL_Hackathon.Controllers
                 {
                     return Unauthorized();
                 }
-
             }
             else
             {
                 return Unauthorized();
             }
-
         }
+
         private bool CheckBlackList(string tokenValue)
         {
             if (_cache.TryGetValue($"blacklist:{tokenValue}", out bool? cachedData))
@@ -68,7 +69,6 @@ namespace SEAL_Hackathon.Controllers
             }
             else
             {
-                // Không tìm thấy dữ liệu (Cache bị trống hoặc đã hết hạn)
                 return false;
             }
         }
@@ -80,20 +80,16 @@ namespace SEAL_Hackathon.Controllers
             string header = Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(header))
             {
-                string tokenValue = header.Split(" ")[1];// "BEARER asdosamdxosandiasn"
+                string tokenValue = header.Split(" ")[1];
                 string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                //add access token to blacklist
                 bool isRevoked = await _refreshToken.RevokeTokenAsync(accId);
                 if (isRevoked)
                 {
                     var cacheOptions = new MemoryCacheEntryOptions
                     {
-                        // Tự động xóa khỏi Cache khi Token tự hết hạn để giải phóng RAM
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
                     };
-
                     _cache.Set($"blacklist:{tokenValue}", true, cacheOptions);
-
                     return Ok(_cache.Get($"blacklist:{tokenValue}"));
                 }
                 else
@@ -102,8 +98,6 @@ namespace SEAL_Hackathon.Controllers
                 }
             }
             else return Unauthorized();
-
-
         }
 
         [AllowAnonymous]
@@ -114,13 +108,11 @@ namespace SEAL_Hackathon.Controllers
             {
                 try
                 {
-                    //check login
                     Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
                     if (accountDb != null)
                     {
                         if (accountDb.Role.RoleName.Equals("Teacher"))
                         {
-
                             string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
                             string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
                             return Ok(new LoginResultAPIViewModel()
@@ -135,16 +127,11 @@ namespace SEAL_Hackathon.Controllers
                         }
                     }
                     else return BadRequest("Email or password is incorrect");
-
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     return StatusCode(500, "Error occurred");
                 }
-
-                //check role
-                //generate access token
-                //generate refresh token
             }
             else return BadRequest();
         }
@@ -157,13 +144,11 @@ namespace SEAL_Hackathon.Controllers
             {
                 try
                 {
-                    //check login
                     Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
                     if (accountDb != null)
                     {
                         if (accountDb.Role.RoleName.Equals("Admin"))
                         {
-
                             string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
                             string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
                             return Ok(new LoginResultAPIViewModel()
@@ -178,16 +163,11 @@ namespace SEAL_Hackathon.Controllers
                         }
                     }
                     else return BadRequest("Email or password is incorrect");
-
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     return StatusCode(500, "Error occurred");
                 }
-
-                //check role
-                //generate access token
-                //generate refresh token
             }
             else return BadRequest();
         }
@@ -212,77 +192,12 @@ namespace SEAL_Hackathon.Controllers
                 else
                 {
                     return BadRequest("Password is incorrect");
-                }         
+                }
             }
             else
             {
                 return BadRequest("Password is incorrect");
             }
-        }
-
-        [AllowAnonymous]
-        [HttpPost("player/login")]
-        public async Task<IActionResult> PlayerLogin(LoginAPIViewModel info)
-        {
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    //check login
-                    Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
-                    if (accountDb != null)
-                    {
-                        // Kiểm tra đúng RoleName là "Player" (khớp với database của ông)
-                        if (accountDb.Role.RoleName.Equals("Player"))
-                        {
-                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
-                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
-                            return Ok(new LoginResultAPIViewModel()
-                            {
-                                AccessToken = accessToken,
-                                RefreshToken = refreshToken
-                            });
-                        }
-                        else
-                        {
-                            return Unauthorized("Tài khoản này không phải là Thí sinh (Player)!");
-                        }
-                    }
-                    else return BadRequest("Email or password is incorrect");
-
-                }
-                catch (Exception ex)
-                {
-                    return StatusCode(500, "Error occurred: " + ex.Message);
-                }
-            }
-            else return BadRequest();
-        }
-
-        [AllowAnonymous]
-        [HttpPost("player/register")]
-        public async Task<IActionResult> PlayerRegister(RegisterAPIViewModel info)
-        {
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    bool isSuccess = await _account.RegisterPlayerAsync(info);
-                    if (isSuccess)
-                    {
-                        return Ok(new { message = "Đăng ký tài khoản thí sinh thành công!" });
-                    }
-                    else
-                    {
-                        return BadRequest(new { message = "Email này đã được sử dụng. Vui lòng chọn Email khác!" });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
-                }
-            }
-            return BadRequest(ModelState);
         }
     }
 }

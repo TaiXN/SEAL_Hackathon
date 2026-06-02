@@ -148,24 +148,7 @@ namespace Services.TeamService
             return true;
         }
 
-        public async Task<List<APIViewModels.Team.LeaderboardViewModel>> GetLeaderboardAsync()
-        {
-            
-            var teams = await _uow.Team.GetAllAsync();
-
-            var leaderboard = teams
-                .Select(t => new APIViewModels.Team.LeaderboardViewModel
-                {
-                    TeamId = t.TeamId,
-                    TeamName = t.TeamName,
-                    CategoryName = "Chưa load được do kẹt Database",
-                    TotalScore = 0
-                })
-                .OrderByDescending(t => t.TotalScore)
-                .ToList();
-
-            return leaderboard;
-        }
+        
 
         public async Task<DateTime?> GetCountdownDeadlineAsync()
         {

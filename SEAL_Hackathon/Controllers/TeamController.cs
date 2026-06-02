@@ -108,19 +108,7 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest(ModelState);
         }
 
-        [HttpGet("leaderboard")]
-        public async Task<IActionResult> GetLeaderboard()
-        {
-            try
-            {
-                var result = await _team.GetLeaderboardAsync();
-                return Ok(result); 
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
-        }
+        
         [HttpGet("countdown")]
         public async Task<IActionResult> GetCountdown()
         {
