@@ -43,6 +43,16 @@ namespace SEAL_Hackathon.Controllers
                         {
                             string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
                             string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            CookieOptions cookieOptions = new CookieOptions
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+
                             return Ok(new LoginResultAPIViewModel()
                             {
                                 AccessToken = accessToken,
@@ -51,7 +61,7 @@ namespace SEAL_Hackathon.Controllers
                         }
                         else
                         {
-                            return Unauthorized("this account is not a player");
+                            return Unauthorized("This account is not a player");
                         }
                     }
                     else return BadRequest("Email or password is incorrect");

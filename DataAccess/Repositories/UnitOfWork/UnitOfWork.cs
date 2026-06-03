@@ -9,6 +9,7 @@ using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
+using DataAccess.Repositories.SubmittedTeamRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.UserTeamRepository;
@@ -33,8 +34,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public IPlayerRepository Player { get; private set; }
         public ICategoryRepository Category { get; private set; }
         public IUserTeamRepository UserTeam { get; private set; }
+        public ISubmittedTeamRepository SubmittedTeam { get; private set; }
 
-       
+
 
 
 
@@ -52,7 +54,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Team = new TeamRepository.TeamRepository(context);
             Player = new PlayerRepository.PlayerRepository(context);
             Category = new CategoryRepository.CategoryRepository(context);
-
+            SubmittedTeam = new SubmittedTeamRepository.SubmittedTeamRepository(context);
             UserTeam = new UserTeamRepository.UserTeamRepository(context);
 
 

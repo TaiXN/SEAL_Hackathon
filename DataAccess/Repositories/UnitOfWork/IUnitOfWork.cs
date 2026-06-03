@@ -9,6 +9,7 @@ using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
+using DataAccess.Repositories.SubmittedTeamRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.UserTeamRepository;
@@ -37,6 +38,7 @@ namespace DataAccess.Repositories.UnitOfWork
         IRoundRepository Round { get; }
 
         IUserTeamRepository UserTeam { get; }
+        ISubmittedTeamRepository SubmittedTeam { get; }
 
         Task SaveAsync();
     }

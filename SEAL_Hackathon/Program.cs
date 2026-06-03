@@ -10,6 +10,7 @@ using Services.AdminService;
 using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
+using Services.SubmittedTeamService;
 using Services.TeacherService;
 using Services.TeamService;
 using System.Text;
@@ -73,6 +74,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
                 builder.RegisterType<TeamService>().As<ITeamService>();
                 builder.RegisterType<PlayerService>().As<IPlayerService>();
+                builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
             });
 
             var app = builder.Build();

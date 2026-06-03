@@ -7,7 +7,7 @@ public partial class Team
 {
     public string TeamId { get; set; } = null!;
 
-    public string CategoryId { get; set; } = null!;
+    public string? CategoryId { get; set; }
 
     public string TeamName { get; set; } = null!;
 

@@ -53,6 +53,8 @@ public partial class SealHackathonContext : DbContext
 
     public virtual DbSet<UserTeam> UserTeams { get; set; }
 
+    public virtual DbSet<SubmittedTeam> SubmittedTeams { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Server=14.225.205.93;Database=SEAL;User Id=SEAL;Password=SEAL123!@#...;Encrypt=False;");
@@ -576,6 +578,44 @@ public partial class SealHackathonContext : DbContext
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__User_Team__TeamI__4AB81AF0");
+        });
+
+        modelBuilder.Entity<SubmittedTeam>(entity =>
+        {
+            entity.HasKey(e => e.SubmittedTeamId).HasName("PK_SubmittedTeam");
+
+            entity.ToTable("SubmittedTeam");
+
+            entity.Property(e => e.SubmittedTeamId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("SubmittedTeamID");
+
+            entity.Property(e => e.CategoryId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CategoryID");
+
+            entity.Property(e => e.TeamId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TeamID");
+
+            entity.Property(e => e.TopicName).HasMaxLength(500);
+
+            entity.Property(e => e.SubmitTime)
+                .HasColumnType("datetime")
+                .HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.Category).WithMany()
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SubmittedTeam_Category");
+
+            entity.HasOne(d => d.Team).WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SubmittedTeam_Team");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -322,30 +322,41 @@ namespace Services.TeamService
 
         public async Task<TeamDashboardViewModel> GetMyTeamDashboardAsync(string accountId)
         {
-            // 1. Find the player and their team mapping
+            // 1. Tìm thông tin Player
             var player = await _uow.Player.GetFirstOrDefaultAsync(p => p.AccountId == accountId, "UserTeams");
             if (player == null || player.UserTeams == null || !player.UserTeams.Any())
             {
-                return null; // Not in a team yet
+                return null; // Không có trong team nào
             }
 
             string teamId = player.UserTeams.FirstOrDefault().TeamId;
 
-            // 2. Fetch the team details (Include Category to get the Topic name)
-            // Assuming your Team entity has a navigation property named "Category"
-            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId, includeProperties: "Category");
+            // 2. Tìm Team (XÓA BỎ CÁI includeProperties: "Category" ĐI)
+            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            // 3. Count members
+            // 3. Tự thân vận động đi tìm Category Name
+            string categoryName = "Not selected yet";
+
+            // Nếu Đội trưởng đã chọn Category rồi (ID không bị rỗng)
+            if (!string.IsNullOrEmpty(team.CategoryId))
+            {
+                var category = await _uow.Category.GetFirstOrDefaultAsync(c => c.CategoryId == team.CategoryId);
+                if (category != null)
+                {
+                    categoryName = category.CategoryName; // Lấy đúng tên in ra
+                }
+            }
+
+            // 4. Đếm số thành viên
             var allMembers = await _uow.UserTeam.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
 
-            // 4. Return data for Frontend to display
+            // 5. Trả kết quả về cho Frontend
             return new TeamDashboardViewModel
             {
                 TeamName = team.TeamName,
-                // If CategoryId is null, it means the leader hasn't selected a track yet
-                CategoryName = team.Category != null ? team.Category.CategoryName : "Not selected yet",
+                CategoryName = categoryName,
                 Description = team.Description,
                 TotalMembers = memberCount
             };
