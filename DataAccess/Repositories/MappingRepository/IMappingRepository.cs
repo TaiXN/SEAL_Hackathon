@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace DataAccess.Repositories.CriteriaRepository
+namespace DataAccess.Repositories.MappingRepository
 {
-    public interface ICriteriaRepository : IRepository<Criterion>
+    public interface IMappingRepository : IRepository<Mapping>
     {
-        void Update(Criterion criteria);
+       void Update(Mapping mapping);
     }
 }

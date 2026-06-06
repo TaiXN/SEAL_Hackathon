@@ -5,14 +5,12 @@ using System.Text;
 
 namespace APIViewModels.Criteria
 {
-    public class CreateCriteriaAPIViewModel
+    public class UpdateCriterionAPIViewModel
     {
         [Required]
         public string CriteriaName { get; set; }
+       
         [Required]
-        public int Score { get; set; }
-        [Required]
-        public string RoundID { get; set; }
-
+        public string Description { get; set; }
     }
 }

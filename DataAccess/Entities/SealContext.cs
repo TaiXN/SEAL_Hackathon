@@ -21,11 +21,15 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Category> Categories { get; set; }
 
+    public virtual DbSet<CriteriaTemplate> CriteriaTemplates { get; set; }
+
     public virtual DbSet<Criterion> Criteria { get; set; }
 
     public virtual DbSet<Event> Events { get; set; }
 
     public virtual DbSet<Judge> Judges { get; set; }
+
+    public virtual DbSet<Mapping> Mappings { get; set; }
 
     public virtual DbSet<Player> Players { get; set; }
 
@@ -132,6 +136,17 @@ public partial class SealContext : DbContext
                 .HasConstraintName("FK_Categories_Teacher");
         });
 
+        modelBuilder.Entity<CriteriaTemplate>(entity =>
+        {
+            entity.ToTable("CriteriaTemplate");
+
+            entity.Property(e => e.CriteriaTemplateId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaTemplateID");
+            entity.Property(e => e.TemplateName).HasMaxLength(100);
+        });
+
         modelBuilder.Entity<Criterion>(entity =>
         {
             entity.HasKey(e => e.CriteriaId);
@@ -141,15 +156,7 @@ public partial class SealContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("CriteriaID");
             entity.Property(e => e.CriteriaName).HasMaxLength(100);
-            entity.Property(e => e.RoundId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("RoundID");
-
-            entity.HasOne(d => d.Round).WithMany(p => p.Criteria)
-                .HasForeignKey(d => d.RoundId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Criteria_Round");
+            entity.Property(e => e.Description).HasMaxLength(100);
         });
 
         modelBuilder.Entity<Event>(entity =>
@@ -165,6 +172,10 @@ public partial class SealContext : DbContext
             entity.Property(e => e.Creator)
                 .HasMaxLength(400)
                 .IsUnicode(false);
+            entity.Property(e => e.CriteriaTemplateId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaTemplateID");
             entity.Property(e => e.EventName).HasMaxLength(400);
             entity.Property(e => e.Season).HasMaxLength(50);
 
@@ -172,6 +183,11 @@ public partial class SealContext : DbContext
                 .HasForeignKey(d => d.Creator)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Event_Account");
+
+            entity.HasOne(d => d.CriteriaTemplate).WithMany(p => p.Events)
+                .HasForeignKey(d => d.CriteriaTemplateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Event_CriteriaTemplate");
         });
 
         modelBuilder.Entity<Judge>(entity =>
@@ -197,6 +213,32 @@ public partial class SealContext : DbContext
                 .HasForeignKey(d => d.TeacherId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Judge_Teacher");
+        });
+
+        modelBuilder.Entity<Mapping>(entity =>
+        {
+            entity.HasKey(e => new { e.CriteriaTemplateId, e.CriteriaId });
+
+            entity.ToTable("Mapping");
+
+            entity.Property(e => e.CriteriaTemplateId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaTemplateID");
+            entity.Property(e => e.CriteriaId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaID");
+
+            entity.HasOne(d => d.Criteria).WithMany(p => p.Mappings)
+                .HasForeignKey(d => d.CriteriaId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Mapping_Criteria");
+
+            entity.HasOne(d => d.CriteriaTemplate).WithMany(p => p.Mappings)
+                .HasForeignKey(d => d.CriteriaTemplateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Mapping_CriteriaTemplate");
         });
 
         modelBuilder.Entity<Player>(entity =>

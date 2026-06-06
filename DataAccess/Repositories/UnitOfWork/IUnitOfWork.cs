@@ -2,8 +2,10 @@
 using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.CriteriaRepository;
+using DataAccess.Repositories.CriteriaTemplateRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.JudgeRepository;
+using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
@@ -23,6 +25,9 @@ namespace DataAccess.Repositories.UnitOfWork
         IEventRepository Event { get; }
         IJudgeRepository Judge { get; }
         ICriteriaRepository Criteria { get; }
+        IMappingRepository Mapping { get; }
+        ICriteriaTemplateRepository CriteriaTemplate { get; }
+       
         Task SaveAsync();
     }
 }

@@ -7,7 +7,7 @@ using System.Text;
 
 namespace DataAccess.Repositories.CriteriaRepository
 {
-    public class CriteriaRepository: Repository<Criterion>, ICriteriaRepository
+    public class CriteriaRepository : Repository<Criterion>, ICriteriaRepository
     {
         private readonly SealContext _db;
         public CriteriaRepository(SealContext db) : base(db)

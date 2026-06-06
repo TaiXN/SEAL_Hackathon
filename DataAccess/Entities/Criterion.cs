@@ -9,11 +9,9 @@ public partial class Criterion
 
     public string CriteriaName { get; set; } = null!;
 
-    public int Score { get; set; }
-
-    public string RoundId { get; set; } = null!;
+    public string Description { get; set; } = null!;
 
     public bool IsActive { get; set; }
 
-    public virtual Round Round { get; set; } = null!;
+    public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
 }

@@ -3,8 +3,10 @@ using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.CriteriaRepository;
+using DataAccess.Repositories.CriteriaTemplateRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.JudgeRepository;
+using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
@@ -25,6 +27,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public ICategoryRepository Category { get; private set; }
         public IJudgeRepository Judge { get; private set; }
         public ICriteriaRepository Criteria { get; private set; }
+        public IMappingRepository Mapping { get; private set; }
+        public ICriteriaTemplateRepository CriteriaTemplate { get; private set; }
+
 
         public UnitOfWork(SealContext context)
         {
@@ -39,6 +44,8 @@ namespace DataAccess.Repositories.UnitOfWork
             Category = new CategoryRepository.CategoryRepository(context);
             Judge = new JudgeRepository.JudgeRepository(context);
             Criteria = new CriteriaRepository.CriteriaRepository(context);
+            Mapping = new MappingRepository.MappingRepository(context);
+            CriteriaTemplate = new CriteriaTemplateRepository.CriteriaTemplateRepository(context);
         }
 
         public async Task SaveAsync()

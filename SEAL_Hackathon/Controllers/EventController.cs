@@ -1,4 +1,5 @@
 ﻿using APIViewModels.Event;
+using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.AdminService;
@@ -39,7 +40,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var events = await _event.GetAllEventsAsync();
+            List<Event> events = await _event.GetAllEventsAsync();
             return Ok(events);
         }
 
@@ -49,7 +50,7 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid event ID.");
 
-            var currentEvent = await _event.GetEventByIdAsync(id);
+            Event currentEvent = await _event.GetEventByIdAsync(id);
             if (currentEvent == null) return NotFound("No event found.");
 
             return Ok(currentEvent);
@@ -78,6 +79,31 @@ namespace SEAL_Hackathon.Controllers
             if (isDeleted) return Ok("Event successfully deleted.");
 
             return BadRequest("The event was not found, or an error occurred while deleting.");
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{eventID}/nextround")]
+        public async Task<IActionResult> NextRound(string eventID)
+        {
+           
+            if (string.IsNullOrEmpty(eventID))
+            {
+                return BadRequest("Invalid event ID.");
+            }
+
+           
+            bool isPromoted = await _event.NextRound(eventID);
+
+            
+            if (isPromoted)
+            {
+                return Ok("Advancement successful! The event has been moved to the next round.");
+            }
+            else
+            {
+                return BadRequest("It's not possible to advance to the next round. The event may no longer exist, or the final round may have already been reached.");
+            }
         }
     }
 }

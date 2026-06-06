@@ -5,17 +5,13 @@ namespace DataAccess.Entities;
 
 public partial class Mapping
 {
-    public string MappingId { get; set; } = null!;
+    public string CriteriaTemplateId { get; set; } = null!;
 
-    public string EventId { get; set; } = null!;
+    public string CriteriaId { get; set; } = null!;
 
-    public string CategoryId { get; set; } = null!;
+    public int Score { get; set; }
 
-    public string MentorId { get; set; } = null!;
+    public virtual Criterion Criteria { get; set; } = null!;
 
-    public virtual Category Category { get; set; } = null!;
-
-    public virtual Event Event { get; set; } = null!;
-
-    public virtual Teacher Mentor { get; set; } = null!;
+    public virtual CriteriaTemplate CriteriaTemplate { get; set; } = null!;
 }

@@ -1,7 +1,10 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Event;
+using APIViewModels.Round;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Text;
 
 namespace Services.RoundService
@@ -14,14 +17,38 @@ namespace Services.RoundService
         {
             _uow = uow;
         }
-
-        public async Task<bool> CreateRoundAsync(Round newRound)
+        
+        public async Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID)
         {
             try
             {
+                if (info.StartDate >= info.EndDate)
+                {
+                    return false;
+                }
+
+                if (info.StartDate < DateTime.Now)
+                {
+                    return false;
+                }
+
+                List<Round> count = await _uow.Round.GetAllAsync(e => e.EventId == info.EventID);
+                int RoundIndex = count.Count() + 1;
+                Round newRound = new Round()
+                {
+                    RoundId = Guid.NewGuid().ToString(),
+                    EventId = info.EventID,
+                    Creator = accID,
+                    RoundName = info.RoundName,
+                    StartDate = info.StartDate,
+                    EndDate = info.EndDate,
+                    TopNpromotion = info.TopNPromotion,
+                    MaxTeam = info.MaxTeam,
+                    IsActive = true,
+                    RoundIndex = RoundIndex
+                };
                 await _uow.Round.AddAsync(newRound);
                 await _uow.SaveAsync();
-
                 return true;
             }
             catch (Exception ex)
@@ -29,6 +56,7 @@ namespace Services.RoundService
                 return false;
             }
         }
+
         public async Task<List<Round>> GetAllRoundsAsync()
         {
             try
@@ -54,11 +82,34 @@ namespace Services.RoundService
             }
         }
 
-        public async Task<bool> UpdateRoundAsync(Round roundToUpdate)
+        public async Task<bool> UpdateRoundAsync(string id, UpdateRoundAPIViewModel info)
         {
             try
             {
-                _uow.Round.Update(roundToUpdate);
+                var roundDb = await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId.Equals(id));
+                if (roundDb == null)
+                {
+                    return false;
+                }
+
+                if (info.StartDate >= info.EndDate)
+                {
+                    return false;
+                }
+
+                if (info.StartDate < DateTime.Now)
+                {
+                    return false;
+                }
+
+                roundDb.EventId = info.EventID;
+                roundDb.RoundName = info.RoundName;
+                roundDb.StartDate = info.StartDate;
+                roundDb.EndDate = info.EndDate;
+                roundDb.TopNpromotion = info.TopNPromotion;
+                roundDb.MaxTeam = info.MaxTeam;
+
+                _uow.Round.Update(roundDb);
                 await _uow.SaveAsync();
                 return true;
             }
@@ -72,13 +123,11 @@ namespace Services.RoundService
         {
             try
             {
-                var round = await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId.Equals(roundID));
+                var result = await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId.Equals(roundID));
+                if (result == null) return false;
 
-                if (round == null) return false;
-
-                round.IsActive = false;
-
-                _uow.Round.Update(round);
+                result.IsActive = false;
+                _uow.Round.Update(result);
                 await _uow.SaveAsync();
 
                 return true;
@@ -88,8 +137,6 @@ namespace Services.RoundService
                 return false;
             }
         }
-
-
 
     }
 }

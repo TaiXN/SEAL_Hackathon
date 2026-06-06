@@ -14,5 +14,6 @@ namespace DataAccess.Repositories.RepositoryBase
         Task Remove(string id);
         void Remove(T entity);
         void RemoveRange(IEnumerable<T> entity);
+        Task AddRangeAsync(IEnumerable<T> entities);
     }
 }
