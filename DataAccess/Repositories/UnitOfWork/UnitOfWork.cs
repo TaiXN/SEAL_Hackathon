@@ -1,7 +1,7 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
-using DataAccess.Repositories.CategoryRepository;
+
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.PlayerRepository;
 using DataAccess.Repositories.PrizeRepository;
@@ -12,6 +12,8 @@ using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.SubmittedTeamRepository;
 using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamRepository;
+using DataAccess.Repositories.TopicRepository;
+using DataAccess.Repositories.TrackRepository;
 using DataAccess.Repositories.UserTeamRepository;
 using System;
 using System.Collections.Generic;
@@ -32,9 +34,10 @@ namespace DataAccess.Repositories.UnitOfWork
         public IRoundRepository Round { get; private set; }
         public ITeamRepository Team { get; private set; }
         public IPlayerRepository Player { get; private set; }
-        public ICategoryRepository Category { get; private set; }
         public IUserTeamRepository UserTeam { get; private set; }
         public ISubmittedTeamRepository SubmittedTeam { get; private set; }
+        public ITrackRepository Track { get; private set; }
+        public ITopicRepository Topic { get; private set; }
 
 
 
@@ -53,9 +56,11 @@ namespace DataAccess.Repositories.UnitOfWork
             Round = new RoundRepository.RoundRepository(context);
             Team = new TeamRepository.TeamRepository(context);
             Player = new PlayerRepository.PlayerRepository(context);
-            Category = new CategoryRepository.CategoryRepository(context);
             SubmittedTeam = new SubmittedTeamRepository.SubmittedTeamRepository(context);
             UserTeam = new UserTeamRepository.UserTeamRepository(context);
+
+            Track = new TrackRepository.TrackRepository(context);
+            Topic = new TopicRepository.TopicRepository(context);
 
 
 

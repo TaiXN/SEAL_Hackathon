@@ -49,106 +49,46 @@ namespace Services.TeamService
             }
             return result;
         }
-        public async Task<bool> SubmitTrackAsync(string accountId, string categoryId)
+
+        public async Task<bool> CreateTeamAsync(string accountId, string teamName)
         {
-            // 1. Find the player who called the API
-            var player = await _uow.Player.GetFirstOrDefaultAsync(p => p.AccountId == accountId, "UserTeams");
-            if (player == null || player.UserTeams == null || !player.UserTeams.Any())
+            if (string.IsNullOrWhiteSpace(teamName))
             {
-                throw new Exception("You are not currently in any team!");
+                throw new Exception("Team name cannot be empty");
             }
 
-            // 2. Verify that the requester is the Team Leader
-            var currentTeamMapping = player.UserTeams.FirstOrDefault(ut => ut.IsLeader == true);
-            if (currentTeamMapping == null)
-            {
-                throw new Exception("Only the Team Leader can select the Topic and Track!");
-            }
-
-            string teamId = currentTeamMapping.TeamId;
-
-            // 3. Count current team members BEFORE allowing topic selection
-            var allMembers = await _uow.UserTeam.GetAllAsync();
-            var memberCount = allMembers.Count(ut => ut.TeamId == teamId);
-
-            // THE MINIMUM 3 MEMBERS RULE GOES HERE!
-            if (memberCount < 3)
-            {
-                throw new Exception($"Your team currently has {memberCount} member(s). You must have at least 3 members to select a Track & Topic! Please invite more teammates.");
-            }
-
-            // 4. Find the team to update
-            Team team = await _uow.Team.GetAsync(teamId);
-            if (team == null)
-            {
-                throw new Exception("The team does not exist!");
-            }
-
-            // 5. Update the CategoryId (Topic/Track)
-            team.CategoryId = categoryId;
-
-            _uow.Team.Update(team);
-            await _uow.SaveAsync();
-
-            return true;
-        }
-
-        public async Task<bool> CreateTeamAsync(string accountId, string teamName, string categoryId, string description)
-        {
-            if (string.IsNullOrWhiteSpace(teamName) || string.IsNullOrWhiteSpace(categoryId))
-            {
-                throw new Exception("team name and track cant not be empty");
-            }
-
-            //var checkCategory = await _uow.Category.GetFirstOrDefaultAsync(c => c.CategoryId == categoryId);
-            //if (checkCategory == null)
-            //{
-            //    throw new Exception("Hạng mục thi đấu này không tồn tại trên hệ thống!");
-            //}
-
-            // 1. Tìm thằng đang đăng nhập
             var player = await _uow.Player.GetFirstOrDefaultAsync(p => p.AccountId == accountId, "UserTeams");
             if (player == null) return false;
 
-            // 2. Luật số 1: Đã có nhóm rồi thì nghỉ tạo nhóm mới!
             if (player.UserTeams != null && player.UserTeams.Any())
             {
                 return false;
             }
 
-            // 3. Chuẩn bị mã ID mới
             string newTeamId = Guid.NewGuid().ToString();
 
-            // 4. Tạo hồ sơ chức vụ (Đội trưởng) - Ép kiểu bool cho InviteStatus
             var leaderMapping = new UserTeam
             {
                 TeamId = newTeamId,
                 PlayerId = player.PlayerId,
                 IsLeader = true,
-                InviteStatus = true // Sửa thành true cho hết báo lỗi convert int to bool
+                InviteStatus = true
             };
 
-            // 5. Khởi tạo Đội mới VÀ nhét luôn thằng Đội trưởng vào trong "Bụng" của cái Đội này
             var newTeam = new Team
             {
                 TeamId = newTeamId,
                 TeamName = teamName,
-                CategoryId = categoryId,
-                Description = description,
-                // TUYỆT CHIÊU LÀ Ở ĐÂY: Khởi tạo danh sách UserTeams ngay lúc tạo Đội
                 UserTeams = new List<UserTeam> { leaderMapping }
             };
 
-            // 6. Lưu xuống Database (Lưu thằng Cha, EF Core sẽ tự động tìm và lưu luôn thằng Con)
             await _uow.Team.AddAsync(newTeam);
-
-            // 7. Chốt đơn
             await _uow.SaveAsync();
 
             return true;
         }
 
-        
+
 
         public async Task<DateTime?> GetCountdownDeadlineAsync()
         {
@@ -208,20 +148,47 @@ namespace Services.TeamService
 
             // 2. Tìm cái dòng của người này trong đội
             var memberRecord = await _uow.UserTeam.GetFirstOrDefaultAsync(ut => ut.TeamId == teamId && ut.PlayerId == requester.PlayerId);
-            if (memberRecord == null) throw new Exception("you not in this team");
+            if (memberRecord == null) throw new Exception("You are not in this team.");
 
-            // 3. Nếu là Leader đòi out, bắt buộc phải nhường chức hoặc team chỉ còn 1 mình
+            // Đếm xem team còn bao nhiêu người
+            var teamMembers = await _uow.UserTeam.GetAllAsync();
+            var count = teamMembers.Count(ut => ut.TeamId == teamId);
+
+            // 3. Nếu là LEADER đòi out
             if (memberRecord.IsLeader == true)
             {
-                // Đếm xem team còn ai không
-                var teamMembers = await _uow.UserTeam.GetAllAsync();
-                var count = teamMembers.Count(ut => ut.TeamId == teamId);
-
                 if (count > 1)
-                    throw new Exception("you are the team leader. please transfer leader role to someone else");
+                {
+                    // Trường hợp A: Nhóm đông người -> Bắt buộc nhường ngôi
+                    throw new Exception("You are the team leader. Please transfer the leader role to someone else before leaving.");
+                }
+                else
+                {
+                    // Trường hợp B: Nhóm CÓ 1 MÌNH -> GIẢI TÁN LUÔN ĐỘI THI
+
+                    // B1. Xóa đơn đăng ký đề tài (nếu đã nộp)
+                    var submittedRecord = await _uow.SubmittedTeam.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
+                    if (submittedRecord != null)
+                    {
+                        _uow.SubmittedTeam.Remove(submittedRecord);
+                    }
+
+                    // B2. Xóa thành viên cuối cùng
+                    _uow.UserTeam.Remove(memberRecord);
+
+                    // B3. Xóa sổ luôn cái Đội
+                    var teamToDelete = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+                    if (teamToDelete != null)
+                    {
+                        _uow.Team.Remove(teamToDelete);
+                    }
+
+                    await _uow.SaveAsync();
+                    return true; // Giải tán thành công!
+                }
             }
 
-            // 4. Xóa khỏi đội
+            // 4. Nếu chỉ là thành viên bình thường (Member) thì cứ xách balo lên và đi thôi
             _uow.UserTeam.Remove(memberRecord);
             await _uow.SaveAsync();
 
@@ -331,20 +298,35 @@ namespace Services.TeamService
 
             string teamId = player.UserTeams.FirstOrDefault().TeamId;
 
-            // 2. Tìm Team (XÓA BỎ CÁI includeProperties: "Category" ĐI)
+            // 2. Tìm Team
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            // 3. Tự thân vận động đi tìm Category Name
+            // 3. ĐI TÌM TRACK & TOPIC (TỪ BẢNG SUBMITTED TEAM)
             string categoryName = "Not selected yet";
 
-            // Nếu Đội trưởng đã chọn Category rồi (ID không bị rỗng)
-            if (!string.IsNullOrEmpty(team.CategoryId))
+            // Tìm xem team này đã nộp đơn vào SubmittedTeam chưa
+            var submittedProject = await _uow.SubmittedTeam.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
+
+            // Dùng TrackId thay vì CategoryId
+            if (submittedProject != null && !string.IsNullOrEmpty(submittedProject.TrackId))
             {
-                var category = await _uow.Category.GetFirstOrDefaultAsync(c => c.CategoryId == team.CategoryId);
-                if (category != null)
+                // Gọi _uow.Track thay vì _uow.Category
+                var track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
+                if (track != null)
                 {
-                    categoryName = category.CategoryName; // Lấy đúng tên in ra
+                    // Nối tên Track và Topic lại để Frontend hiển thị cho đẹp
+                    categoryName = track.TrackName;
+
+                    // ĐÃ FIX: Dùng TopicId để chọc xuống DB lấy TopicDetail, không xài TopicName nữa!
+                    if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                    {
+                        var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
+                        if (topic != null)
+                        {
+                            categoryName += " - " + topic.TopicDetail;
+                        }
+                    }
                 }
             }
 
@@ -356,11 +338,51 @@ namespace Services.TeamService
             return new TeamDashboardViewModel
             {
                 TeamName = team.TeamName,
-                CategoryName = categoryName,
-                Description = team.Description,
+                CategoryName = categoryName, // Trả về dạng: "Tên Track - Tên Topic"
                 TotalMembers = memberCount
             };
         }
+
+
+        public async Task<bool> UpdateTeamInfoAsync(string accountId, UpdateTeamAPIViewModel request)
+        {
+            // 1. Find the player and their current team
+            var player = await _uow.Player.GetFirstOrDefaultAsync(p => p.AccountId == accountId, "UserTeams");
+            if (player == null || player.UserTeams == null || !player.UserTeams.Any())
+            {
+                throw new Exception("You are not in any team!");
+            }
+
+            var myTeamInfo = player.UserTeams.FirstOrDefault();
+
+            // 2. Enforce the Leader rule
+            if (!myTeamInfo.IsLeader)
+            {
+                throw new Exception("Only the Team Leader can update the team information.");
+            }
+
+            // 3. (Optional) Check if they already submitted a project
+            var existingSubmit = await _uow.SubmittedTeam.GetFirstOrDefaultAsync(s => s.TeamId == myTeamInfo.TeamId);
+            if (existingSubmit != null)
+            {
+                throw new Exception("You cannot change the team name after submitting your project to the judges.");
+            }
+
+            // 4. Fetch the actual Team record and update it
+            var teamToUpdate = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == myTeamInfo.TeamId);
+            if (teamToUpdate != null)
+            {
+                teamToUpdate.TeamName = request.TeamName;
+
+                _uow.Team.Update(teamToUpdate);
+                await _uow.SaveAsync();
+                return true;
+            }
+
+            return false;
+        }
+
+
 
 
 

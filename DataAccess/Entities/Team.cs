@@ -7,13 +7,8 @@ public partial class Team
 {
     public string TeamId { get; set; } = null!;
 
-    public string? CategoryId { get; set; }
-
     public string TeamName { get; set; } = null!;
 
-    public string Description { get; set; } = null!;
-
-    public virtual Category Category { get; set; } = null!;
 
     public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
 

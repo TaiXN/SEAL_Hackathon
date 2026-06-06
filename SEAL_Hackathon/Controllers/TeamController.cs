@@ -1,9 +1,10 @@
 using APIViewModels.Team;
+using Azure.Core;
 using DataAccess.Repositories.TeamRepository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using Services.TeamService;
+using System.Security.Claims;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -32,7 +33,7 @@ namespace SEAL_Hackathon.Controllers
                 }
 
                 // Gọi hàm xử lý dưới Service
-                bool isSuccess = await _team.CreateTeamAsync(accountId, request.TeamName, request.CategoryId, request.Description);
+                bool isSuccess = await _team.CreateTeamAsync(accountId, request.TeamName);
 
                 if (isSuccess)
                 {
@@ -45,24 +46,23 @@ namespace SEAL_Hackathon.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "SEVER ERROR: " + ex.Message });
+                return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
             }
         }
 
         [HttpGet("my-team")]
         public async Task<IActionResult> GetMyTeam()
         {
-            //FindFirst(...): read from token/cookie while GetFirstOrDefaultAsync read from DB
             string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(accountId))
                 return Unauthorized("please sign up/sign in!");
 
+            // Trả lại đúng tên hàm cũ cho nó nè
             var teamList = await _team.GetMyTeamAsync(accountId);
 
             if (teamList == null)
             {
-
                 return NotFound("you not in any team");
             }
 
@@ -71,44 +71,6 @@ namespace SEAL_Hackathon.Controllers
 
 
 
-        [HttpPost("submit-track")]
-        public async Task<IActionResult> SubmitTrack(SubmitTrackAPIViewModel info)
-        {
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    // 1. Get user ID from Token
-                    string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                    if (string.IsNullOrEmpty(accountId))
-                    {
-                        return Unauthorized(new { message = "Please login first." });
-                    }
-
-                    // 2. Call Service - It will throw an Exception if rules are violated (e.g. < 3 members)
-                    bool isSuccess = await _team.SubmitTrackAsync(accountId, info.CategoryID);
-
-                    if (isSuccess)
-                    {
-                        return Ok(new { message = "Team track has been confirmed successfully!" });
-                    }
-                    else
-                    {
-                        return BadRequest(new { message = "Failed to confirm team track." });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // 3. Catch the specific error from TeamService (e.g., "Your team must have at least 3 members...")
-                    return BadRequest(new { message = ex.Message });
-                }
-            }
-
-            return BadRequest(ModelState);
-        }
-
-        
         [HttpGet("countdown")]
         public async Task<IActionResult> GetCountdown()
         {
@@ -212,6 +174,53 @@ namespace SEAL_Hackathon.Controllers
                 return NotFound(new { message = "You are not in any team." });
 
             return Ok(dashboardInfo);
+        }
+
+        [Authorize]
+        [HttpPut("update-info")]
+        public async Task<IActionResult> UpdateTeamInfo(UpdateTeamAPIViewModel request)
+        {
+            try
+            {
+                string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(accountId)) return Unauthorized();
+
+                bool isSuccess = await _team.UpdateTeamInfoAsync(accountId, request);
+                if (isSuccess)
+                {
+                    return Ok(new { message = "Team information updated successfully!" });
+                }
+                return BadRequest("Could not update team information.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("{teamId}/leave")]
+        public async Task<IActionResult> LeaveTeam(string teamId)
+        {
+            try
+            {
+                // 1. Lấy AccountId của người đang đăng nhập từ Token
+                string requesterAccountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrEmpty(requesterAccountId))
+                    return Unauthorized(new { message = "User information not found." });
+
+                // 2. Gọi hàm dưới Service (Đã có sẵn luồng check Leader nhường chức)
+                await _team.LeaveTeamAsync(teamId, requesterAccountId);
+
+                // 3. Trả về thành công nếu qua ải
+                return Ok(new { message = "You have successfully left the team!" });
+            }
+            catch (Exception ex)
+            {
+                // 4. Nếu là Leader mà chưa nhường chức, hoặc chưa có team, văng lỗi ngay đây
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
 

@@ -1,15 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace APIViewModels.TeamProject
+﻿namespace APIViewModels.TeamProject
 {
     public class SubmitProjectAPIViewModel
     {
-        
-        public string CategoryId { get; set; }
-
-        
-        public string TopicName { get; set; }
-
-        public string Description { get; set; }
+        public string TrackId { get; set; }
+        public string TopicId { get; set; }
     }
 }

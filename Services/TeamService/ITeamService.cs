@@ -9,10 +9,10 @@ namespace Services.TeamService
 {
     public interface ITeamService
     {
-        Task<bool> SubmitTrackAsync(string teamId, string CategoryId);
+        //Task<bool> SubmitTrackAsync(string teamId, string CategoryId);
         Task<List<MyTeamMemberViewModel>> GetMyTeamAsync(string accountId);
-        
-        Task<bool> CreateTeamAsync(string accountId, string teamName, string categoryId, string description);
+
+        Task<bool> CreateTeamAsync(string accountId, string teamName);
         Task<DateTime?> GetCountdownDeadlineAsync();
               
         Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId);
@@ -23,6 +23,11 @@ namespace Services.TeamService
         Task<bool> JoinTeamDirectlyAsync(string teamId, string requesterAccountId);
 
         Task<TeamDashboardViewModel> GetMyTeamDashboardAsync(string accountId);
+
+        //Task<UpdateTeamAPIViewModel> UpdateTeamInfoAsync(string teamName, string description);
+        Task<bool> UpdateTeamInfoAsync(string accountId, UpdateTeamAPIViewModel request);
+
+
     }
 }
     

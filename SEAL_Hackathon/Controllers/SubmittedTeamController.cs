@@ -10,6 +10,7 @@ namespace SEAL_Hackathon.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Player")] 
     public class SubmittedTeamController : ControllerBase
     {
         private readonly ISubmittedTeamService _submittedTeam;
@@ -19,26 +20,24 @@ namespace SEAL_Hackathon.Controllers
             _submittedTeam = submittedTeam;
         }
 
-        [Authorize]
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitProject(SubmitProjectAPIViewModel request)
         {
             try
             {
-                // Lấy AccountId từ Token JWT
                 string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
                 bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, request);
                 if (isSuccess)
                 {
-                    return Ok(new { message = "Track submited successfully" });
+                    return Ok(new { message = "Track submitted successfully!" });
                 }
-                return BadRequest("cannot submit track");
+                return BadRequest(new { message = "Cannot submit track." });
             }
             catch (Exception ex)
             {
-                // Bắt chính xác lỗi (chưa đủ 3 người, không phải leader...) trả về Frontend
+                // In thẳng lỗi do Service ném ra (VD: chưa đủ 3 người)
                 return BadRequest(new { message = ex.Message });
             }
         }

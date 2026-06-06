@@ -1,10 +1,10 @@
-﻿using APIViewModels.TeamProject;
-using System.Threading.Tasks;
+﻿    using APIViewModels.TeamProject;
+    using System.Threading.Tasks;
 
-namespace Services.SubmittedTeamService
-{
-    public interface ISubmittedTeamService
+    namespace Services.SubmittedTeamService
     {
-        Task<bool> SubmitTopicAsync(string accountId, SubmitProjectAPIViewModel request);
+        public interface ISubmittedTeamService
+        {
+            Task<bool> SubmitTopicAsync(string accountId, SubmitProjectAPIViewModel request);
+        }
     }
-}

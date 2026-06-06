@@ -19,7 +19,6 @@ public partial class SealHackathonContext : DbContext
 
     public virtual DbSet<Admin> Admins { get; set; }
 
-    public virtual DbSet<Category> Categories { get; set; }
 
     public virtual DbSet<Criterion> Criteria { get; set; }
 
@@ -54,6 +53,9 @@ public partial class SealHackathonContext : DbContext
     public virtual DbSet<UserTeam> UserTeams { get; set; }
 
     public virtual DbSet<SubmittedTeam> SubmittedTeams { get; set; }
+
+    public virtual DbSet<Track> Tracks { get; set; }
+    public virtual DbSet<Topic> Topics { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -111,33 +113,55 @@ public partial class SealHackathonContext : DbContext
                 .HasConstraintName("FK_Admin_Account");
         });
 
-        modelBuilder.Entity<Category>(entity =>
+        modelBuilder.Entity<Track>(entity =>
         {
-            entity.HasKey(e => e.CategoryId).HasName("PK__Categori__19093A2B3A94678D");
+            entity.HasKey(e => e.TrackId).HasName("PK_Tracks");
+            entity.ToTable("Tracks");
 
-            entity.Property(e => e.CategoryId)
+            entity.Property(e => e.TrackId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("CategoryID");
+                .HasColumnName("TrackID");
+
             entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("Creator");
-            entity.Property(e => e.CategoryName).HasMaxLength(400);
+
+            entity.Property(e => e.TrackName).HasMaxLength(400);
+
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
 
-            entity.HasOne(d => d.Admin).WithMany(p => p.Categories)
+            entity.HasOne(d => d.Admin).WithMany(p => p.Tracks)
                 .HasForeignKey(d => d.AdminId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Categorie__Admin__3E52440B");
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
-            entity.HasOne(d => d.Event).WithMany(p => p.Categories)
+            entity.HasOne(d => d.Event).WithMany(p => p.Tracks)
                 .HasForeignKey(d => d.EventId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Categorie__Event__3D5E1FD2");
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<Topic>(entity =>
+        {
+            entity.ToTable("Topic");
+
+            entity.HasKey(e => e.TopicId).HasName("PK_Topic");
+
+            entity.Property(e => e.TopicId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TopicID");
+
+            entity.Property(e => e.TrackId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TrackID");
+
+            entity.Property(e => e.TopicDetail);
+            entity.Property(e => e.IsActive);
         });
 
         modelBuilder.Entity<Criterion>(entity =>
@@ -267,70 +291,46 @@ public partial class SealHackathonContext : DbContext
         modelBuilder.Entity<Mapping>(entity =>
         {
             entity.HasKey(e => e.MappingId).HasName("PK__Mapping__8B5781BD0F98E1DF");
-
             entity.ToTable("Mapping");
 
-            entity.Property(e => e.MappingId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("MappingID");
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("CategoryID");
-            entity.Property(e => e.EventId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("EventID");
-            entity.Property(e => e.MentorId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("MentorID");
+            entity.Property(e => e.MappingId).HasMaxLength(400).IsUnicode(false).HasColumnName("MappingID");
+            entity.Property(e => e.EventId).HasMaxLength(400).IsUnicode(false).HasColumnName("EventID");
+            entity.Property(e => e.MentorId).HasMaxLength(400).IsUnicode(false).HasColumnName("MentorID");
+            
+            // Đã đổi thành TrackID
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
 
-            entity.HasOne(d => d.Category).WithMany(p => p.Mappings)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Mapping__Categor__534D60F1");
+            entity.HasOne(d => d.Track).WithMany(p => p.Mappings)
+                .HasForeignKey(d => d.TrackId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
             entity.HasOne(d => d.Event).WithMany(p => p.Mappings)
                 .HasForeignKey(d => d.EventId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Mapping__EventID__52593CB8");
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
             entity.HasOne(d => d.Mentor).WithMany(p => p.Mappings)
                 .HasForeignKey(d => d.MentorId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Mapping__MentorI__5441852A");
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<MentorAssignment>(entity =>
         {
             entity.HasKey(e => e.MentorAssignmentId).HasName("PK__Mentor_A__26E98C942E117281");
-
             entity.ToTable("Mentor_Assignment");
 
-            entity.Property(e => e.MentorAssignmentId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("MentorAssignmentID");
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("CategoryID");
-            entity.Property(e => e.MentorId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("MentorID");
+            entity.Property(e => e.MentorAssignmentId).HasMaxLength(400).IsUnicode(false).HasColumnName("MentorAssignmentID");
+            entity.Property(e => e.MentorId).HasMaxLength(400).IsUnicode(false).HasColumnName("MentorID");
 
-            entity.HasOne(d => d.Category).WithMany(p => p.MentorAssignments)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Mentor_As__Categ__5812160E");
+            // Đã đổi thành TrackID
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
+
+            entity.HasOne(d => d.Track).WithMany(p => p.MentorAssignments)
+                .HasForeignKey(d => d.TrackId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
             entity.HasOne(d => d.Mentor).WithMany(p => p.MentorAssignments)
                 .HasForeignKey(d => d.MentorId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Mentor_As__Mento__571DF1D5");
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<Player>(entity =>
@@ -528,17 +528,8 @@ public partial class SealHackathonContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("CategoryID");
-            entity.Property(e => e.Description).HasMaxLength(255);
-            entity.Property(e => e.TeamName).HasMaxLength(255);
 
-            entity.HasOne(d => d.Category).WithMany(p => p.Teams)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Team__CategoryID__47DBAE45");
+            entity.Property(e => e.TeamName).HasMaxLength(255);
         });
 
         modelBuilder.Entity<University>(entity =>
@@ -583,39 +574,18 @@ public partial class SealHackathonContext : DbContext
         modelBuilder.Entity<SubmittedTeam>(entity =>
         {
             entity.HasKey(e => e.SubmittedTeamId).HasName("PK_SubmittedTeam");
-
             entity.ToTable("SubmittedTeam");
 
-            entity.Property(e => e.SubmittedTeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("SubmittedTeamID");
+            entity.Property(e => e.SubmittedTeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("SubmittedTeamID");
+            entity.Property(e => e.TeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamID");
+            entity.Property(e => e.SubmitTime).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
 
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("CategoryID");
-
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("TeamID");
-
-            entity.Property(e => e.TopicName).HasMaxLength(500);
-
-            entity.Property(e => e.SubmitTime)
-                .HasColumnType("datetime")
-                .HasDefaultValueSql("(getdate())");
-
-            entity.HasOne(d => d.Category).WithMany()
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_SubmittedTeam_Category");
+            entity.Property(e => e.TopicId).HasMaxLength(400).IsUnicode(false).HasColumnName("TopicID");
 
             entity.HasOne(d => d.Team).WithMany()
                 .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_SubmittedTeam_Team");
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);
