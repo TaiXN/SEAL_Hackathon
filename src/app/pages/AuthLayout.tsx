@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight, Check, ArrowLeft, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // 1. Import thằng này vào
 import { useAuthStore } from "../stores/auth.store";
+import toast from "react-hot-toast";
+import { authApi } from "../lib/api/authApi";
+import Swal from "sweetalert2";
 
 type AuthView =
   | "login"
@@ -13,19 +16,19 @@ type AuthView =
 export function AuthLayout() {
   const setTokens = useAuthStore((state) => state.setTokens);
   const accessToken = useAuthStore((state) => state.accessToken);
-  const navigate = useNavigate(); // 2. Kích hoạt anh shipper chuyển trang này lên
+  const navigate = useNavigate();
 
   const [view, setView] = useState<AuthView>("login");
 
   // ================= STATE CHO LOGIN =================
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [role, setRole] = useState("member"); // mặc định là member, có thể đổi thành judge hoặc admin khi chọn ở dropdown
+  const [role, setRole] = useState("member"); // mặc định là member
 
   // ================= STATE CHO REGISTER =================
   const [studentType, setStudentType] = useState<"fpt" | "other" | null>("fpt");
   const [regEmail, setRegEmail] = useState("");
-  const [regUniversity, setRegUniversity] = useState(""); // chỉ dùng khi chọn 'other'
+  const [regUniversity, setRegUniversity] = useState("");
   const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
@@ -35,64 +38,55 @@ export function AuthLayout() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
-  // ================= HÀM XỬ LÝ KHI BẤM NÚT =================
-  useEffect(() => {
-    if (accessToken) {
-      console.log(
-        "Hệ thống thấy bạn có Thẻ VIP rồi! Đang chuyển vào trang chủ...",
-      );
-      navigate("/login"); // Mượt mà, không reload trang
-    }
-  }, [navigate]); // thêm biến navigate vào mảng bám đuôi này theo chuẩn của React
-
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // đóng vai anh shipper, gom dữ liệu từ form và gửi đi
-    const dataToSend = { email: loginEmail, password: loginPassword };
-    console.log("Dữ liệu chuẩn bị gửi đi là:", dataToSend);
-
-    // Dùng if-else để quyết định link API và trang sẽ chuyển tới
-    let apiUrl = "";
-    let navigateTo = "";
-
-    if (role === "admin") {
-      apiUrl = "https://seal.cosplane.io.vn/api/Auth/admin/login";
-      navigateTo = "/admin"; // Tạm ví dụ đường dẫn của admin
-    } else if (role === "judge") {
-      apiUrl = "https://seal.cosplane.io.vn/api/Auth/teacher/login"; // API của judge
-      navigateTo = "/judge";
-    } else {
-      apiUrl = "http://seal.cosplane.io.vn/api/Auth/login"; // API của member bình thường
-      navigateTo = "/member";
-    }
+    const loadingToastId = toast.loading("Đang kiểm tra thông tin...");
+    const credentials = { email: loginEmail, password: loginPassword };
+    console.log("Dữ liệu chuẩn bị gửi đi là:", credentials);
 
     try {
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(dataToSend),
+      let data;
+      let navigateTo = "";
+
+      if (role === "admin") {
+        data = await authApi.loginAdmin(credentials);
+        navigateTo = "/admin/dashboard";
+      } else if (role === "judge") {
+        data = await authApi.loginTeacher(credentials);
+        navigateTo = "/judge";
+      } else {
+        // data = await authApi.loginMember(credentials);
+        // navigateTo = "/gateway"; //sửa lại url
+        throw new Error("Chức năng đăng nhập cho Member chưa hoàn thiện!");
+      }
+
+      if (!data) {
+        throw new Error("Không nhận được dữ liệu từ Server");
+      }
+
+      console.log("Data API trả về nè: ", data); // ac & rf
+
+      // lấy token: axios ép thành json r
+      const actualToken = data.accessToken;
+      setTokens(actualToken, role); // set vào kho zustand
+
+      toast.success("Đăng nhập thành công! Đang chuyển hướng...", {
+        id: loadingToastId,
       });
 
-      if (response.ok) {
-        // 1. Phải bóc tách hộp JSON từ BE gửi về
-        const data = await response.json();
-        console.log("Data BE trả về là:", data); // In ra coi cho chắc!
+      navigate(navigateTo);
+      //Axios: tự động xuống catch này, bắt lỗi BE trả về 400: sai mk, 404: k tìm thấy, 401: k có token,...
+    } catch (error: any) {
+      // 1. log ra xem lỗi (lỗi API hay lỗi code JS)
+      console.error("Chi tiết lỗi:", error);
 
-        // 2. CHỈ LẤY ĐÚNG CÁI LÕI TOKEN BÊN TRONG
-        const actualToken = data.accessToken;
+      // 2. Lấy thông báo từ Backend (nếu backend có gửi kèm message)
+      const errorMsg =
+        error.response?.data?.message ||
+        "Có lỗi xảy ra trong quá trình đăng nhập!";
 
-        // 3. Cất đúng cái lõi đó vào két sắt
-        setTokens(actualToken, role);
-
-        alert("Đăng nhập thành công!");
-        navigate(navigateTo);
-      } else {
-        alert("Đăng nhập thất bại! Kiểm tra lại mail/pass hoặc role");
-      }
-    } catch (error) {
-      alert("Lỗi kết nối Server!");
+      Swal.fire("Lỗi", errorMsg, "error");
     }
   };
 

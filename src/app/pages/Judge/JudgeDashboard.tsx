@@ -8,129 +8,163 @@ import {
   ArrowRight,
   PlayCircle,
 } from "lucide-react";
+import Swal from "sweetalert2";
 
 export function JudgeDashboard() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<any[]>([]);
 
-  // ĐỌC DỮ LIỆU TỪ LOCAL STORAGE KHI MỞ TRANG
+  // ĐỌC DỮ LIỆU LÚC MỞ TRANG
   useEffect(() => {
-    const savedTeams = localStorage.getItem("seal_teams");
-    if (savedTeams) {
-      setTeams(JSON.parse(savedTeams));
-    } else {
-      // Nếu chưa có (lần đầu tiên mở web), tự động tạo danh sách 15 đội mặc định
-      const defaultTeams = [
-        {
-          id: "01",
-          name: "TechWizards",
-          track: "Business Analysis App",
-          status: "Đã khóa điểm",
-          score: "85đ",
-        },
-        {
-          id: "02",
-          name: "Syntax Errors",
-          track: "Code Generation & Review",
-          status: "Đang chấm",
-          score: "—",
-        },
-        {
-          id: "03",
-          name: "Alpha Coders",
-          track: "AI / Machine Learning",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "04",
-          name: "Logic Legion",
-          track: "Requirements Engineering",
-          status: "Đã khóa điểm",
-          score: "92đ",
-        },
-        {
-          id: "05",
-          name: "Ctrl Alt Defeat",
-          track: "Software Design App",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "06",
-          name: "Byte Me",
-          track: "Business Analysis App",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "07",
-          name: "Code Blooded",
-          track: "AI / Machine Learning",
-          status: "Đã khóa điểm",
-          score: "78đ",
-        },
-        {
-          id: "08",
-          name: "Data Pirates",
-          track: "Requirements Engineering",
-          status: "Đang chấm",
-          score: "—",
-        },
-        {
-          id: "09",
-          name: "Error 404",
-          track: "Software Design App",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "10",
-          name: "FrontEnd Fanatics",
-          track: "Code Generation & Review",
-          status: "Đã khóa điểm",
-          score: "88đ",
-        },
-        {
-          id: "11",
-          name: "Git Commit",
-          track: "Business Analysis App",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "12",
-          name: "Hello World",
-          track: "AI / Machine Learning",
-          status: "Đã khóa điểm",
-          score: "95đ",
-        },
-        {
-          id: "13",
-          name: "Infinite Loop",
-          track: "Requirements Engineering",
-          status: "Chưa chấm",
-          score: "—",
-        },
-        {
-          id: "14",
-          name: "Java Jugglers",
-          track: "Software Design App",
-          status: "Đang chấm",
-          score: "—",
-        },
-        {
-          id: "15",
-          name: "Null Pointers",
-          track: "Code Generation & Review",
-          status: "Chưa chấm",
-          score: "—",
-        },
-      ];
-      localStorage.setItem("seal_teams", JSON.stringify(defaultTeams));
-      setTeams(defaultTeams);
-    }
+    // DÀNH CHO BACKEND:
+    // TODO: Gọi API GET /api/judge/teams để lấy danh sách đội thi được phân công chấm
+
+    // Tạm thời dùng Mock Data để hiển thị
+    const mockTeams = [
+      {
+        id: "01",
+        name: "TechWizards",
+        track: "Business Analysis App",
+        status: "Đã khóa điểm",
+        score: "85.0đ",
+      },
+      {
+        id: "02",
+        name: "Syntax Errors",
+        track: "Code Generation & Review",
+        status: "Đang chấm",
+        score: "—",
+      },
+      {
+        id: "03",
+        name: "Alpha Coders",
+        track: "AI / Machine Learning",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "04",
+        name: "Logic Legion",
+        track: "Requirements Engineering",
+        status: "Đã khóa điểm",
+        score: "92.0đ",
+      },
+      {
+        id: "05",
+        name: "Ctrl Alt Defeat",
+        track: "Software Design App",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "06",
+        name: "Byte Me",
+        track: "Business Analysis App",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "07",
+        name: "Code Blooded",
+        track: "AI / Machine Learning",
+        status: "Đã khóa điểm",
+        score: "78.0đ",
+      },
+      {
+        id: "08",
+        name: "Data Pirates",
+        track: "Requirements Engineering",
+        status: "Đang chấm",
+        score: "—",
+      },
+      {
+        id: "09",
+        name: "Error 404",
+        track: "Software Design App",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "10",
+        name: "FrontEnd Fanatics",
+        track: "Code Generation & Review",
+        status: "Đã khóa điểm",
+        score: "88.0đ",
+      },
+      {
+        id: "11",
+        name: "Git Commit",
+        track: "Business Analysis App",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "12",
+        name: "Hello World",
+        track: "AI / Machine Learning",
+        status: "Đã khóa điểm",
+        score: "95.0đ",
+      },
+      {
+        id: "13",
+        name: "Infinite Loop",
+        track: "Requirements Engineering",
+        status: "Chưa chấm",
+        score: "—",
+      },
+      {
+        id: "14",
+        name: "Java Jugglers",
+        track: "Software Design App",
+        status: "Đang chấm",
+        score: "—",
+      },
+      {
+        id: "15",
+        name: "Null Pointers",
+        track: "Code Generation & Review",
+        status: "Chưa chấm",
+        score: "—",
+      },
+    ];
+    setTeams(mockTeams);
   }, []);
+
+  // --- HÀM MỞ KHÓA TRỰC TIẾP TỪ DASHBOARD ---
+  const handleUnlockTeam = (teamId: string, teamName: string) => {
+    Swal.fire({
+      title: "Mở khóa điểm?",
+      html: `Bạn có chắc muốn mở khóa cho đội <b>${teamName}</b>?<br/>Điểm số sẽ được chuyển về trạng thái Đang chấm.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#f59e0b",
+      cancelButtonColor: "#cbd5e1",
+      confirmButtonText: "Mở khóa ngay",
+      cancelButtonText: "Hủy",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // DÀNH CHO BACKEND:
+        // TODO: Gọi API PUT/PATCH /api/judge/teams/{teamId}/unlock để mở khóa điểm
+        console.log("API Mở khóa điểm cho đội ID:", teamId);
+
+        // Cập nhật State cục bộ để giao diện đổi ngay lập tức
+        setTeams((prevTeams) =>
+          prevTeams.map((t) =>
+            t.id === teamId ? { ...t, status: "Đang chấm", score: "—" } : t,
+          ),
+        );
+
+        Swal.fire({
+          icon: "success",
+          title: "Đã mở khóa!",
+          text: "Bạn có thể tiếp tục chấm điểm cho đội này.",
+          confirmButtonColor: "#0f172a",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
+    });
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
@@ -162,7 +196,6 @@ export function JudgeDashboard() {
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-  // Tính toán thống kê dựa trên mảng teams hiện tại
   const totalTeams = teams.length;
   const completedTeams = teams.filter(
     (t) => t.status === "Đã khóa điểm",
@@ -190,9 +223,8 @@ export function JudgeDashboard() {
           </div>
         </div>
 
-        {/* ĐÃ SỬA: Cụm Avatar thành nút bấm chuyển sang Profile */}
         <button
-          onClick={() => navigate("/profile")}
+          onClick={() => navigate("profile")}
           className="flex items-center gap-3 cursor-pointer text-left group"
         >
           <div className="text-right">
@@ -396,12 +428,16 @@ export function JudgeDashboard() {
                     <td className="px-6 py-5 flex justify-end gap-2">
                       {team.status === "Đã khóa điểm" && (
                         <>
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50/50 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
-                            <Lock size={14} /> Mở khóa
+                          <button
+                            onClick={() => handleUnlockTeam(team.id, team.name)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50/50 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg hover:bg-amber-100 transition-colors shadow-sm"
+                          >
+                            <Unlock size={14} /> Mở khóa
                           </button>
+
                           <button
                             onClick={() =>
-                              navigate("/score", { state: { team } })
+                              navigate("score", { state: { team } })
                             }
                             className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                           >
@@ -411,9 +447,7 @@ export function JudgeDashboard() {
                       )}
                       {team.status === "Đang chấm" && (
                         <button
-                          onClick={() =>
-                            navigate("/score", { state: { team } })
-                          }
+                          onClick={() => navigate("score", { state: { team } })}
                           className="flex items-center gap-1.5 px-4 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
                         >
                           Tiếp tục <ArrowRight size={14} />
@@ -421,9 +455,7 @@ export function JudgeDashboard() {
                       )}
                       {team.status === "Chưa chấm" && (
                         <button
-                          onClick={() =>
-                            navigate("/score", { state: { team } })
-                          }
+                          onClick={() => navigate("score", { state: { team } })}
                           className="flex items-center gap-1.5 px-4 py-1.5 bg-white border border-slate-200 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm"
                         >
                           <PlayCircle size={14} className="text-blue-500" />{" "}

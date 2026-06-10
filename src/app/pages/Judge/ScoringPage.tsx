@@ -9,7 +9,6 @@ import {
   GitBranch,
   Globe,
   Download,
-  HelpCircle,
   Calculator,
 } from "lucide-react";
 
@@ -28,23 +27,20 @@ export function ScoringPage() {
   });
   const [feedback, setFeedback] = useState("");
 
-  // KÉO DỮ LIỆU ĐỘI THI TỪ LOCAL STORAGE
   useEffect(() => {
     if (!teamFromList) {
       navigate("/");
       return;
     }
-    const saved = localStorage.getItem("seal_teams");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      const found = parsed.find((t: any) => t.id === teamFromList.id);
-      if (found) {
-        setCurrentTeam(found);
-        setIsLocked(found.status === "Đã khóa điểm");
-        if (found.details) setScores(found.details);
-        if (found.feedback) setFeedback(found.feedback);
-      }
-    }
+
+    // DÀNH CHO BACKEND:
+    // TODO: Gọi API GET /api/judge/teams/{teamId}/scores để lấy điểm chi tiết và feedback cũ (nếu có)
+
+    // Tạm thời lấy data từ Dashboard truyền qua
+    setCurrentTeam(teamFromList);
+    setIsLocked(teamFromList.status === "Đã khóa điểm");
+    if (teamFromList.details) setScores(teamFromList.details);
+    if (teamFromList.feedback) setFeedback(teamFromList.feedback);
   }, [teamFromList, navigate]);
 
   const handleScoreChange = (field: string, value: string) => {
@@ -66,44 +62,31 @@ export function ScoringPage() {
     setIsLocked(true);
     const finalScore = totalScore + "đ";
 
-    const saved = localStorage.getItem("seal_teams");
-    if (saved && currentTeam) {
-      const parsedTeams = JSON.parse(saved);
-      const teamIndex = parsedTeams.findIndex(
-        (t: any) => t.id === currentTeam.id,
-      );
-      if (teamIndex !== -1) {
-        parsedTeams[teamIndex].status = "Đã khóa điểm";
-        parsedTeams[teamIndex].score = finalScore;
-        parsedTeams[teamIndex].details = scores;
-        parsedTeams[teamIndex].feedback = feedback;
-        localStorage.setItem("seal_teams", JSON.stringify(parsedTeams));
-      }
-    }
+    // DÀNH CHO BACKEND:
+    // TODO: Gọi API POST/PUT /api/judge/teams/{teamId}/scores để gửi điểm và trạng thái lên Server
+    const payload = {
+      teamId: currentTeam.id,
+      status: "Đã khóa điểm",
+      score: finalScore,
+      details: scores,
+      feedback: feedback,
+    };
+    console.log("API Gửi điểm lên Backend:", payload);
   };
 
   // HÀM MỞ KHÓA
   const handleUnlock = () => {
     setIsLocked(false);
-    const saved = localStorage.getItem("seal_teams");
-    if (saved && currentTeam) {
-      const parsedTeams = JSON.parse(saved);
-      const teamIndex = parsedTeams.findIndex(
-        (t: any) => t.id === currentTeam.id,
-      );
-      if (teamIndex !== -1) {
-        parsedTeams[teamIndex].status = "Đang chấm";
-        parsedTeams[teamIndex].score = "—";
-        localStorage.setItem("seal_teams", JSON.stringify(parsedTeams));
-      }
-    }
+
+    // DÀNH CHO BACKEND:
+    // TODO: Gọi API POST/PUT /api/judge/teams/{teamId}/unlock để mở khóa điểm
+    console.log("API Mở khóa điểm cho đội ID:", currentTeam.id);
   };
 
   if (!currentTeam) return null;
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-900 pb-12">
-      {/* 1. TOP NAVBAR ĐÃ SỬA CHUẨN THẺ ĐÓNG/MỞ */}
       <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Hexagon size={32} className="text-black" strokeWidth={2.5} />
@@ -119,7 +102,8 @@ export function ScoringPage() {
 
         <div className="flex items-center gap-6">
           <button
-            onClick={() => navigate("/")}
+            type="button"
+            onClick={() => navigate("/judge")}
             className="text-sm font-semibold text-slate-500 hover:text-black transition-colors flex items-center gap-2"
           >
             <ArrowLeft size={16} /> Trở về Tổng quan
@@ -127,9 +111,8 @@ export function ScoringPage() {
 
           <div className="w-px h-8 bg-slate-200"></div>
 
-          {/* NÚT PROFILE - Đã dọn sạch code thừa */}
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("profile")}
             className="flex items-center gap-3 cursor-pointer text-left group"
           >
             <div className="text-right">
@@ -147,7 +130,6 @@ export function ScoringPage() {
         </div>
       </header>
 
-      {/* 2. MAIN CONTENT */}
       <main className="max-w-4xl mx-auto mt-12 space-y-6 px-4 animate-in fade-in duration-300">
         <div className="flex justify-between items-center">
           <div>

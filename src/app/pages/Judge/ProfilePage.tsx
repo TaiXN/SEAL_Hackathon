@@ -13,31 +13,82 @@ import {
   Building,
   Phone,
 } from "lucide-react";
+import { useAuthStore } from "../../stores/auth.store";
+import { authApi } from "../../lib/api/authApi";
+import toast from "react-hot-toast";
 
 export function ProfilePage() {
   const navigate = useNavigate();
 
-  // State quản lý việc ẩn/hiện mật khẩu
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Hàm xử lý Đăng xuất
-  const handleLogout = () => {
-    alert("Đăng xuất thành công! Tạm thời quay về trang chủ.");
-    navigate("/");
+  const clearTokens = useAuthStore((state) => state.clearTokens);
+
+  const handleLogout = async () => {
+    const loadingToastId = toast.loading("Đang đăng xuất khỏi hệ thống...");
+    try {
+      await authApi.logout();
+
+      toast.success("Đăng xuất thành công! Hẹn gặp lại.", {
+        id: loadingToastId,
+      });
+    } catch (error) {
+      console.error("Lỗi BE khi logout nhưng vẫn clear FE:", error);
+      toast.error("Hệ thống có chút sự cố, nhưng vẫn đăng xuất cho bà nha!", {
+        id: loadingToastId,
+      });
+    } finally {
+      clearTokens();
+      localStorage.removeItem("seal-hackathon-auth");
+      navigate("/");
+    }
   };
 
-  // Hàm xử lý Lưu mật khẩu
-  const handleSavePassword = () => {
-    alert("🎉 Cập nhật mật khẩu thành công!");
-    // Sau khi báo thành công thì có thể xóa rỗng ô input, hoặc reset lại trạng thái con mắt tùy ý
-    setShowCurrentPassword(false);
-    setShowNewPassword(false);
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Hai mật khẩu không khớp nhau!");
+      return;
+    }
+    const loadingToastId = toast.loading("Đang gửi yêu cầu đổi mật khẩu...");
+    console.log("Tao đang gửi cái này đi nè:", {
+      oldPassword,
+      newPassword,
+      confirmPassword,
+    });
+    try {
+      await authApi.changePassword({
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        rePassword: confirmPassword,
+      });
+
+      toast.success("Đổi mật khẩu thành công!", {
+        id: loadingToastId,
+      });
+
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error("Lỗi đổi mật khẩu:", error);
+      toast.error(
+        "Đổi mật khẩu thất bại! Kiểm tra lại mật khẩu cũ chính xác chưa.",
+        {
+          id: loadingToastId,
+        },
+      );
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-900 pb-12">
-      {/* 1. TOP NAVBAR */}
       <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Hexagon size={32} className="text-black" strokeWidth={2.5} />
@@ -52,7 +103,7 @@ export function ProfilePage() {
         </div>
         <div className="flex items-center gap-6">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/judge")}
             className="text-sm font-semibold text-slate-500 hover:text-black transition-colors flex items-center gap-2"
           >
             <ArrowLeft size={16} /> Trở về Tổng quan
@@ -74,9 +125,7 @@ export function ProfilePage() {
         </div>
       </header>
 
-      {/* 2. MAIN CONTENT */}
       <main className="max-w-5xl mx-auto mt-10 px-4 animate-in fade-in duration-300">
-        {/* Tiêu đề */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-slate-900">
             Thông tin Cá nhân
@@ -87,7 +136,6 @@ export function ProfilePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* CỘT TRÁI: Thẻ Avatar & Đăng xuất */}
           <div className="col-span-1 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-8 flex flex-col items-center shadow-sm">
               <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-md">
@@ -111,9 +159,7 @@ export function ProfilePage() {
             </button>
           </div>
 
-          {/* CỘT PHẢI: Form nhập liệu */}
           <div className="col-span-2 space-y-6">
-            {/* Box 1: Chi tiết tài khoản */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-6 text-lg">
                 Chi tiết tài khoản
@@ -170,17 +216,18 @@ export function ProfilePage() {
               </div>
             </div>
 
-            {/* Box 2: Đổi mật khẩu */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-6 text-lg flex items-center gap-2">
                 <Key size={18} className="text-slate-600" /> Đổi mật khẩu
               </h3>
               <div className="space-y-4">
-                {/* Mật khẩu hiện tại */}
+                {/* Ô Mật khẩu hiện tại */}
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? "text" : "password"}
                     placeholder="Mật khẩu hiện tại"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
                   />
                   <button
@@ -196,11 +243,13 @@ export function ProfilePage() {
                   </button>
                 </div>
 
-                {/* Mật khẩu mới */}
+                {/* Ô Mật khẩu mới */}
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}
                     placeholder="Mật khẩu mới"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
                   />
                   <button
@@ -211,11 +260,33 @@ export function ProfilePage() {
                     {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+
+                {/* Ô Xác nhận mật khẩu mới */}
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Xác nhận mật khẩu mới"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-6">
                 <button
-                  onClick={handleSavePassword}
+                  onClick={handleChangePassword}
                   className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                 >
                   Lưu mật khẩu

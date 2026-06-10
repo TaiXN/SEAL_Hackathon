@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./app/App"; // Trỏ đúng đường dẫn vào file App.tsx
+import App from "./App";
 // @ts-ignore
-import "./styles/index.css"; // Nhớ trỏ đúng file CSS của bà nha
+import "../styles/index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

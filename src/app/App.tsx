@@ -1,7 +1,25 @@
 import { RouterProvider } from "react-router-dom";
-import { router } from "./routes"; // Import cái bản đồ routes bà vừa làm xong
+import { router } from "./routes";
+import { Toaster } from "react-hot-toast";
 
-export default function App() {
-  // Trả về cái trục thang máy (RouterProvider) bao bọc toàn bộ dự án
-  return <RouterProvider router={router} />;
+function App() {
+  return (
+    <>
+      <RouterProvider router={router} />
+
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+        }}
+      />
+    </>
+  );
 }
+
+export default App;
