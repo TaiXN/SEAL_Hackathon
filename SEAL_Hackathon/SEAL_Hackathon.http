@@ -1,0 +1,6 @@
+@SEAL_Hackathon_HostAddress = http://localhost:5108
+
+GET {{SEAL_Hackathon_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
