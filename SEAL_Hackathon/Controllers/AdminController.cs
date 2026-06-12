@@ -1,7 +1,5 @@
 ﻿using APIViewModels.Admin;
-using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.AccountService;
 using Services.AdminService;
@@ -24,35 +22,37 @@ namespace SEAL_Hackathon.Controllers
             _role = role;
         }
 
-      
-        [Authorize(Roles ="Admin")]
+
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(CreateAdminAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-            
-                    string accountId = Guid.NewGuid().ToString();
 
-                    bool isAdminCreated = await _admin.CreateAsync(new DataAccess.Entities.Account()
-                    {
-                        AccountId = accountId,
-                        Address = info.Address,
-                        Email = info.Email,
-                        FullName = info.FullName,
-                        Password = info.Password,
-                        Phone = info.Phone
-                     
-                    });
-                    if (isAdminCreated)
-                    {
-                        return Ok("Create admin successfully");
-                    }
-                    else
-                    {
-                        return BadRequest("Error while create admin");
-                    }
-               
+                string accountId = Guid.NewGuid().ToString();
+
+                bool isAdminCreated = await _admin.CreateAsync(new DataAccess.Entities.Account()
+                {
+                    AccountId = accountId,
+                    Address = info.Address,
+                    Email = info.Email,
+                    FullName = info.FullName,
+                    Password = info.Password,
+                    Phone = info.Phone
+
+                },
+                   info.IsSuperAdmin
+                );
+                if (isAdminCreated)
+                {
+                    return Ok("Create admin successfully");
+                }
+                else
+                {
+                    return BadRequest("Error while create admin");
+                }
+
 
             }
             else return BadRequest();

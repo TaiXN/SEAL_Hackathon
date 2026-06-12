@@ -1,10 +1,9 @@
-﻿using APIViewModels.Category;
-using APIViewModels.Judge;
-using DataAccess.Entities;
+﻿using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.JudgeService;
+using Services.MentorService;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -13,62 +12,69 @@ namespace SEAL_Hackathon.Controllers
     public class JudgeController : ControllerBase
     {
         private readonly IJudgeService _judge;
-        public JudgeController(IJudgeService judge)
+
+        public JudgeController(IJudgeService judges)
         {
-            _judge = judge;
+            _judge = judges;
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpDelete("judge")]
-        public async Task<IActionResult> RemoveJudge(RemoveJudgeAPIViewModel judgeInfo)
+        [HttpPost("track/{trackId}/judge/{judgeId}")] 
+        public async Task<IActionResult> AddMentor(string judgeId, string trackId)
         {
-            if (ModelState.IsValid)
+            if (string.IsNullOrEmpty(judgeId) || string.IsNullOrEmpty(trackId))
             {
-                bool removed = await _judge.RemoveJudgeAsync(judgeInfo);
-                if (removed)
-                {
-                    return Ok($"Remove Judge: {judgeInfo.TeacherId} successful");
-                }
-                else
-                {
-                    return BadRequest();
-                }
+                return BadRequest("Missing Judge ID or Track ID.");
             }
-            else return BadRequest();
+
+            bool isAdded = await _judge.AddJudge(judgeId, trackId);
+
+            if (isAdded)
+            {
+                return Ok("Add judge successfully!");
+            }
+
+            return BadRequest("Added fail.");
         }
+
+       
         [Authorize(Roles = "Admin")]
-        [HttpPost("judge")]
-        public async Task<IActionResult> AddJudge(AddJudgeAPIViewModel judgeInfo)
+        [HttpGet("track/{trackId}")]
+        public async Task<IActionResult> GetJudgesByTrack(string trackId)
         {
-            if (ModelState.IsValid)
+            if (string.IsNullOrEmpty(trackId))
             {
-                string result = await _judge.AddJudgeAsync(judgeInfo);
-                if (result.Equals("Ok"))
-                {
-                    return Ok("Add judge successful");
-                }
-                else
-                {
-                    return BadRequest(result);
-                }
+                return BadRequest("Invalid track ID.");
             }
-            else
-            {
-                return BadRequest();
-            }
-        }
-        [Authorize]
-        [HttpGet]
-        public async Task<IActionResult> Get(string eventId, string categoryId)
-        {
-            List<JudgeAPIViewModel> result = await _judge.GetByCategoryIdAsync(categoryId, eventId);
-            if (result != null && result.Count >0)
-            {
-                return Ok(result);
 
+            List<TeacherList> judges = await _judge.GetJudgesByTrackAsync(trackId);
+
+            if (judges == null || judges.Count == 0)
+            {
+                return NotFound("Empty judge");
             }
-            else return NotFound();
+
+            return Ok(judges);
         }
 
+       
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("track/{trackId}/judge/{judgeId}")]
+        public async Task<IActionResult> RemoveJudge(string judgeId, string trackId)
+        {
+            if (string.IsNullOrEmpty(judgeId) || string.IsNullOrEmpty(trackId))
+            {
+                return BadRequest("Please enter Judge ID or Track ID.");
+            }
+
+            bool isRemoved = await _judge.RemoveJudge(judgeId, trackId);
+
+            if (isRemoved)
+            {
+                return Ok("Delete Judge successfully!");
+            }
+
+            return BadRequest("Error while deleting judge.");
+        }
     }
 }

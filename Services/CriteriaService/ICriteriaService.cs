@@ -14,11 +14,10 @@ namespace Services.CriteriaService
         Task<bool> UpdatCriterionAsync(string id, UpdateCriterionAPIViewModel info);
         Task<bool> DeleteCriterionAsync(string criterionID);
         Task<bool> ReActiveCriterionAsync(string criterionID);
-        Task<bool> CreateTemplateWithMappingsAsync(CreateTemplateAPIViewModel info);
-        Task<List<CriteriaTemplate>> GetAllTemplatesAsync();
-        Task<List<Mapping>> GetTemplateDetailsAsync(string templateId);
-        Task<bool> UpdateTemplateAsync(string templateId, UpdateTemplateAPIViewModel info);
-        Task<bool> DeleteTemplateAsync(string templateId);
-
+        Task<bool> CreateSetWithMappingsAsync(CreateSetAPIViewModel info);
+        Task<List<CriteriaSet>> GetAllSetsAsync();
+        Task<List<Mapping>> GetSetDetailsAsync(string setID);
+        Task<bool> UpdateSetAsync(string setID, UpdateSetAPIViewModel info);
+        Task<bool> DeleteSetAsync(string setId);
     }
 }

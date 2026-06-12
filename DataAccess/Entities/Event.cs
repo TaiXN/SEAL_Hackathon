@@ -19,13 +19,9 @@ public partial class Event
 
     public int CurrentRound { get; set; }
 
-    public string CriteriaTemplateId { get; set; } = null!;
-
-    public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
-
     public virtual Account CreatorNavigation { get; set; } = null!;
 
-    public virtual CriteriaTemplate CriteriaTemplate { get; set; } = null!;
-
     public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
+
+    public virtual ICollection<Track> Tracks { get; set; } = new List<Track>();
 }

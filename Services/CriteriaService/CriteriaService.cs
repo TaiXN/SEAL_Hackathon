@@ -135,11 +135,11 @@ namespace Services.CriteriaService
         }
 
 
-        public async Task<bool> CreateTemplateWithMappingsAsync(CreateTemplateAPIViewModel info)
+        public async Task<bool> CreateSetWithMappingsAsync(CreateSetAPIViewModel info)
         {
             try
             {
-                CriteriaTemplate duplicateTemplate = await _uow.CriteriaTemplate.GetFirstOrDefaultAsync(e => e.TemplateName.ToLower() == info.TemplateName.ToLower() && e.IsActive);
+                CriteriaSet duplicateTemplate = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.IsActive);
                 if (duplicateTemplate != null) return false;
 
                 foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
@@ -152,15 +152,15 @@ namespace Services.CriteriaService
                     }
                 }
 
-                CriteriaTemplate newTemplate = new CriteriaTemplate()
+                CriteriaSet newSet = new CriteriaSet()
                 {
-                    CriteriaTemplateId = Guid.NewGuid().ToString(),
-                    TemplateName = info.TemplateName,
+                    CriteriaSetId = Guid.NewGuid().ToString(),
+                    SetName = info.SetName,
                     IsDefault = info.IsDefault,
                     IsActive = true
                 };
 
-                await _uow.CriteriaTemplate.AddAsync(newTemplate);
+                await _uow.CriteriaSet.AddAsync(newSet);
 
                 List<Mapping> mappings = new List<Mapping>();
 
@@ -168,7 +168,7 @@ namespace Services.CriteriaService
                 {
                     Mapping newMapping = new Mapping()
                     {
-                        CriteriaTemplateId = newTemplate.CriteriaTemplateId,
+                        CriteriaSetId = newSet.CriteriaSetId,
                         CriteriaId = item.CriteriaId,
                         Score = item.Score
                     };
@@ -188,25 +188,25 @@ namespace Services.CriteriaService
         }
 
 
-        public async Task<List<CriteriaTemplate>> GetAllTemplatesAsync()
+        public async Task<List<CriteriaSet>> GetAllSetsAsync()
         {
             try
             {
-                List<CriteriaTemplate> result = await _uow.CriteriaTemplate.GetAllAsync();
+                List<CriteriaSet> result = await _uow.CriteriaSet.GetAllAsync();
                 return result.ToList();
             }
             catch
             {
-                return new List<CriteriaTemplate>();
+                return new List<CriteriaSet>();
             }
         }
 
 
-        public async Task<List<Mapping>> GetTemplateDetailsAsync(string templateId)
+        public async Task<List<Mapping>> GetSetDetailsAsync(string setID)
         {
             try
             {
-                List<Mapping> result = await _uow.Mapping.GetAllAsync(e => e.CriteriaTemplateId == templateId);
+                List<Mapping> result = await _uow.Mapping.GetAllAsync(e => e.CriteriaSetId == setID);
                 return result.ToList();
             }
             catch (Exception ex)
@@ -216,14 +216,14 @@ namespace Services.CriteriaService
         }
 
 
-        public async Task<bool> UpdateTemplateAsync(string templateId, UpdateTemplateAPIViewModel info)
+        public async Task<bool> UpdateSetAsync(string setID, UpdateSetAPIViewModel info)
         {
             try
             {
-                CriteriaTemplate templateDb = await _uow.CriteriaTemplate.GetFirstOrDefaultAsync(e => e.CriteriaTemplateId == templateId && e.IsActive);
-                if (templateDb == null) return false;
+                CriteriaSet setDb = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
+                if (setDb == null) return false;
 
-                CriteriaTemplate duplicateTemplate = await _uow.CriteriaTemplate.GetFirstOrDefaultAsync(e => e.TemplateName.ToLower() == info.TemplateName.ToLower() && e.IsActive);
+                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.IsActive);
 
                 foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
                 {
@@ -231,14 +231,14 @@ namespace Services.CriteriaService
                     if (checkCriterion == null) return false;
                 }
 
-                if (duplicateTemplate != null) return false;
+                if (duplicateSet != null) return false;
 
-                templateDb.TemplateName = info.TemplateName;
-                templateDb.IsDefault = info.IsDefault;
-                _uow.CriteriaTemplate.Update(templateDb);
+                setDb.SetName = info.SetName;
+                setDb.IsDefault = info.IsDefault;
+                _uow.CriteriaSet.Update(setDb);
 
 
-                List<Mapping> oldMappings = await _uow.Mapping.GetAllAsync(e => e.CriteriaTemplateId == templateId);
+                List<Mapping> oldMappings = await _uow.Mapping.GetAllAsync(e => e.CriteriaSetId == setID);
 
 
                 foreach (Mapping oldMapping in oldMappings)
@@ -252,7 +252,7 @@ namespace Services.CriteriaService
                 {
                     Mapping newMapping = new Mapping()
                     {
-                        CriteriaTemplateId = templateId,
+                        CriteriaSetId = setID,
                         CriteriaId = item.CriteriaId,
                         Score = item.Score
                     };
@@ -273,16 +273,16 @@ namespace Services.CriteriaService
             }
         }
 
-        public async Task<bool> DeleteTemplateAsync(string templateId)
+        public async Task<bool> DeleteSetAsync(string setId)
         {
             try
             {
-                CriteriaTemplate templateDb = await _uow.CriteriaTemplate.GetFirstOrDefaultAsync(t => t.CriteriaTemplateId == templateId);
-                if (templateDb == null) return false;
+                CriteriaSet setDb = await _uow.CriteriaSet.GetFirstOrDefaultAsync(t => t.CriteriaSetId == setId);
+                if (setDb == null) return false;
 
-                templateDb.IsActive = false;
+                setDb.IsActive = false;
 
-                _uow.CriteriaTemplate.Update(templateDb);
+                _uow.CriteriaSet.Update(setDb);
                 await _uow.SaveAsync();
 
                 return true;

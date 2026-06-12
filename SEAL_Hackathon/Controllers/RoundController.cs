@@ -60,12 +60,12 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, UpdateRoundAPIViewModel info)
+        [HttpPut]
+        public async Task<IActionResult> Update(UpdateRoundAPIViewModel info)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            bool isUpdated = await _round.UpdateRoundAsync(id, info);
+            bool isUpdated = await _round.UpdateRoundAsync(info);
 
             if (isUpdated) return Ok("Event round successful!");
 

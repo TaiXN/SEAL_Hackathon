@@ -9,11 +9,7 @@ public partial class Teacher
 
     public bool IsGuest { get; set; }
 
-    public string AccountId { get; set; } = null!;
+    public virtual Account IdNavigation { get; set; } = null!;
 
-    public virtual Account Account { get; set; } = null!;
-
-    public virtual ICollection<Category> Categories { get; set; } = new List<Category>();
-
-    public virtual ICollection<Judge> Judges { get; set; } = new List<Judge>();
+    public virtual ICollection<TeacherList> TeacherLists { get; set; } = new List<TeacherList>();
 }

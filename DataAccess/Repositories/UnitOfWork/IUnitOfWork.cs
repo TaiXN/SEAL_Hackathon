@@ -1,15 +1,16 @@
 ﻿using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
-using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.CriteriaRepository;
-using DataAccess.Repositories.CriteriaTemplateRepository;
+using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
-using DataAccess.Repositories.JudgeRepository;
 using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
+using DataAccess.Repositories.TeacherListRepository;
 using DataAccess.Repositories.TeacherRepository;
+using DataAccess.Repositories.TopicRepository;
+using DataAccess.Repositories.TrackRepository;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
@@ -21,12 +22,14 @@ namespace DataAccess.Repositories.UnitOfWork
         IAdminRepository Admin { get; }
         ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
-        ICategoryRepository Category { get; }
         IEventRepository Event { get; }
-        IJudgeRepository Judge { get; }
+
         ICriteriaRepository Criteria { get; }
         IMappingRepository Mapping { get; }
-        ICriteriaTemplateRepository CriteriaTemplate { get; }
+        ICriteriaSetRepository CriteriaSet { get; }
+        ITrackRepository Track { get; }
+        ITopicRepository Topic { get; }
+        ITeacherListRepository TeacherList { get; }
        
         Task SaveAsync();
     }

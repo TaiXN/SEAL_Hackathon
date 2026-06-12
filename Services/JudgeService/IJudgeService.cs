@@ -1,5 +1,4 @@
-﻿using APIViewModels.Category;
-using APIViewModels.Judge;
+﻿using DataAccess.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,8 +7,9 @@ namespace Services.JudgeService
 {
     public interface IJudgeService
     {
-        Task<List<JudgeAPIViewModel>> GetByCategoryIdAsync(string cateId, string eventId);
-        Task<string> AddJudgeAsync(AddJudgeAPIViewModel judgesInfo);
-        Task<bool> RemoveJudgeAsync(RemoveJudgeAPIViewModel judgeInfo);
+        Task<bool> AddJudge(string mentorID, string trackID);
+        Task<List<TeacherList>> GetAllTracksAsync();
+        Task<List<TeacherList>> GetJudgesByTrackAsync(string trackID);
+        Task<bool> RemoveJudge(string teacherID, string trackID);
     }
 }

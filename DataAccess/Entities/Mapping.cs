@@ -5,7 +5,7 @@ namespace DataAccess.Entities;
 
 public partial class Mapping
 {
-    public string CriteriaTemplateId { get; set; } = null!;
+    public string CriteriaSetId { get; set; } = null!;
 
     public string CriteriaId { get; set; } = null!;
 
@@ -13,5 +13,5 @@ public partial class Mapping
 
     public virtual Criterion Criteria { get; set; } = null!;
 
-    public virtual CriteriaTemplate CriteriaTemplate { get; set; } = null!;
+    public virtual CriteriaSet CriteriaSet { get; set; } = null!;
 }

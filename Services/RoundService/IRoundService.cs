@@ -11,7 +11,7 @@ namespace Services.RoundService
         Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID);
         Task<List<Round>> GetAllRoundsAsync();
         Task<Round> GetRoundByIdAsync(string roundID);
-        Task<bool> UpdateRoundAsync(string id, UpdateRoundAPIViewModel info);
+        Task<bool> UpdateRoundAsync(UpdateRoundAPIViewModel info);
         Task<bool> DeleteRoundAsync(string roundID);
     }
 }

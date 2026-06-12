@@ -53,9 +53,8 @@ namespace Services.TeacherService
                     };
                     await _uow.Account.AddAsync(newAccount);
                     Teacher newTeacher = new Teacher()
-                    {
-                        AccountId = account.AccountId,
-                        Id = Guid.NewGuid().ToString(),
+                    {    
+                        Id = newAccount.AccountId,
                         IsGuest = isGuest
                     };
                     await _uow.Teacher.AddAsync(newTeacher);

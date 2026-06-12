@@ -1,6 +1,4 @@
-﻿using APIViewModels.Category;
-using APIViewModels.Judge;
-using DataAccess.Entities;
+﻿using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -15,122 +13,75 @@ namespace Services.JudgeService
         {
             _uow = uow;
         }
-        public async Task<bool> RemoveJudgeAsync(RemoveJudgeAPIViewModel judgeInfo)
+
+        public async Task<bool> AddJudge(string mentorID, string trackID)
         {
-            //categroy
             try
             {
-                Category cate = await _uow.Category.GetFirstOrDefaultAsync(q => q.CategoryId == judgeInfo.CategoryId);
-                if (cate != null)
+                TeacherList newMentor = new TeacherList()
                 {
-                    //check Judge exist
-                    Judge judge = await _uow.Judge.GetFirstOrDefaultAsync(q => q.TeacherId == judgeInfo.TeacherId && q.CategoryId == judgeInfo.CategoryId);
-                    if (judge != null)
-                    {
-                        _uow.Judge.Remove(judge);
-                        await _uow.SaveAsync();
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else return false;
+                    TeacherId = mentorID,
+                    TrackId = trackID,
+                    IsMentor = false
+                };
+
+                await _uow.TeacherList.AddAsync(newMentor);
+
+                await _uow.SaveAsync();
+
+                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
         }
-        public async Task<string> AddJudgeAsync(AddJudgeAPIViewModel judgesInfo)
+
+        public async Task<List<TeacherList>> GetAllTracksAsync()
         {
             try
             {
-                //check category exist
-                Category cate = await _uow.Category.GetFirstOrDefaultAsync(q => q.CategoryId == judgesInfo.CategoryId, "Judges");
-                if (cate != null)
-                {
-                    foreach (CreateJudgeAPIViewModel judge in judgesInfo.NewJudges)
-                    {
-                        if (judge.TeacherId == cate.Mentor)
-                        {
-                            return $"Judge {judge.TeacherId} is already a mentor";
-                        }
-                        //check judge is teacher exist
-                        Teacher existed = await _uow.Teacher.GetFirstOrDefaultAsync(q => q.Id == judge.TeacherId);
-                        if (existed != null)
-                        {
-                            //check duplicate
-
-                            Judge judgeDb = cate.Judges.Where(q => q.TeacherId == judge.TeacherId).FirstOrDefault();
-                            if (judgeDb == null)
-                            {
-                                Judge newJudge = new Judge()
-                                {
-                                    Id = Guid.NewGuid().ToString(),
-                                    CategoryId = judgesInfo.CategoryId,
-                                    TeacherId = judge.TeacherId
-                                };
-                                await _uow.Judge.AddAsync(newJudge);
-                            }
-                            else
-                            {
-                                return $"Judge {judgeDb.TeacherId} is already assgined";
-                            }
-                        }
-                        else
-                        {
-                            return $"Judge {judge.TeacherId} is not existed";
-                        }
-
-                    }
-                    await _uow.SaveAsync();
-                    return "Ok";
-                }
-                else
-                {
-                    return string.Empty;
-                }
+                List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.IsMentor == false);
+                return result.ToList();
             }
-            catch (Exception ex)
+            catch
             {
-                return string.Empty;
+                return new List<TeacherList>();
             }
-
         }
 
-        public async Task<List<JudgeAPIViewModel>> GetByCategoryIdAsync(string cateId, string eventId)
+        public async Task<List<TeacherList>> GetJudgesByTrackAsync(string trackID)
         {
-            Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(q => q.EventId == eventId && q.IsActive);
-            if (eventDb == null) return null;
-
-            List<Judge> judgeDb = await _uow.Judge.GetAllAsync(q => q.CategoryId == cateId,null, "Category,Teacher");
-            if (judgeDb != null)
+            try
             {
-                List<JudgeAPIViewModel> result = new List<JudgeAPIViewModel>();
-                foreach(Judge judge in judgeDb)
-                {
-                    Account account = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId == judge.Teacher.AccountId);
-                    result.Add(new JudgeAPIViewModel()
-                    {
-                        AccId = account.AccountId,
-                        CategoryId = judge.CategoryId,
-                        Email = account.Email,
-                        Fullname = account.FullName,
-                        Id = judge.Id,
-                        IsGuest = judge.Teacher.IsGuest,
-                        TeacherId = judge.TeacherId,
-                        CategoryName = judge.Category.CategoryName
-                    });
-                }
-          
-                return result;
-
+                List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.TrackId == trackID && q.IsMentor == false);
+                return result.ToList();
             }
-            else
+            catch
             {
-                return null;
+                return new List<TeacherList>();
+            }
+        }
+
+        public async Task<bool> RemoveJudge(string teacherID, string trackID)
+        {
+            try
+            {
+                TeacherList listDb = await _uow.TeacherList.GetFirstOrDefaultAsync(q => q.TeacherId == teacherID && q.TrackId == trackID && q.IsMentor == false);
+
+                if (listDb == null)
+                {
+                    return false;
+                }
+
+                _uow.TeacherList.Remove(listDb);
+                await _uow.SaveAsync();
+
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                return false;
             }
         }
     }

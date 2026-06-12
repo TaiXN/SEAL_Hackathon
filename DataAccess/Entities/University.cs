@@ -9,5 +9,5 @@ public partial class University
 
     public string UniversityName { get; set; } = null!;
 
-    public virtual ICollection<Player> Players { get; set; } = new List<Player>();
+    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 }

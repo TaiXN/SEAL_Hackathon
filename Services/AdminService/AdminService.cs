@@ -32,7 +32,7 @@ namespace Services.AdminService
             }
         }
 
-        public async Task<bool> CreateAsync(Account account)
+        public async Task<bool> CreateAsync(Account account, bool IsSuperAdmin)
         {
             try
             {
@@ -54,8 +54,8 @@ namespace Services.AdminService
                     await _uow.Account.AddAsync(newAccount);
                     Admin newAdmin = new Admin()
                     {
-                        AccountId = account.AccountId,
-                        AdminId = Guid.NewGuid().ToString()
+                        AdminId = newAccount.AccountId,
+                        IsSuperAdmin = IsSuperAdmin,
                     };
                     await _uow.Admin.AddAsync(newAdmin);
                     await _uow.SaveAsync();
@@ -63,8 +63,6 @@ namespace Services.AdminService
                  
                 }
                 else return false;
-              
-
             }
             catch (Exception ex)
             {

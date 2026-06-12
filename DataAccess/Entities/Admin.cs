@@ -7,7 +7,7 @@ public partial class Admin
 {
     public string AdminId { get; set; } = null!;
 
-    public string AccountId { get; set; } = null!;
+    public bool IsSuperAdmin { get; set; }
 
-    public virtual Account Account { get; set; } = null!;
+    public virtual Account AdminNavigation { get; set; } = null!;
 }

@@ -1,20 +1,21 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
-using DataAccess.Repositories.CategoryRepository;
 using DataAccess.Repositories.CriteriaRepository;
-using DataAccess.Repositories.CriteriaTemplateRepository;
+using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
-using DataAccess.Repositories.JudgeRepository;
 using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
+using DataAccess.Repositories.TeacherListRepository;
 using DataAccess.Repositories.TeacherRepository;
+using DataAccess.Repositories.TopicRepository;
+using DataAccess.Repositories.TrackRepository;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
-    public class UnitOfWork:IUnitOfWork
+    public class UnitOfWork : IUnitOfWork
     {
         private readonly SealContext _context;
         public IAccountRepository Account { get; private set; }
@@ -24,11 +25,12 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
         public IRoundRepository Round { get; private set; }
-        public ICategoryRepository Category { get; private set; }
-        public IJudgeRepository Judge { get; private set; }
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
-        public ICriteriaTemplateRepository CriteriaTemplate { get; private set; }
+        public ICriteriaSetRepository CriteriaSet { get; private set; }
+        public ITrackRepository Track { get; private set; }
+        public ITopicRepository Topic { get; private set; }
+        public ITeacherListRepository TeacherList { get; private set; }
 
 
         public UnitOfWork(SealContext context)
@@ -41,11 +43,13 @@ namespace DataAccess.Repositories.UnitOfWork
             Teacher = new TeacherRepository.TeacherRepository(context);
             Event = new EventRepository.EventRepository(context);
             Round = new RoundRepository.RoundRepository(context);
-            Category = new CategoryRepository.CategoryRepository(context);
-            Judge = new JudgeRepository.JudgeRepository(context);
             Criteria = new CriteriaRepository.CriteriaRepository(context);
             Mapping = new MappingRepository.MappingRepository(context);
-            CriteriaTemplate = new CriteriaTemplateRepository.CriteriaTemplateRepository(context);
+            CriteriaSet = new CriteriaSetRepository.CriteriaSetRepository(context);
+            Track = new TrackRepository.TrackRepository(context);
+            Topic = new TopicRepository.TopicRepository(context);
+            TeacherList = new TeacherListRepository.TeacherListRepository(context);
+
         }
 
         public async Task SaveAsync()

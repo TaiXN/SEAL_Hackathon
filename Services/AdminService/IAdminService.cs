@@ -7,6 +7,6 @@ namespace Services.AdminService
 {
     public interface IAdminService
     {
-        Task<bool> CreateAsync(Account account);
+        Task<bool> CreateAsync(Account account, bool IsSuperAdmin);
     }
 }

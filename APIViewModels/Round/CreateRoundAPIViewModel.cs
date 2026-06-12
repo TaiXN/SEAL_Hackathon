@@ -24,7 +24,11 @@ namespace APIViewModels.Round
 
         [Required]
         public int MaxTeam { get; set; }
+
         [Required]
         public int RoundIndex { get; set; }
+
+        [Required]
+        public string CriteriaSetID { get; set; }
     }
 }

@@ -21,15 +21,15 @@ public partial class Account
 
     public bool IsActive { get; set; }
 
-    public virtual ICollection<Admin> Admins { get; set; } = new List<Admin>();
+    public virtual Admin? Admin { get; set; }
 
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
-
-    public virtual ICollection<Player> Players { get; set; } = new List<Player>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
     public virtual Role Role { get; set; } = null!;
 
-    public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
+    public virtual Student? Student { get; set; }
+
+    public virtual Teacher? Teacher { get; set; }
 }

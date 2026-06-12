@@ -1,11 +1,6 @@
-﻿using APIViewModels.Event;
-using APIViewModels.Round;
+﻿using APIViewModels.Round;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Text;
 
 namespace Services.RoundService
 {
@@ -45,7 +40,8 @@ namespace Services.RoundService
                     TopNpromotion = info.TopNPromotion,
                     MaxTeam = info.MaxTeam,
                     IsActive = true,
-                    RoundIndex = RoundIndex
+                    RoundIndex = RoundIndex,
+                    CriteriaSetId = info.CriteriaSetID
                 };
                 await _uow.Round.AddAsync(newRound);
                 await _uow.SaveAsync();
@@ -82,11 +78,11 @@ namespace Services.RoundService
             }
         }
 
-        public async Task<bool> UpdateRoundAsync(string id, UpdateRoundAPIViewModel info)
+        public async Task<bool> UpdateRoundAsync(UpdateRoundAPIViewModel info)
         {
             try
             {
-                var roundDb = await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId.Equals(id));
+                var roundDb = await _uow.Round.GetFirstOrDefaultAsync(q => q.RoundId.Equals(info.RoundID));
                 if (roundDb == null)
                 {
                     return false;
@@ -108,6 +104,7 @@ namespace Services.RoundService
                 roundDb.EndDate = info.EndDate;
                 roundDb.TopNpromotion = info.TopNPromotion;
                 roundDb.MaxTeam = info.MaxTeam;
+                roundDb.CriteriaSetId = info.CriteriaSetID;
 
                 _uow.Round.Update(roundDb);
                 await _uow.SaveAsync();

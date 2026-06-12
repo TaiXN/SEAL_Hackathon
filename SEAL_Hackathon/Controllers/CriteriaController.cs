@@ -64,7 +64,7 @@ namespace SEAL_Hackathon.Controllers
             {
                 return Ok("Criteria update successful!");
             }
-            return BadRequest("Error occurred during the criteria update process or event not found.");
+            return BadRequest("Error occurred during the criteria update process or criteria not found.");
         }
 
         [Authorize(Roles = "Admin")]
@@ -91,33 +91,33 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("The criteria was not found, or an error occurred while recovering.");
         }
 
-        //Manage Template criteria
+        //Manage Set criteria
 
         [Authorize(Roles ="Admin")]
-        [HttpPost("template")]
-        public async Task<IActionResult> CreateTemplate(CreateTemplateAPIViewModel info)
+        [HttpPost("set")]
+        public async Task<IActionResult> CreateSet(CreateSetAPIViewModel info)
         {
-            bool isSuccess = await _criteria.CreateTemplateWithMappingsAsync(info);
+            bool isSuccess = await _criteria.CreateSetWithMappingsAsync(info);
             if (isSuccess)
             {
-                return Ok("Create template successfully.");
+                return Ok("Create set successfully.");
             }
-            return BadRequest("Error while creating template.");
+            return BadRequest("Error while creating set.");
         }
 
         [Authorize(Roles ="Admin")]
-        [HttpGet("template")]
-        public async Task<IActionResult> GetAllTemplates()
+        [HttpGet("set")]
+        public async Task<IActionResult> GetAllSets()
         {
-            List<CriteriaTemplate> result = await _criteria.GetAllTemplatesAsync();
+            List<CriteriaSet> result = await _criteria.GetAllSetsAsync();
             return Ok(result);
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpGet("template/{id}")]
-        public async Task<IActionResult> GetTemplateDetails(string id)
+        [HttpGet("set/{id}")]
+        public async Task<IActionResult> GetSetDetails(string id)
         {
-            List<Mapping> result = await _criteria.GetTemplateDetailsAsync(id);
+            List<Mapping> result = await _criteria.GetSetDetailsAsync(id);
             if (result == null || result.Count == 0)
             {
                 return NotFound("No criteria found.");
@@ -126,27 +126,27 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPut("template/{id}")]
-        public async Task<IActionResult> UpdateTemplate(string id, UpdateTemplateAPIViewModel info)
+        [HttpPut("set/{id}")]
+        public async Task<IActionResult> UpdateSet(string id, UpdateSetAPIViewModel info)
         {
-            bool isSuccess = await _criteria.UpdateTemplateAsync(id, info);
+            bool isSuccess = await _criteria.UpdateSetAsync(id, info);
             if (isSuccess)
             {
-                return Ok("Template update successful!");
+                return Ok("Set update successful!");
             }
-            return BadRequest("Error occurred during the template update process or event not found.");
+            return BadRequest("Error occurred during the set update process or event not found.");
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpDelete("template/{id}")]
-        public async Task<IActionResult> DeleteTemplate(string id)
+        [HttpDelete("set/{id}")]
+        public async Task<IActionResult> DeleteSet(string id)
         {
-            bool isSuccess = await _criteria.DeleteTemplateAsync(id);
+            bool isSuccess = await _criteria.DeleteSetAsync(id);
             if (isSuccess)
             {
-                return Ok("Tempalte successfully deleted.");
+                return Ok("Set successfully deleted.");
             }
-            return BadRequest("The template was not found, or an error occurred while deleting.");
+            return BadRequest("The set was not found, or an error occurred while deleting.");
         }
 
     }
