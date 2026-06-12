@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Services.AdminService
 {
-    public class AdminService:IAdminService
+    public class AdminService : IAdminService
     {
         private readonly IUnitOfWork _uow;
         private readonly string PRIVATEKEY = "dasox!@#!mxosnadoxnWCASDASCDASXD12312-123!@#!@#!@";
@@ -18,7 +18,7 @@ namespace Services.AdminService
             _uow = uow;
         }
 
-   
+
         private async Task<bool> IsDuplicateEmail(string email)
         {
             Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(q => q.Email.ToLower().Equals(email.ToLower()));
@@ -32,7 +32,7 @@ namespace Services.AdminService
             }
         }
 
-        public async Task<bool> CreateAsync(Account account, bool IsSuperAdmin)
+        public async Task<bool> CreateAsync(Account account)
         {
             try
             {
@@ -52,15 +52,11 @@ namespace Services.AdminService
                         RoleId = roleId
                     };
                     await _uow.Account.AddAsync(newAccount);
-                    Admin newAdmin = new Admin()
-                    {
-                        AdminId = newAccount.AccountId,
-                        IsSuperAdmin = IsSuperAdmin,
-                    };
-                    await _uow.Admin.AddAsync(newAdmin);
+
+
                     await _uow.SaveAsync();
                     return true;
-                 
+
                 }
                 else return false;
             }
@@ -68,7 +64,7 @@ namespace Services.AdminService
             {
                 return false;
             }
-           
+
         }
     }
 }

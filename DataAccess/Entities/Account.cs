@@ -21,8 +21,6 @@ public partial class Account
 
     public bool IsActive { get; set; }
 
-    public virtual Admin? Admin { get; set; }
-
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

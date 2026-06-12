@@ -41,8 +41,7 @@ namespace SEAL_Hackathon.Controllers
                     Password = info.Password,
                     Phone = info.Phone
 
-                },
-                   info.IsSuperAdmin
+                }
                 );
                 if (isAdminCreated)
                 {

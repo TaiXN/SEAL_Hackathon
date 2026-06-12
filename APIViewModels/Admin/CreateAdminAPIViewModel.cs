@@ -20,7 +20,6 @@ namespace APIViewModels.Admin
         public string Address { get; set; }
         [Required]
         public string Phone {  get; set; }
-        [Required]
-        public bool IsSuperAdmin { get; set; }
+      
     }
 }

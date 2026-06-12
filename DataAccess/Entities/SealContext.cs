@@ -17,8 +17,6 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Account> Accounts { get; set; }
 
-    public virtual DbSet<Admin> Admins { get; set; }
-
     public virtual DbSet<CriteriaSet> CriteriaSets { get; set; }
 
     public virtual DbSet<Criterion> Criteria { get; set; }
@@ -93,23 +91,6 @@ public partial class SealContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Account__RoleID__286302EC");
-        });
-
-        modelBuilder.Entity<Admin>(entity =>
-        {
-            entity.HasKey(e => e.AdminId).HasName("PK__Admin__719FE4E8F63E0F46");
-
-            entity.ToTable("Admin");
-
-            entity.Property(e => e.AdminId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("AdminID");
-
-            entity.HasOne(d => d.AdminNavigation).WithOne(p => p.Admin)
-                .HasForeignKey<Admin>(d => d.AdminId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Admin_Account1");
         });
 
         modelBuilder.Entity<CriteriaSet>(entity =>
