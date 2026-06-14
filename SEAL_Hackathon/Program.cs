@@ -14,7 +14,6 @@ using Services.MentorService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.RoundService;
-using Services.TeacherListService;
 using Services.TeacherService;
 using Services.TopicService;
 using Services.TrackService;
@@ -80,7 +79,6 @@ namespace SEAL_Hackathon
                 builder.RegisterType<CriteriaService>().As<ICriteriaService>();
                 builder.RegisterType<TrackService>().As<ITrackService>();
                 builder.RegisterType<TopicService>().As<ITopicService>();
-                builder.RegisterType<TeacherListService>().As<ITeacherListService>();
                 builder.RegisterType<MentorService>().As<IMentorService>();
                 builder.RegisterType<JudgeService>().As<IJudgeService>();
             });
