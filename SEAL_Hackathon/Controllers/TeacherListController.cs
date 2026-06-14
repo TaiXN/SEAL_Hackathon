@@ -17,7 +17,7 @@ namespace SEAL_Hackathon.Controllers
             _teacherList = teacherList;
         }
 
-        [Authorize(Roles = "Teacher,Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(CreateTeacherListAPIViewModel info)
         {

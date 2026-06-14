@@ -1,10 +1,6 @@
-﻿using APIViewModels.Event;
-using APIViewModels.TeacherList;
+﻿using APIViewModels.TeacherList;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Services.TeacherListService
 {
