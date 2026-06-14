@@ -27,5 +27,4 @@ public partial class Round
 
     public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
 
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

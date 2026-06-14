@@ -1,10 +1,10 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.RepositoryBase;
 
-namespace DataAccess.Repositories.UserTeamRepository
+namespace DataAccess.Repositories.TeamMemberRepository
 {
-    public interface IUserTeamRepository : IRepository<UserTeam>
+    public interface ITeamMemberRepository : IRepository<TeamMember>
     {
-        void Update(UserTeam userTeam);
+        void Update(TeamMember teamMember);
     }
 }

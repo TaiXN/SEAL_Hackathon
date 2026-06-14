@@ -23,7 +23,7 @@ public partial class Account
 
     public virtual ICollection<Admin> Admins { get; set; } = new List<Admin>();
 
-    public virtual ICollection<Player> Players { get; set; } = new List<Player>();
+    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 

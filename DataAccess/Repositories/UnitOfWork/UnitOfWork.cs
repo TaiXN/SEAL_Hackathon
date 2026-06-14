@@ -3,18 +3,21 @@ using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.AdminRepository;
 
 using DataAccess.Repositories.EventRepository;
-using DataAccess.Repositories.PlayerRepository;
+
 using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
-using DataAccess.Repositories.SubmittedTeamRepository;
+using DataAccess.Repositories.StudentRepository;
+using DataAccess.Repositories.SubmissionRepository;
 using DataAccess.Repositories.TeacherRepository;
+using DataAccess.Repositories.TeamInRoundRepository;
+using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
-using DataAccess.Repositories.UserTeamRepository;
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -33,12 +36,12 @@ namespace DataAccess.Repositories.UnitOfWork
         public IPrizeRepository Prize { get; private set; }
         public IRoundRepository Round { get; private set; }
         public ITeamRepository Team { get; private set; }
-        public IPlayerRepository Player { get; private set; }
-        public IUserTeamRepository UserTeam { get; private set; }
-        public ISubmittedTeamRepository SubmittedTeam { get; private set; }
+        public IStudentRepository Student { get; private set; }
+        public ITeamMemberRepository TeamMember { get; private set; }
+        public ITeamInRoundRepository TeamInRound { get; private set; }
         public ITrackRepository Track { get; private set; }
         public ITopicRepository Topic { get; private set; }
-
+        public ISubmissionRepository Submission { get; private set; }
 
 
 
@@ -55,10 +58,10 @@ namespace DataAccess.Repositories.UnitOfWork
             Prize = new PrizeRepository.PrizeRepository(context);
             Round = new RoundRepository.RoundRepository(context);
             Team = new TeamRepository.TeamRepository(context);
-            Player = new PlayerRepository.PlayerRepository(context);
-            SubmittedTeam = new SubmittedTeamRepository.SubmittedTeamRepository(context);
-            UserTeam = new UserTeamRepository.UserTeamRepository(context);
-
+            Student = new StudentRepository.StudentRepository(context);
+            TeamMember = new TeamMemberRepository.TeamMemberRepository(context);
+            TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
+            Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
 

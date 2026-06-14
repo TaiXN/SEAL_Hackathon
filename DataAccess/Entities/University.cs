@@ -1,13 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace DataAccess.Entities;
-
-public partial class University
+namespace DataAccess.Entities
 {
-    public string UniversityId { get; set; } = null!;
-
-    public string UniversityName { get; set; } = null!;
-
-    public virtual ICollection<Player> Players { get; set; } = new List<Player>();
+    [Table("University")]
+    public class University
+    {
+        [Key]
+        public string UniversityId { get; set; }
+        public string UniversityName { get; set; }
+        public virtual ICollection<Student> Students { get; set; }
+    }
 }

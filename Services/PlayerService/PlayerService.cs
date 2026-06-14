@@ -19,21 +19,12 @@ namespace Services.PlayerService
 
         public async Task<bool> RegisterPlayerAsync(RegisterAPIViewModel info)
         {
-            // 1. Check if Email already exists
             var existingAcc = await _uow.Account.GetFirstOrDefaultAsync(a => a.Email == info.Email);
-            if (existingAcc != null)
-            {
-                return false;
-            }
+            if (existingAcc != null) return false;
 
-            // 2. Find "Player" RoleID
-            var playerRole = await _uow.Role.GetFirstOrDefaultAsync(r => r.RoleName == "Player");
-            if (playerRole == null)
-            {
-                throw new Exception("ERROR: cant find player in database");
-            }
+            var playerRole = await _uow.Role.GetFirstOrDefaultAsync(r => r.RoleName == "Player" || r.RoleName == "Student");
+            if (playerRole == null) throw new Exception("ERROR: cant find player role in database");
 
-            // 3. Create Login Account
             string newAccountId = Guid.NewGuid().ToString();
             var newAccount = new Account
             {
@@ -48,20 +39,16 @@ namespace Services.PlayerService
             };
             await _uow.Account.AddAsync(newAccount);
 
-            // 4. Create Player profile
-            var newPlayer = new Player
+            // TẠO PROFILE STUDENT (Thay cho Player cũ)
+            var newStudent = new Student
             {
-                PlayerId = Guid.NewGuid().ToString(),
-                AccountId = newAccountId,
+                StudentId = newAccountId,
                 UniversityId = info.UniversityId,
-                StudentId = info.StudentId,
                 IsApproved = true
             };
-            await _uow.Player.AddAsync(newPlayer);
+            await _uow.Student.AddAsync(newStudent);
 
-            // 5. Save to SQL Server
             await _uow.SaveAsync();
-
             return true;
         }
     }

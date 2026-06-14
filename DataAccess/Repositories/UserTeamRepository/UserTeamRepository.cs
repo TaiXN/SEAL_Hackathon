@@ -1,21 +1,16 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.RepositoryBase;
 
-namespace DataAccess.Repositories.UserTeamRepository
+namespace DataAccess.Repositories.TeamMemberRepository
 {
-    public class UserTeamRepository : Repository<UserTeam>, IUserTeamRepository
+    public class TeamMemberRepository : Repository<TeamMember>, ITeamMemberRepository
     {
         private readonly SealHackathonContext _db;
-
-        public UserTeamRepository(SealHackathonContext db) : base(db)
-        {
+        public TeamMemberRepository(SealHackathonContext db) : base(db) {
             _db = db;
         }
-
-        
-        public void Update(UserTeam userTeam)
-        {
-            _db.UserTeams.Update(userTeam);
+        public void Update(TeamMember teamMember) { 
+            _db.TeamMembers.Update(teamMember);
         }
     }
 }

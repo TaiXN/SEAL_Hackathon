@@ -41,5 +41,26 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        [HttpPost("submit-github")]
+        public async Task<IActionResult> SubmitGithubUrl(SubmitGithubAPIViewModel request)
+        {
+            try
+            {
+                string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(accountId)) return Unauthorized();
+
+                bool isSuccess = await _submittedTeam.SubmitGithubUrlAsync(accountId, request);
+                if (isSuccess)
+                {
+                    return Ok(new { message = "Github URL submitted successfully!" });
+                }
+                return BadRequest(new { message = "Cannot submit Github URL." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

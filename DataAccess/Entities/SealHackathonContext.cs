@@ -32,8 +32,6 @@ public partial class SealHackathonContext : DbContext
 
     public virtual DbSet<MentorAssignment> MentorAssignments { get; set; }
 
-    public virtual DbSet<Player> Players { get; set; }
-
     public virtual DbSet<Prize> Prizes { get; set; }
 
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -50,9 +48,9 @@ public partial class SealHackathonContext : DbContext
 
     public virtual DbSet<University> Universities { get; set; }
 
-    public virtual DbSet<UserTeam> UserTeams { get; set; }
-
-    public virtual DbSet<SubmittedTeam> SubmittedTeams { get; set; }
+    public virtual DbSet<Student> Students { get; set; }
+    public virtual DbSet<TeamMember> TeamMembers { get; set; }
+    public virtual DbSet<TeamInRound> TeamInRounds { get; set; }
 
     public virtual DbSet<Track> Tracks { get; set; }
     public virtual DbSet<Topic> Topics { get; set; }
@@ -333,38 +331,7 @@ public partial class SealHackathonContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
-        modelBuilder.Entity<Player>(entity =>
-        {
-            entity.HasKey(e => e.PlayerId).HasName("PK__Player__4A4E74A88A71AEFD");
-
-            entity.ToTable("Player");
-
-            entity.Property(e => e.PlayerId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("PlayerID");
-            entity.Property(e => e.AccountId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.StudentId)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("StudentID");
-            entity.Property(e => e.UniversityId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("UniversityID");
-
-            entity.HasOne(d => d.Account).WithMany(p => p.Players)
-                .HasForeignKey(d => d.AccountId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Player_Account");
-
-            entity.HasOne(d => d.University).WithMany(p => p.Players)
-                .HasForeignKey(d => d.UniversityId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Player__Universi__31EC6D26");
-        });
+       
 
         modelBuilder.Entity<Prize>(entity =>
         {
@@ -460,43 +427,16 @@ public partial class SealHackathonContext : DbContext
 
         modelBuilder.Entity<Submission>(entity =>
         {
-            entity.HasKey(e => e.SubmissionId).HasName("PK__Submissi__449EE1059E0A4B2E");
-
+            entity.HasKey(e => e.Id).HasName("PK_Submission");
             entity.ToTable("Submission");
 
-            entity.Property(e => e.SubmissionId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("SubmissionID");
-            entity.Property(e => e.DemoUrl)
-                .HasMaxLength(255)
-                .HasColumnName("DemoURL");
-            entity.Property(e => e.ProjectName).HasMaxLength(400);
-            entity.Property(e => e.ProjectUrl)
-                .HasMaxLength(255)
-                .HasColumnName("ProjectURL");
-            entity.Property(e => e.RoundId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("RoundID");
-            entity.Property(e => e.SlideUrl)
-                .HasMaxLength(255)
-                .HasColumnName("SlideURL");
-            entity.Property(e => e.SubmitTime).HasColumnType("datetime");
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("TeamID");
-
-            entity.HasOne(d => d.Round).WithMany(p => p.Submissions)
-                .HasForeignKey(d => d.RoundId)
+            entity.Property(e => e.Id).HasMaxLength(400).IsUnicode(false).HasColumnName("Id");
+            entity.Property(e => e.TeamInRoundId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamInRoundID");
+            entity.Property(e => e.UrlGithub).HasMaxLength(400).HasColumnName("URLGithub");
+            entity.HasOne(d => d.TeamInRound).WithMany()
+                .HasForeignKey(d => d.TeamInRoundId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Submissio__Round__4F7CD00D");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.Submissions)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Submissio__TeamI__4E88ABD4");
+                .HasConstraintName("FK_Submission_TeamInRound");
         });
 
         modelBuilder.Entity<Teacher>(entity =>
@@ -545,48 +485,56 @@ public partial class SealHackathonContext : DbContext
             entity.Property(e => e.UniversityName).HasMaxLength(400);
         });
 
-        modelBuilder.Entity<UserTeam>(entity =>
+        modelBuilder.Entity<Student>(entity =>
         {
-            entity.HasKey(e => new { e.TeamId, e.PlayerId }).HasName("PK__User_Tea__869E00F37F9CDC74");
+            entity.HasKey(e => e.StudentId).HasName("PK_Student");
+            entity.ToTable("Student");
+            entity.Property(e => e.StudentId).HasMaxLength(400).IsUnicode(false).HasColumnName("StudentID");
+            entity.Property(e => e.UniversityId).HasMaxLength(400).IsUnicode(false).HasColumnName("UniversityID");
 
-            entity.ToTable("User_Team");
+            entity.HasOne(d => d.University).WithMany(p => p.Students)
+                .HasForeignKey(d => d.UniversityId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("TeamID");
-            entity.Property(e => e.PlayerId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("PlayerID");
-
-            entity.HasOne(d => d.Player).WithMany(p => p.UserTeams)
-                .HasForeignKey(d => d.PlayerId)
+            entity.HasOne(d => d.Account).WithMany(p => p.Students)
+                .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Team__Playe__4BAC3F29");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.UserTeams)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Team__TeamI__4AB81AF0");
+                .HasConstraintName("FK_Student_Account");
         });
 
-        modelBuilder.Entity<SubmittedTeam>(entity =>
+        modelBuilder.Entity<TeamMember>(entity =>
         {
-            entity.HasKey(e => e.SubmittedTeamId).HasName("PK_SubmittedTeam");
-            entity.ToTable("SubmittedTeam");
-
-            entity.Property(e => e.SubmittedTeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("SubmittedTeamID");
+            entity.HasKey(e => new { e.TeamId, e.StudentId }).HasName("PK__User_Tea__869E00F37F9CDC74");
+            entity.ToTable("TeamMember");
             entity.Property(e => e.TeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamID");
-            entity.Property(e => e.SubmitTime).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
+            entity.Property(e => e.StudentId).HasMaxLength(400).IsUnicode(false).HasColumnName("StudentID");
 
-            entity.Property(e => e.TopicId).HasMaxLength(400).IsUnicode(false).HasColumnName("TopicID");
+            entity.HasOne(d => d.Student).WithMany(p => p.TeamMembers)
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
-            entity.HasOne(d => d.Team).WithMany()
+            entity.HasOne(d => d.Team).WithMany(p => p.TeamMembers)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
+
+        modelBuilder.Entity<TeamInRound>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_TeamInRound");
+            entity.ToTable("TeamInRound");
+            entity.Property(e => e.Id).HasMaxLength(400).IsUnicode(false).HasColumnName("Id");
+            entity.Property(e => e.TeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamID");
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
+
+            entity.Property(e => e.RoundId).HasMaxLength(400).IsUnicode(false).HasColumnName("RoundID");
+            entity.Property(e => e.TopicId).HasMaxLength(400).IsUnicode(false).HasColumnName("TopicID");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.TeamInRounds)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+
 
         OnModelCreatingPartial(modelBuilder);
     }

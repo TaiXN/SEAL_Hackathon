@@ -1,13 +1,10 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.RepositoryBase;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DataAccess.Repositories.SubmittedTeamRepository
+namespace DataAccess.Repositories.TeamInRoundRepository
 {
-    public interface ISubmittedTeamRepository : IRepository<SubmittedTeam>
+    public interface ITeamInRoundRepository : IRepository<TeamInRound>
     {
-        void Update(SubmittedTeam submittedTeam);
+        void Update(TeamInRound teamInRound);
     }
 }

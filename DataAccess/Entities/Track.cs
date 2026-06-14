@@ -6,12 +6,10 @@ namespace DataAccess.Entities
     {
         public string TrackId { get; set; }
         public string EventId { get; set; }
-        public string AdminId { get; set; } // Đổi từ Creator sang AdminId
+        public string AdminId { get; set; } 
         public string TrackName { get; set; }
         public bool IsActive { get; set; }
-        public string Mentor { get; set; }
 
-        
         public virtual Admin Admin { get; set; }
         public virtual Event Event { get; set; }
         public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
