@@ -1,10 +1,6 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using Services.Utils;
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Services.AdminService
 {

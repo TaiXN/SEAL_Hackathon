@@ -1,5 +1,4 @@
 ﻿using DataAccess.Repositories.AccountRepository;
-using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
@@ -19,7 +18,7 @@ namespace DataAccess.Repositories.UnitOfWork
         IAccountRepository Account { get; }
         IRoleRepository Role { get; }
         IRefreshTokenRepository RefreshToken { get; }
-        IAdminRepository Admin { get; }
+      
         ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
         IEventRepository Event { get; }

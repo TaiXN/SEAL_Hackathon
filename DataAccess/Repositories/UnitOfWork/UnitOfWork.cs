@@ -1,6 +1,5 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
-using DataAccess.Repositories.AdminRepository;
 using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
@@ -21,7 +20,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
-        public IAdminRepository Admin { get; private set; }
+       
         public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
         public IRoundRepository Round { get; private set; }
@@ -39,7 +38,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Account = new AccountRepository.AccountRepository(context);
             Role = new RoleRepository.RoleRepository(context);
             RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);
-            Admin = new AdminRepository.AdminRepository(context);
+           
             Teacher = new TeacherRepository.TeacherRepository(context);
             Event = new EventRepository.EventRepository(context);
             Round = new RoundRepository.RoundRepository(context);
