@@ -459,7 +459,7 @@ if (finalDeadline <= prelimDeadline) {
       didOpen: () => Swal.showLoading(),
     });
 
-    // 1. Tạo Event
+    // 1. Tạo Event (tao beo)
     const [season, yearStr] = formData.semester.split(" ");
 
 const eventPayload = {
