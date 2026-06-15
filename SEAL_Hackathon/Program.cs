@@ -6,12 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
-using Services.AdminService;
 using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.SubmittedTeamService;
-using Services.TeacherService;
 using Services.TeamService;
 using System.Text;
 
@@ -67,9 +65,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
                 builder.RegisterType<SealHackathonContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
-                builder.RegisterType<AdminService>().As<IAdminService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
-                builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
                 builder.RegisterType<TeamService>().As<ITeamService>();

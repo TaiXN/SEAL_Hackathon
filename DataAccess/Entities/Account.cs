@@ -21,7 +21,6 @@ public partial class Account
 
     public bool IsActive { get; set; }
 
-    public virtual ICollection<Admin> Admins { get; set; } = new List<Admin>();
 
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 
@@ -29,5 +28,4 @@ public partial class Account
 
     public virtual Role Role { get; set; } = null!;
 
-    public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
 }

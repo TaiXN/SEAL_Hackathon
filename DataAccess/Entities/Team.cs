@@ -10,7 +10,6 @@ public partial class Team
 
     public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
     public virtual ICollection<TeamInRound> TeamInRounds { get; set; } = new List<TeamInRound>();
-    public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
     
 
 }

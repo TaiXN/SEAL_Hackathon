@@ -13,5 +13,4 @@ public partial class Mapping
 
     public virtual Track Track { get; set; } = null!;
     public virtual Event Event { get; set; } = null!;
-    public virtual Teacher Mentor { get; set; } = null!;
 }

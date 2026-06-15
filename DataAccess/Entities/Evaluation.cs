@@ -19,9 +19,7 @@ public partial class Evaluation
 
     public bool IsLocked { get; set; }
 
-    public virtual Criterion Criteria { get; set; } = null!;
 
-    public virtual JudgeAssignment JudgeAssignment { get; set; } = null!;
 
     public virtual Submission Submission { get; set; } = null!;
 }

@@ -1,17 +1,14 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
-using DataAccess.Repositories.AdminRepository;
 
 using DataAccess.Repositories.EventRepository;
 
-using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.StudentRepository;
 using DataAccess.Repositories.SubmissionRepository;
-using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamInRoundRepository;
 using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
@@ -30,10 +27,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
-        public IAdminRepository Admin { get; private set; }
-        public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
-        public IPrizeRepository Prize { get; private set; }
         public IRoundRepository Round { get; private set; }
         public ITeamRepository Team { get; private set; }
         public IStudentRepository Student { get; private set; }
@@ -52,10 +46,9 @@ namespace DataAccess.Repositories.UnitOfWork
             Account = new AccountRepository.AccountRepository(context);
             Role = new RoleRepository.RoleRepository(context);
             RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);
-            Admin = new AdminRepository.AdminRepository(context);
-            Teacher = new TeacherRepository.TeacherRepository(context);
+            
             Event = new EventRepository.EventRepository(context);
-            Prize = new PrizeRepository.PrizeRepository(context);
+           
             Round = new RoundRepository.RoundRepository(context);
             Team = new TeamRepository.TeamRepository(context);
             Student = new StudentRepository.StudentRepository(context);

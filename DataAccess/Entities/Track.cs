@@ -10,9 +10,7 @@ namespace DataAccess.Entities
         public string TrackName { get; set; }
         public bool IsActive { get; set; }
 
-        public virtual Admin Admin { get; set; }
         public virtual Event Event { get; set; }
         public virtual ICollection<Mapping> Mappings { get; set; } = new List<Mapping>();
-        public virtual ICollection<MentorAssignment> MentorAssignments { get; set; } = new List<MentorAssignment>();
     }
 }

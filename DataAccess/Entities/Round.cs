@@ -19,12 +19,7 @@ public partial class Round
 
     public int TopNpromotion { get; set; }
 
-    public virtual Admin Admin { get; set; } = null!;
-
-    public virtual ICollection<Criterion> Criteria { get; set; } = new List<Criterion>();
-
     public virtual Event Event { get; set; } = null!;
 
-    public virtual ICollection<JudgeAssignment> JudgeAssignments { get; set; } = new List<JudgeAssignment>();
 
 }
