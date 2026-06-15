@@ -6,13 +6,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
-using Services.AdminService;
-using Services.CategoryService;
-using Services.EventService;
+using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
-using Services.RoundService;
-using Services.TeacherService;
+using Services.SubmittedTeamService;
+using Services.TeamService;
 using System.Text;
 
 namespace SEAL_Hackathon
@@ -26,18 +24,24 @@ namespace SEAL_Hackathon
             // Add services to the container.
 
             builder.Services.AddControllers();
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy(name: "_myAllowSpecificOrigins",
-                                  policy =>
-                                  {
-                                      policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-
-                                  });
-            });
             builder.Services.AddMemoryCache();
 
-            builder.Services.AddOpenApiDocument();
+            builder.Services.AddOpenApiDocument(config =>
+            {
+                config.Title = "SEAL Hackathon API";
+
+                // Tạo cái ổ khóa nhập Token
+                config.AddSecurity("Bearer", Enumerable.Empty<string>(), new NSwag.OpenApiSecurityScheme
+                {
+                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
+                    Name = "Authorization",
+                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
+                    Description = "Copy Token dán vào đây, nhớ thêm chữ 'Bearer ' phía trước nha (VD: Bearer eyJhbG...)"
+                });
+
+                // Ép Swagger phải đính kèm cái Token đó vào mỗi lần gọi API
+                config.OperationProcessors.Add(new NSwag.Generation.Processors.Security.AspNetCoreOperationSecurityScopeProcessor("Bearer"));
+            });
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -59,20 +63,19 @@ namespace SEAL_Hackathon
             builder.Host.ConfigureContainer<ContainerBuilder>(builder =>
             {
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
-                builder.RegisterType<SealContext>().AsSelf();
+                builder.RegisterType<SealHackathonContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
-                builder.RegisterType<AdminService>().As<IAdminService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
-                builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
-                builder.RegisterType<RoundService>().As<IRoundService>();
-                builder.RegisterType<EventService>().As<IEventService>();
-                builder.RegisterType<CategoryService>().As<ICategoryService>();
+                builder.RegisterType<TeamService>().As<ITeamService>();
+                builder.RegisterType<PlayerService>().As<IPlayerService>();
+                builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
             });
 
             var app = builder.Build();
-          
+            if (app.Environment.IsDevelopment())
+            {
                 // Add OpenAPI 3.0 document serving middleware
                 // Available at: http://localhost:<port>/swagger/v1/swagger.json
                 app.UseOpenApi();
@@ -87,13 +90,12 @@ namespace SEAL_Hackathon
                 {
                     options.Path = "/redoc";
                 });
-           
+            }
             // Configure the HTTP request pipeline.
 
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
-            app.UseCors("_myAllowSpecificOrigins");
 
 
             app.MapControllers();

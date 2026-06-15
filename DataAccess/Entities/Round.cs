@@ -9,7 +9,7 @@ public partial class Round
 
     public string EventId { get; set; } = null!;
 
-    public string Creator { get; set; } = null!;
+    public string AdminId { get; set; } = null!;
 
     public string RoundName { get; set; } = null!;
 
@@ -19,9 +19,7 @@ public partial class Round
 
     public int TopNpromotion { get; set; }
 
-    public int MaxTeam { get; set; }
-
-    public bool IsActive { get; set; }
-
     public virtual Event Event { get; set; } = null!;
+
+
 }

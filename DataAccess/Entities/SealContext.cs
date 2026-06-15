@@ -4,28 +4,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess.Entities;
 
-public partial class SealContext : DbContext
+public partial class SealHackathonContext : DbContext
 {
-    public SealContext()
+    public SealHackathonContext()
     {
     }
 
-    public SealContext(DbContextOptions<SealContext> options)
+    public SealHackathonContext(DbContextOptions<SealHackathonContext> options)
         : base(options)
     {
     }
 
     public virtual DbSet<Account> Accounts { get; set; }
 
-    public virtual DbSet<Admin> Admins { get; set; }
-
-    public virtual DbSet<Category> Categories { get; set; }
+    public virtual DbSet<Evaluation> Evaluations { get; set; }
 
     public virtual DbSet<Event> Events { get; set; }
 
-    public virtual DbSet<Judge> Judges { get; set; }
 
-    public virtual DbSet<Player> Players { get; set; }
+    public virtual DbSet<Mapping> Mappings { get; set; }
+
+
 
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
@@ -33,15 +32,19 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Round> Rounds { get; set; }
 
-    public virtual DbSet<Teacher> Teachers { get; set; }
+    public virtual DbSet<Submission> Submissions { get; set; }
+
 
     public virtual DbSet<Team> Teams { get; set; }
 
-    public virtual DbSet<TeamJoined> TeamJoineds { get; set; }
-
     public virtual DbSet<University> Universities { get; set; }
 
-    public virtual DbSet<UserTeam> UserTeams { get; set; }
+    public virtual DbSet<Student> Students { get; set; }
+    public virtual DbSet<TeamMember> TeamMembers { get; set; }
+    public virtual DbSet<TeamInRound> TeamInRounds { get; set; }
+
+    public virtual DbSet<Track> Tracks { get; set; }
+    public virtual DbSet<Topic> Topics { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -79,55 +82,87 @@ public partial class SealContext : DbContext
                 .HasConstraintName("FK__Account__RoleID__286302EC");
         });
 
-        modelBuilder.Entity<Admin>(entity =>
-        {
-            entity.HasKey(e => e.AdminId).HasName("PK__Admin__719FE4E8F63E0F46");
+        
 
-            entity.ToTable("Admin");
+        modelBuilder.Entity<Track>(entity =>
+        {
+            entity.HasKey(e => e.TrackId).HasName("PK_Tracks");
+            entity.ToTable("Tracks");
+
+            entity.Property(e => e.TrackId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TrackID");
 
             entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("AdminID");
-            entity.Property(e => e.AccountId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
+                .HasColumnName("Creator");
 
-            entity.HasOne(d => d.Account).WithMany(p => p.Admins)
-                .HasForeignKey(d => d.AccountId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Admin_Account");
-        });
+            entity.Property(e => e.TrackName).HasMaxLength(400);
 
-        modelBuilder.Entity<Category>(entity =>
-        {
-            entity.HasKey(e => e.CategoryId).HasName("PK__Categori__19093A2B3A94678D");
-
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("CategoryID");
-            entity.Property(e => e.CategoryName).HasMaxLength(400);
-            entity.Property(e => e.Creator)
-                .HasMaxLength(400)
-                .IsUnicode(false);
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
-            entity.Property(e => e.Mentor)
-                .HasMaxLength(400)
-                .IsUnicode(false);
 
-            entity.HasOne(d => d.Event).WithMany(p => p.Categories)
+
+            entity.HasOne(d => d.Event).WithMany(p => p.Tracks)
                 .HasForeignKey(d => d.EventId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Categorie__Event__3D5E1FD2");
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
 
-            entity.HasOne(d => d.MentorNavigation).WithMany(p => p.Categories)
-                .HasForeignKey(d => d.Mentor)
+        modelBuilder.Entity<Topic>(entity =>
+        {
+            entity.ToTable("Topic");
+
+            entity.HasKey(e => e.TopicId).HasName("PK_Topic");
+
+            entity.Property(e => e.TopicId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TopicID");
+
+            entity.Property(e => e.TrackId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TrackID");
+
+            entity.Property(e => e.TopicDetail);
+            entity.Property(e => e.IsActive);
+        });
+
+        
+
+        modelBuilder.Entity<Evaluation>(entity =>
+        {
+            entity.HasKey(e => e.EvaluationId).HasName("PK__Evaluati__36AE68D340FC00B0");
+
+            entity.ToTable("Evaluation");
+
+            entity.Property(e => e.EvaluationId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("EvaluationID");
+            entity.Property(e => e.CriteriaId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("CriteriaID");
+            entity.Property(e => e.Feedback).HasMaxLength(255);
+            entity.Property(e => e.JudgeAssignmentId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("JudgeAssignmentID");
+            entity.Property(e => e.SubmissionId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("SubmissionID");
+
+
+            entity.HasOne(d => d.Submission).WithMany(p => p.Evaluations)
+                .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Categories_Teacher");
+                .HasConstraintName("FK__Evaluatio__Submi__60A75C0F");
         });
 
         modelBuilder.Entity<Event>(entity =>
@@ -140,75 +175,47 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
-            entity.Property(e => e.Creator)
+            entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
-                .IsUnicode(false);
+                .IsUnicode(false)
+                .HasColumnName("Creator");
+            entity.Property(e => e.DisqualifyReason).HasMaxLength(255);
             entity.Property(e => e.EventName).HasMaxLength(400);
             entity.Property(e => e.Season).HasMaxLength(50);
 
-            entity.HasOne(d => d.CreatorNavigation).WithMany(p => p.Events)
-                .HasForeignKey(d => d.Creator)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Event_Account");
+
         });
 
-        modelBuilder.Entity<Judge>(entity =>
+        
+
+        modelBuilder.Entity<Mapping>(entity =>
         {
-            entity.ToTable("Judge");
+            entity.HasKey(e => e.MappingId).HasName("PK__Mapping__8B5781BD0F98E1DF");
+            entity.ToTable("Mapping");
 
-            entity.Property(e => e.Id)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.TeacherId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
+            entity.Property(e => e.MappingId).HasMaxLength(400).IsUnicode(false).HasColumnName("MappingID");
+            entity.Property(e => e.EventId).HasMaxLength(400).IsUnicode(false).HasColumnName("EventID");
+            entity.Property(e => e.MentorId).HasMaxLength(400).IsUnicode(false).HasColumnName("MentorID");
+            
+            // Đã đổi thành TrackID
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
 
-            entity.HasOne(d => d.Category).WithMany(p => p.Judges)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Judge_Categories");
+            entity.HasOne(d => d.Track).WithMany(p => p.Mappings)
+                .HasForeignKey(d => d.TrackId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
-            entity.HasOne(d => d.Teacher).WithMany(p => p.Judges)
-                .HasForeignKey(d => d.TeacherId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Judge_Teacher");
+            entity.HasOne(d => d.Event).WithMany(p => p.Mappings)
+                .HasForeignKey(d => d.EventId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+
         });
 
-        modelBuilder.Entity<Player>(entity =>
-        {
-            entity.HasKey(e => e.PlayerId).HasName("PK__Player__4A4E74A88A71AEFD");
+        
 
-            entity.ToTable("Player");
+       
 
-            entity.Property(e => e.PlayerId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("PlayerID");
-            entity.Property(e => e.AccountId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.StudentId)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("StudentID");
-            entity.Property(e => e.UniversityId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("UniversityID");
-
-            entity.HasOne(d => d.Account).WithMany(p => p.Players)
-                .HasForeignKey(d => d.AccountId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Player_Account");
-
-            entity.HasOne(d => d.University).WithMany(p => p.Players)
-                .HasForeignKey(d => d.UniversityId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Player__Universi__31EC6D26");
-        });
+        
 
         modelBuilder.Entity<RefreshToken>(entity =>
         {
@@ -235,7 +242,7 @@ public partial class SealContext : DbContext
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE3A56D2DEB6");
+            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE3AB2D7BD8F");
 
             entity.ToTable("Role");
 
@@ -256,9 +263,10 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("RoundID");
-            entity.Property(e => e.Creator)
+            entity.Property(e => e.AdminId)
                 .HasMaxLength(400)
-                .IsUnicode(false);
+                .IsUnicode(false)
+                .HasColumnName("Creator");
             entity.Property(e => e.EndDate).HasColumnType("datetime");
             entity.Property(e => e.EventId)
                 .HasMaxLength(400)
@@ -268,30 +276,28 @@ public partial class SealContext : DbContext
             entity.Property(e => e.StartDate).HasColumnType("datetime");
             entity.Property(e => e.TopNpromotion).HasColumnName("TopNPromotion");
 
+
             entity.HasOne(d => d.Event).WithMany(p => p.Rounds)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Round__EventID__412EB0B6");
         });
 
-        modelBuilder.Entity<Teacher>(entity =>
+        modelBuilder.Entity<Submission>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__JudgeOrM__3214EC071DF830B8");
+            entity.HasKey(e => e.Id).HasName("PK_Submission");
+            entity.ToTable("Submission");
 
-            entity.ToTable("Teacher");
-
-            entity.Property(e => e.Id)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.AccountId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-
-            entity.HasOne(d => d.Account).WithMany(p => p.Teachers)
-                .HasForeignKey(d => d.AccountId)
+            entity.Property(e => e.Id).HasMaxLength(400).IsUnicode(false).HasColumnName("Id");
+            entity.Property(e => e.TeamInRoundId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamInRoundID");
+            entity.Property(e => e.UrlGithub).HasMaxLength(400).HasColumnName("URLGithub");
+            entity.HasOne(d => d.TeamInRound).WithMany()
+                .HasForeignKey(d => d.TeamInRoundId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Teacher_Account");
+                .HasConstraintName("FK_Submission_TeamInRound");
         });
+
+        
 
         modelBuilder.Entity<Team>(entity =>
         {
@@ -303,38 +309,13 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
-            entity.Property(e => e.Description).HasMaxLength(255);
+
             entity.Property(e => e.TeamName).HasMaxLength(255);
-        });
-
-        modelBuilder.Entity<TeamJoined>(entity =>
-        {
-            entity.ToTable("TeamJoined");
-
-            entity.Property(e => e.Id)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.CategoryId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false);
-
-            entity.HasOne(d => d.Category).WithMany(p => p.TeamJoineds)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_TeamJoined_Categories");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.TeamJoineds)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_TeamJoined_Team");
         });
 
         modelBuilder.Entity<University>(entity =>
         {
-            entity.HasKey(e => e.UniversityId).HasName("PK__Universi__9F19E19CADDAE3B1");
+            entity.HasKey(e => e.UniversityId).HasName("PK__Universi__9F19E19CAC4556A2");
 
             entity.ToTable("University");
 
@@ -345,31 +326,56 @@ public partial class SealContext : DbContext
             entity.Property(e => e.UniversityName).HasMaxLength(400);
         });
 
-        modelBuilder.Entity<UserTeam>(entity =>
+        modelBuilder.Entity<Student>(entity =>
         {
-            entity.HasKey(e => new { e.TeamId, e.PlayerId }).HasName("PK__User_Tea__869E00F37F9CDC74");
+            entity.HasKey(e => e.StudentId).HasName("PK_Student");
+            entity.ToTable("Student");
+            entity.Property(e => e.StudentId).HasMaxLength(400).IsUnicode(false).HasColumnName("StudentID");
+            entity.Property(e => e.UniversityId).HasMaxLength(400).IsUnicode(false).HasColumnName("UniversityID");
 
-            entity.ToTable("User_Team");
+            entity.HasOne(d => d.University).WithMany(p => p.Students)
+                .HasForeignKey(d => d.UniversityId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
 
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("TeamID");
-            entity.Property(e => e.PlayerId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("PlayerID");
-
-            entity.HasOne(d => d.Player).WithMany(p => p.UserTeams)
-                .HasForeignKey(d => d.PlayerId)
+            entity.HasOne(d => d.Account).WithMany(p => p.Students)
+                .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Team__Playe__4BAC3F29");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.UserTeams)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Team__TeamI__4AB81AF0");
+                .HasConstraintName("FK_Student_Account");
         });
+
+        modelBuilder.Entity<TeamMember>(entity =>
+        {
+            entity.HasKey(e => new { e.TeamId, e.StudentId }).HasName("PK__User_Tea__869E00F37F9CDC74");
+            entity.ToTable("TeamMember");
+            entity.Property(e => e.TeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamID");
+            entity.Property(e => e.StudentId).HasMaxLength(400).IsUnicode(false).HasColumnName("StudentID");
+
+            entity.HasOne(d => d.Student).WithMany(p => p.TeamMembers)
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.Team).WithMany(p => p.TeamMembers)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+        modelBuilder.Entity<TeamInRound>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_TeamInRound");
+            entity.ToTable("TeamInRound");
+            entity.Property(e => e.Id).HasMaxLength(400).IsUnicode(false).HasColumnName("Id");
+            entity.Property(e => e.TeamId).HasMaxLength(400).IsUnicode(false).HasColumnName("TeamID");
+            entity.Property(e => e.TrackId).HasMaxLength(400).IsUnicode(false).HasColumnName("TrackID");
+
+            entity.Property(e => e.RoundId).HasMaxLength(400).IsUnicode(false).HasColumnName("RoundID");
+            entity.Property(e => e.TopicId).HasMaxLength(400).IsUnicode(false).HasColumnName("TopicID");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.TeamInRounds)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
+
 
         OnModelCreatingPartial(modelBuilder);
     }

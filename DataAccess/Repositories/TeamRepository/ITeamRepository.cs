@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace DataAccess.Repositories.RoundRepository
-{
-    public interface IRoundRepository : IRepository<Round>
+namespace DataAccess.Repositories.TeamRepository
+{   
+    public interface ITeamRepository : IRepository<Team>
     {
-        void Update(Round round);
+        void Update(Team team);
     }
 }
