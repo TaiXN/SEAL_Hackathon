@@ -1,8 +1,9 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
-
+using DataAccess.Repositories.CriteriaRepository;
+using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
-
+using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
@@ -14,6 +15,10 @@ using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
+using DataAccess.Repositories.TeacherListRepository;
+using DataAccess.Repositories.TeacherRepository;
+using DataAccess.Repositories.TopicRepository;
+using DataAccess.Repositories.TrackRepository;
 
 using System;
 using System.Collections.Generic;
@@ -21,12 +26,14 @@ using System.Text;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
-    public class UnitOfWork:IUnitOfWork
+    public class UnitOfWork : IUnitOfWork
     {
         private readonly SealHackathonContext _context;
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
+       
+        public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
         public IRoundRepository Round { get; private set; }
         public ITeamRepository Team { get; private set; }
@@ -39,6 +46,13 @@ namespace DataAccess.Repositories.UnitOfWork
 
 
 
+        public ICriteriaRepository Criteria { get; private set; }
+        public IMappingRepository Mapping { get; private set; }
+        public ICriteriaSetRepository CriteriaSet { get; private set; }
+        public ITrackRepository Track { get; private set; }
+        public ITopicRepository Topic { get; private set; }
+        public ITeacherListRepository TeacherList { get; private set; }
+
 
         public UnitOfWork(SealHackathonContext context)
         {
@@ -46,7 +60,8 @@ namespace DataAccess.Repositories.UnitOfWork
             Account = new AccountRepository.AccountRepository(context);
             Role = new RoleRepository.RoleRepository(context);
             RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);
-            
+           
+            Teacher = new TeacherRepository.TeacherRepository(context);
             Event = new EventRepository.EventRepository(context);
            
             Round = new RoundRepository.RoundRepository(context);
@@ -59,6 +74,14 @@ namespace DataAccess.Repositories.UnitOfWork
             Topic = new TopicRepository.TopicRepository(context);
 
 
+
+            Round = new RoundRepository.RoundRepository(context);
+            Criteria = new CriteriaRepository.CriteriaRepository(context);
+            Mapping = new MappingRepository.MappingRepository(context);
+            CriteriaSet = new CriteriaSetRepository.CriteriaSetRepository(context);
+            Track = new TrackRepository.TrackRepository(context);
+            Topic = new TopicRepository.TopicRepository(context);
+            TeacherList = new TeacherListRepository.TeacherListRepository(context);
 
         }
 

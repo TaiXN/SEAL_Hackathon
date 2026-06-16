@@ -7,6 +7,8 @@ namespace APIViewModels.Round
 {
     public class UpdateRoundAPIViewModel
     {
+
+        public string RoundID { get; set; }
         [Required]
         public string EventID { get; set; }
 
@@ -24,5 +26,11 @@ namespace APIViewModels.Round
 
         [Required]
         public int MaxTeam { get; set; }
+
+        [Required]
+        public int RoundIndex { get; set; }
+
+        [Required]
+        public string CriteriaSetID { get; set; }
     }
 }

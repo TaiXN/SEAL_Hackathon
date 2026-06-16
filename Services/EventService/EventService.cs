@@ -1,6 +1,7 @@
 ﻿using APIViewModels.Event;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -19,6 +20,13 @@ namespace Services.EventService
         {
             try
             {
+                Event duplicateCheck = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventName.ToLower() == info.EventName.ToLower() && e.IsActive);
+
+                if (duplicateCheck != null)
+                {
+                    return false; 
+                }
+
                 Event newEvent = new Event()
                 {
                     EventId = Guid.NewGuid().ToString(),
@@ -27,6 +35,7 @@ namespace Services.EventService
                     Season = info.Season,
                     Year = info.Year,
                     IsActive = true,
+                    CurrentRound = 0,
                 };
 
                 await _uow.Event.AddAsync(newEvent);
@@ -39,11 +48,42 @@ namespace Services.EventService
             }
         }
 
+        public async Task<bool> NextRound(string eventID)
+        {
+            try
+            {
+                Event currentEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventID && e.IsActive);
+                if(currentEvent == null)
+                {
+                    return false;
+                }
+    
+                int nextRoundIndex = currentEvent.CurrentRound + 1;
+
+                Round nextRound = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == currentEvent.EventId && e.RoundIndex == nextRoundIndex);
+                if (nextRound != null)
+                {
+                    currentEvent.CurrentRound = nextRoundIndex;
+                    _uow.Event.Update(currentEvent);
+                    await _uow.SaveAsync();
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
         public async Task<List<Event>> GetAllEventsAsync()
         {
             try
             {
-                var result = await _uow.Event.GetAllAsync();
+                List<Event> result = await _uow.Event.GetAllAsync();
                 return result.ToList();
             }
             catch
@@ -68,14 +108,25 @@ namespace Services.EventService
         {
             try
             {
-                var existingEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == id);
-                if (existingEvent == null) return false;
+                Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == id);
+                if (eventDb == null) return false;
 
-                existingEvent.EventName = info.EventName;
-                existingEvent.Season = info.Season;
-                existingEvent.Year = info.Year;
+                Event duplicateCheck = await _uow.Event.GetFirstOrDefaultAsync(e =>
+                    e.EventName.ToLower() == info.EventName.ToLower() &&
+                    e.EventId != id &&
+                    e.IsActive);
 
-                _uow.Event.Update(existingEvent);
+                if (duplicateCheck != null)
+                {
+                    return false;
+                }
+
+                eventDb.EventName = info.EventName;
+                eventDb.Season = info.Season;
+                eventDb.Year = info.Year;
+                eventDb.CurrentRound = info.CurrentRound;
+
+                _uow.Event.Update(eventDb);
                 await _uow.SaveAsync();
                 return true;
             }
@@ -89,11 +140,11 @@ namespace Services.EventService
         {
             try
             {
-                var ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId.Equals(eventId));
-                if (ev == null) return false;
+                Event result = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId.Equals(eventId));
+                if (result == null) return false;
 
-                ev.IsActive = false;
-                _uow.Event.Update(ev);
+                result.IsActive = false;
+                _uow.Event.Update(result);
                 await _uow.SaveAsync();
 
                 return true;

@@ -1,6 +1,8 @@
 ﻿using APIViewModels.Auth;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Services.AccessTokenService;
@@ -125,6 +127,26 @@ namespace SEAL_Hackathon.Controllers
                             };
                             Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
 
+                            return Ok(new LoginResultAPIViewModel()
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+
+                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
+                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            CookieOptions cookieOptions = new CookieOptions
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
 
                             return Ok(new LoginResultAPIViewModel()
                             {

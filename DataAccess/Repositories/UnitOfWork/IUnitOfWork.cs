@@ -1,6 +1,9 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.AccountRepository;
+using DataAccess.Repositories.CriteriaRepository;
+using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EventRepository;
+using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
@@ -10,6 +13,10 @@ using DataAccess.Repositories.SubmissionRepository;
 using DataAccess.Repositories.TeamInRoundRepository;
 using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
+using DataAccess.Repositories.TopicRepository;
+using DataAccess.Repositories.TrackRepository;
+using DataAccess.Repositories.TeacherListRepository;
+using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
 
@@ -32,7 +39,18 @@ namespace DataAccess.Repositories.UnitOfWork
         ITeamInRoundRepository TeamInRound { get; }
 
         IEventRepository Event { get; }
+      
+        ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
+        IEventRepository Event { get; }
+
+        ICriteriaRepository Criteria { get; }
+        IMappingRepository Mapping { get; }
+        ICriteriaSetRepository CriteriaSet { get; }
+        ITrackRepository Track { get; }
+        ITopicRepository Topic { get; }
+        ITeacherListRepository TeacherList { get; }
+       
 
         ITrackRepository Track { get; }
         ITopicRepository Topic { get; }

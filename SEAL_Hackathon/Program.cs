@@ -6,11 +6,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
+using Services.AdminService;
+using Services.CriteriaService;
+using Services.EventService;
+using Services.JudgeService;
+using Services.MentorService;
 using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.SubmittedTeamService;
 using Services.TeamService;
+using Services.RoundService;
+using Services.TeacherService;
+using Services.TopicService;
+using Services.TrackService;
 using System.Text;
 
 namespace SEAL_Hackathon
@@ -22,26 +31,24 @@ namespace SEAL_Hackathon
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
+            string[] allowOrigins = [];
             builder.Services.AddControllers();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(
+                    policy =>
+                    {
+                        policy.SetIsOriginAllowed(_ => true)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                    });
+            });
+
             builder.Services.AddMemoryCache();
 
-            builder.Services.AddOpenApiDocument(config =>
-            {
-                config.Title = "SEAL Hackathon API";
-
-                // Tạo cái ổ khóa nhập Token
-                config.AddSecurity("Bearer", Enumerable.Empty<string>(), new NSwag.OpenApiSecurityScheme
-                {
-                    Type = NSwag.OpenApiSecuritySchemeType.ApiKey,
-                    Name = "Authorization",
-                    In = NSwag.OpenApiSecurityApiKeyLocation.Header,
-                    Description = "Copy Token dán vào đây, nhớ thêm chữ 'Bearer ' phía trước nha (VD: Bearer eyJhbG...)"
-                });
-
-                // Ép Swagger phải đính kèm cái Token đó vào mỗi lần gọi API
-                config.OperationProcessors.Add(new NSwag.Generation.Processors.Security.AspNetCoreOperationSecurityScopeProcessor("Bearer"));
-            });
+            builder.Services.AddOpenApiDocument();
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -53,7 +60,7 @@ namespace SEAL_Hackathon
             ValidateIssuerSigningKey = true,
             ValidIssuer = "SEAL",
             ValidAudience = "SEAL_Client",
-           IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("!@#!@#!@awodjasocdoajdxojasodj!@#!@$!@49293r913jdxadocans"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("!@#!@#!@awodjasocdoajdxojasodj!@#!@$!@49293r913jdxadocans"))
         };
     });
 
@@ -68,34 +75,41 @@ namespace SEAL_Hackathon
                 builder.RegisterType<RoleService>().As<IRoleService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
+                builder.RegisterType<RoundService>().As<IRoundService>();
+                builder.RegisterType<EventService>().As<IEventService>();
+                builder.RegisterType<CriteriaService>().As<ICriteriaService>();
+                builder.RegisterType<TrackService>().As<ITrackService>();
+                builder.RegisterType<TopicService>().As<ITopicService>();
+                builder.RegisterType<MentorService>().As<IMentorService>();
+                builder.RegisterType<JudgeService>().As<IJudgeService>();
                 builder.RegisterType<TeamService>().As<ITeamService>();
                 builder.RegisterType<PlayerService>().As<IPlayerService>();
                 builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
             });
 
             var app = builder.Build();
-            if (app.Environment.IsDevelopment())
-            {
-                // Add OpenAPI 3.0 document serving middleware
-                // Available at: http://localhost:<port>/swagger/v1/swagger.json
-                app.UseOpenApi();
 
-                // Add web UIs to interact with the document
-                // Available at: http://localhost:<port>/swagger
-                app.UseSwaggerUi(o =>
-                {
-                    o.Path = "";
-                }); // UseSwaggerUI Protected by if (env.IsDevelopment())
-                app.UseReDoc(options =>
-                {
-                    options.Path = "/redoc";
-                });
-            }
+            // Add OpenAPI 3.0 document serving middleware
+            // Available at: http://localhost:<port>/swagger/v1/swagger.json
+            app.UseOpenApi();
+
+            // Add web UIs to interact with the document
+            // Available at: http://localhost:<port>/swagger
+            app.UseSwaggerUi(o =>
+            {
+                o.Path = "";
+            }); // UseSwaggerUI Protected by if (env.IsDevelopment())
+            app.UseReDoc(options =>
+            {
+                options.Path = "/redoc";
+            });
+
             // Configure the HTTP request pipeline.
 
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
+            app.UseCors();
 
 
             app.MapControllers();

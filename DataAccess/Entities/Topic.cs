@@ -1,10 +1,19 @@
-﻿namespace DataAccess.Entities
+﻿using System;
+using System.Collections.Generic;
+
+namespace DataAccess.Entities;
+
+public partial class Topic
 {
-    public class Topic
-    {
-        public string TopicId { get; set; }
-        public string TrackId { get; set; }
-        public string TopicDetail { get; set; }
-        public bool IsActive { get; set; }
-    }
+    public string TopicId { get; set; } = null!;
+
+    public string TrackId { get; set; } = null!;
+
+    public string TopicDetail { get; set; } = null!;
+
+    public bool IsActive { get; set; }
+
+    public virtual ICollection<TeamInRound> TeamInRounds { get; set; } = new List<TeamInRound>();
+
+    public virtual Track Track { get; set; } = null!;
 }

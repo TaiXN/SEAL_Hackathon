@@ -4,12 +4,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataAccess.Entities
 {
-    [Table("University")]
-    public class University
-    {
-        [Key]
-        public string UniversityId { get; set; }
-        public string UniversityName { get; set; }
-        public virtual ICollection<Student> Students { get; set; }
-    }
+    public string UniversityId { get; set; } = null!;
+
+    public string UniversityName { get; set; } = null!;
+
+    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 }
