@@ -4,12 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-
-namespace DataAccess.Repositories.TopicRepository
+namespace DataAccess.Repositories.TeacherRepository
 {
-    public interface ITopicRepository : IRepository<Topic>
+    public interface ITeacherRepository: IRepository<Teacher>
     {
-        void Update(Topic topic);
-
+        void Update(Teacher entity);
     }
 }

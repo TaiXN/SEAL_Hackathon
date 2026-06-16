@@ -34,7 +34,7 @@ namespace Services.TeamService
                 result.Add(new MyTeamMemberViewModel
                 {
                     StudentId = member.StudentId,
-                    Email = member.Account?.Email,
+                    //Email = member.Account.Email,
                     IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
                 });
             }

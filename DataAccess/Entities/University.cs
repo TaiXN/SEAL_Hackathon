@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System;
+using System.Collections.Generic;
 
-namespace DataAccess.Entities
+namespace DataAccess.Entities;
+
+public partial class University
 {
     public string UniversityId { get; set; } = null!;
 

@@ -5,8 +5,8 @@ namespace DataAccess.Repositories.TeamMemberRepository
 {
     public class TeamMemberRepository : Repository<TeamMember>, ITeamMemberRepository
     {
-        private readonly SealHackathonContext _db;
-        public TeamMemberRepository(SealHackathonContext db) : base(db) {
+        private readonly SealContext _db;
+        public TeamMemberRepository(SealContext db) : base(db) {
             _db = db;
         }
         public void Update(TeamMember teamMember) { 

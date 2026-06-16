@@ -8,7 +8,6 @@ public partial class Submission
     public string Id { get; set; } = null!;
 
     public string TeamInRoundId { get; set; } = null!;
-    public string UrlGithub { get; set; } = null!;
 
     public string Urlgithub { get; set; } = null!;
 

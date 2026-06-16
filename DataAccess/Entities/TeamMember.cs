@@ -10,6 +10,7 @@ public partial class TeamMember
     public string StudentId { get; set; } = null!;
 
     public bool IsLeader { get; set; }
+
     public bool InviteStatus { get; set; }
 
     public virtual Student Student { get; set; } = null!;

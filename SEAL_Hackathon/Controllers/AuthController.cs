@@ -1,17 +1,12 @@
 ﻿using APIViewModels.Auth;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.RefreshTokenService;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Linq;
-using System;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -32,6 +27,30 @@ namespace SEAL_Hackathon.Controllers
             _cache = cache;
         }
 
+        [AllowAnonymous]
+        [HttpPost("refreshtoken")]
+        public async Task<IActionResult> RefreshToken()
+        {
+            if (!Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+            {
+                return BadRequest("Refresh token is required");
+            }
+            Account accountInfo = await _refreshToken.CheckRefreshToken(refreshToken);
+            if (accountInfo != null)
+            {
+                string accessToken = _accessToken.GenerateJwtToken(accountInfo.AccountId, accountInfo.Email, accountInfo.Role.RoleName);
+                return Ok(new LoginResultAPIViewModel()
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken
+                });
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
+
         [Authorize]
         [HttpPost("checktoken")]
         public async Task<IActionResult> CheckToken()
@@ -39,7 +58,7 @@ namespace SEAL_Hackathon.Controllers
             string header = Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(header))
             {
-                string tokenValue = header.Split(" ")[1];
+                string tokenValue = header.Split(" ")[1];// "BEARER asdosamdxosandiasn"
                 if (!CheckBlackList(tokenValue))
                 {
                     string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -56,13 +75,14 @@ namespace SEAL_Hackathon.Controllers
                 {
                     return Unauthorized();
                 }
+
             }
             else
             {
                 return Unauthorized();
             }
-        }
 
+        }
         private bool CheckBlackList(string tokenValue)
         {
             if (_cache.TryGetValue($"blacklist:{tokenValue}", out bool? cachedData))
@@ -71,6 +91,7 @@ namespace SEAL_Hackathon.Controllers
             }
             else
             {
+                // Không tìm thấy dữ liệu (Cache bị trống hoặc đã hết hạn)
                 return false;
             }
         }
@@ -82,16 +103,20 @@ namespace SEAL_Hackathon.Controllers
             string header = Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(header))
             {
-                string tokenValue = header.Split(" ")[1];
+                string tokenValue = header.Split(" ")[1];// "BEARER asdosamdxosandiasn"
                 string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                //add access token to blacklist
                 bool isRevoked = await _refreshToken.RevokeTokenAsync(accId);
                 if (isRevoked)
                 {
                     var cacheOptions = new MemoryCacheEntryOptions
                     {
+                        // Tự động xóa khỏi Cache khi Token tự hết hạn để giải phóng RAM
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
                     };
+
                     _cache.Set($"blacklist:{tokenValue}", true, cacheOptions);
+
                     return Ok(_cache.Get($"blacklist:{tokenValue}"));
                 }
                 else
@@ -100,8 +125,113 @@ namespace SEAL_Hackathon.Controllers
                 }
             }
             else return Unauthorized();
+
+
         }
 
+        [AllowAnonymous]
+        [HttpPost("teacher/login")]
+        public async Task<IActionResult> TeacherLogin(LoginAPIViewModel info)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    //check login
+                    Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
+                    if (accountDb != null)
+                    {
+                        if (accountDb.Role.RoleName.Equals("Teacher"))
+                        {
+
+                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
+                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            CookieOptions cookieOptions = new CookieOptions
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+                            return Ok(new LoginResultAPIViewModel()
+                            {
+                                AccessToken = accessToken,
+                                RefreshToken = refreshToken
+                            });
+                        }
+                        else
+                        {
+                            return Unauthorized();
+                        }
+                    }
+                    else return BadRequest("Email or password is incorrect");
+
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, "Error occurred");
+                }
+
+                //check role
+                //generate access token
+                //generate refresh token
+            }
+            else return BadRequest();
+        }
+
+        [AllowAnonymous]
+        [HttpPost("admin/login")]
+        public async Task<IActionResult> AdminLogin(LoginAPIViewModel info)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    //check login
+                    Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
+                    if (accountDb != null)
+                    {
+                        if (accountDb.Role.RoleName.Equals("Admin"))
+                        {
+
+                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
+                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            CookieOptions cookieOptions = new CookieOptions
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+                            return Ok(new LoginResultAPIViewModel()
+                            {
+                                AccessToken = accessToken,
+                                RefreshToken = refreshToken
+                            });
+                        }
+                        else
+                        {
+                            return Unauthorized();
+                        }
+                    }
+                    else return BadRequest("Email or password is incorrect");
+
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, "Error occurred");
+                }
+
+                //check role
+                //generate access token
+                //generate refresh token
+            }
+            else return BadRequest();
+        }
 
         [AllowAnonymous]
         [HttpPost("player/login")]
@@ -116,27 +246,6 @@ namespace SEAL_Hackathon.Controllers
                     {
                         if (accountDb.Role.RoleName.Equals("Player"))
                         {
-                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
-                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
-                            CookieOptions cookieOptions = new CookieOptions
-                            {
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.None,
-                                Expires = DateTime.UtcNow.AddDays(14)
-                            };
-                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-
-                            return Ok(new LoginResultAPIViewModel()
-                            {
-                                HttpOnly = true,
-                                Secure = true,
-                                SameSite = SameSiteMode.None,
-                                Expires = DateTime.UtcNow.AddDays(14)
-                            };
-                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-
-
                             string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
                             string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
                             CookieOptions cookieOptions = new CookieOptions

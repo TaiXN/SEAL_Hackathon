@@ -86,7 +86,7 @@ namespace Services.SubmittedTeamService
 
             if (existingSubmission != null)
             {
-                existingSubmission.UrlGithub = request.GithubUrl;
+                existingSubmission.Urlgithub = request.GithubUrl;
                 _uow.Submission.Update(existingSubmission);
             }
             else
@@ -96,7 +96,7 @@ namespace Services.SubmittedTeamService
                 {
                     Id = Guid.NewGuid().ToString(),
                     TeamInRoundId = teamInRound.Id,
-                    UrlGithub = request.GithubUrl
+                    Urlgithub = request.GithubUrl
                 };
                 await _uow.Submission.AddAsync(newSubmission);
             }

@@ -70,7 +70,7 @@ namespace SEAL_Hackathon
             builder.Host.ConfigureContainer<ContainerBuilder>(builder =>
             {
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
-                builder.RegisterType<SealHackathonContext>().AsSelf();
+                builder.RegisterType<SealContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
@@ -85,6 +85,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<TeamService>().As<ITeamService>();
                 builder.RegisterType<PlayerService>().As<IPlayerService>();
                 builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
+                builder.RegisterType<TeacherService>().As<ITeacherService>();
             });
 
             var app = builder.Build();

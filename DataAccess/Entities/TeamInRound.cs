@@ -10,8 +10,6 @@ public partial class TeamInRound
     public string TeamId { get; set; } = null!;
 
     public string TrackId { get; set; } = null!;
-    public string RoundId { get; set; } = null!;
-    public string TopicId { get; set; } = null!;
 
     public bool IsBanned { get; set; }
 

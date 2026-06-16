@@ -28,7 +28,7 @@ namespace DataAccess.Repositories.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private readonly SealHackathonContext _context;
+        private readonly SealContext _context;
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
@@ -49,12 +49,11 @@ namespace DataAccess.Repositories.UnitOfWork
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
         public ICriteriaSetRepository CriteriaSet { get; private set; }
-        public ITrackRepository Track { get; private set; }
-        public ITopicRepository Topic { get; private set; }
+
         public ITeacherListRepository TeacherList { get; private set; }
 
 
-        public UnitOfWork(SealHackathonContext context)
+        public UnitOfWork(SealContext context)
         {
             _context = context;
             Account = new AccountRepository.AccountRepository(context);

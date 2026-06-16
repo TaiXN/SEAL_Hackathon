@@ -5,8 +5,9 @@ namespace DataAccess.Repositories.StudentRepository
 {
     public class StudentRepository : Repository<Student>, IStudentRepository
     {
-        private readonly SealHackathonContext _db;
-        public StudentRepository(SealHackathonContext db) : base(db) {
+        private readonly SealContext _db;
+     
+        public StudentRepository(SealContext db) : base(db) {
             _db = db;
         }
         public void Update(Student student) {
