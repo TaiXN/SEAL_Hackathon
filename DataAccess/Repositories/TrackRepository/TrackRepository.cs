@@ -5,8 +5,8 @@ namespace DataAccess.Repositories.TrackRepository
 {
     public class TrackRepository : Repository<Track>, ITrackRepository
     {
-        private readonly SealHackathonContext _db;
-        public TrackRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public TrackRepository(SealContext db) : base(db)
         {
             _db = db;
         }

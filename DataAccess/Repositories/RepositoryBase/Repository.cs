@@ -10,10 +10,10 @@ namespace DataAccess.Repositories.RepositoryBase
     //Generic
     public class Repository<T> where T : class
     {
-        private readonly SealHackathonContext _db;
+        private readonly SealContext _db;
         internal DbSet<T> dbSet;
 
-        public Repository(SealHackathonContext db)
+        public Repository(SealContext db)
         {
             _db = db;
             this.dbSet = _db.Set<T>();

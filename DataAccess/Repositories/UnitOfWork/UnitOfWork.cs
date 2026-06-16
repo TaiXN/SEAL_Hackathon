@@ -23,7 +23,7 @@ namespace DataAccess.Repositories.UnitOfWork
 {
     public class UnitOfWork:IUnitOfWork
     {
-        private readonly SealHackathonContext _context;
+        private readonly SealContext _context;
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
         public IRefreshTokenRepository RefreshToken { get; private set; }
@@ -40,7 +40,7 @@ namespace DataAccess.Repositories.UnitOfWork
 
 
 
-        public UnitOfWork(SealHackathonContext context)
+        public UnitOfWork(SealContext context)
         {
             _context = context;
             Account = new AccountRepository.AccountRepository(context);

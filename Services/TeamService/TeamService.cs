@@ -13,7 +13,7 @@ namespace Services.TeamService
         private readonly IUnitOfWork _uow;
         public TeamService(IUnitOfWork uow) { _uow = uow; }
 
-        public async Task<List<MyTeamMemberViewModel>> GetMyTeamAsync(string accountId)
+        public async Task<List<TeamMemberAPIViewModel>> GetMyTeamAsync(string accountId)
         {
             var currentStudent = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
 
@@ -28,10 +28,10 @@ namespace Services.TeamService
                 p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
                 includeProperties: "TeamMembers,Account");
 
-            var result = new List<MyTeamMemberViewModel>();
+            var result = new List<TeamMemberAPIViewModel>();
             foreach (var member in teamMembers)
             {
-                result.Add(new MyTeamMemberViewModel
+                result.Add(new TeamMemberAPIViewModel
                 {
                     StudentId = member.StudentId,
                     Email = member.Account?.Email,

@@ -63,7 +63,7 @@ namespace SEAL_Hackathon
             builder.Host.ConfigureContainer<ContainerBuilder>(builder =>
             {
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
-                builder.RegisterType<SealHackathonContext>().AsSelf();
+                builder.RegisterType<SealContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();

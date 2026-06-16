@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.RoleRepository
 {
     public class RoleRepository:Repository<Role>, IRoleRepository
     {
-        private readonly SealHackathonContext _db;
-        public RoleRepository(SealHackathonContext db):base(db)
+        private readonly SealContext _db;
+        public RoleRepository(SealContext db):base(db)
         {
             _db = db;
         }

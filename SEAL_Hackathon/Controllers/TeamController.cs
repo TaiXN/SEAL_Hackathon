@@ -20,7 +20,7 @@ namespace SEAL_Hackathon.Controllers
             _team = team;
         }
         [HttpPost("create-team")]
-        public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequestModel request)
+        public async Task<IActionResult> CreateTeam([FromBody] CreateTeamAPIViewModel request)
         {
             try
             {

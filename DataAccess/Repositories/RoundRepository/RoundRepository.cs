@@ -8,8 +8,8 @@ namespace DataAccess.Repositories.RoundRepository
 {
     public class RoundRepository : Repository<Round>, IRoundRepository
     {
-        private readonly SealHackathonContext _db;
-        public RoundRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public RoundRepository(SealContext db) : base(db)
         {
             _db = db;
 

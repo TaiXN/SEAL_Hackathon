@@ -10,7 +10,7 @@ namespace Services.TeamService
     public interface ITeamService
     {
         //Task<bool> SubmitTrackAsync(string teamId, string CategoryId);
-        Task<List<MyTeamMemberViewModel>> GetMyTeamAsync(string accountId);
+        Task<List<TeamMemberAPIViewModel>> GetMyTeamAsync(string accountId);
 
         Task<bool> CreateTeamAsync(string accountId, string teamName);
         Task<DateTime?> GetCountdownDeadlineAsync();

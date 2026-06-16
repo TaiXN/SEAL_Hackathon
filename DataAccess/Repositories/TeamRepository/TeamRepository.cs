@@ -9,8 +9,8 @@ namespace DataAccess.Repositories.TeamRepository
 {
     public class TeamRepository : Repository<Team>, ITeamRepository//inheritance,implementation()
     {
-        private readonly SealHackathonContext _db;
-        public TeamRepository(SealHackathonContext db) : base(db)
+        private readonly SealContext _db;
+        public TeamRepository(SealContext db) : base(db)
         {
             _db = db;
         }
