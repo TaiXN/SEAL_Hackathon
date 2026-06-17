@@ -13,75 +13,128 @@ namespace Services.TeamService
         private readonly IUnitOfWork _uow;
         public TeamService(IUnitOfWork uow) { _uow = uow; }
 
-        public async Task<List<TeamMemberAPIViewModel>> GetMyTeamAsync(string accountId)
+        public async Task<List<TeamHistoryAPIViewModel>> GetMyTeamHistoryAsync(string accountId)
         {
-            var currentStudent = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
+            var myMemberships = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId, includeProperties: "Team");
 
-            if (currentStudent == null || currentStudent.TeamMembers == null || !currentStudent.TeamMembers.Any())
+            var result = new List<TeamHistoryAPIViewModel>();
+
+            foreach (var mem in myMemberships)
             {
-                return null;
-            }
+                string eventName = "Unspecified";
+                string eventId = mem.Team?.EventId;
 
-            string teamId = currentStudent.TeamMembers.FirstOrDefault().TeamId;
-
-            var teamMembers = await _uow.Student.GetAllAsync(
-                p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
-                includeProperties: "TeamMembers,Account");
-
-            var result = new List<TeamMemberAPIViewModel>();
-            foreach (var member in teamMembers)
-            {
-                result.Add(new TeamMemberAPIViewModel
+                if (!string.IsNullOrEmpty(eventId))
                 {
-                    StudentId = member.StudentId,
-                    Email = member.Account?.Email,
-                    IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
+                    var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
+                    if (eventDb != null)
+                    {
+                        eventName = eventDb.EventName;
+                    }
+                }
+
+                result.Add(new TeamHistoryAPIViewModel
+                {
+                    TeamId = mem.TeamId,
+                    TeamName = mem.Team?.TeamName,
+                    IsLeader = mem.IsLeader,
+                    EventId = eventId,
+                    EventName = eventName
                 });
             }
             return result;
         }
 
-        public async Task<bool> CreateTeamAsync(string accountId, string teamName)
+        public async Task<bool> CreateTeamAsync(string accountId, CreateTeamAPIViewModel request)
         {
-            if (string.IsNullOrWhiteSpace(teamName)) throw new Exception("Team name cannot be empty");
-
-            var student = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
-            if (student == null) return false;
-
-            if (student.TeamMembers != null && student.TeamMembers.Any()) return false;
+            if (string.IsNullOrWhiteSpace(request.TeamName)) throw new Exception("Team name cant be empty");
+            if (string.IsNullOrWhiteSpace(request.EventId)) throw new Exception("invalid eventID!");
 
             string newTeamId = Guid.NewGuid().ToString();
-
-            var leaderMapping = new TeamMember
-            {
-                TeamId = newTeamId,
-                StudentId = student.StudentId,
-                IsLeader = true,
-                InviteStatus = true
-            };
 
             var newTeam = new Team
             {
                 TeamId = newTeamId,
-                TeamName = teamName,
-                TeamMembers = new List<TeamMember> { leaderMapping }
+                TeamName = request.TeamName,
+                EventId = request.EventId 
             };
-
             await _uow.Team.AddAsync(newTeam);
-            await _uow.SaveAsync();
 
+            var leaderMapping = new TeamMember
+            {
+                TeamId = newTeamId,
+                StudentId = accountId,
+                IsLeader = true,
+                InviteStatus = true
+            };
+            await _uow.TeamMember.AddAsync(leaderMapping);
+
+            await _uow.SaveAsync();
             return true;
         }
 
-        public async Task<DateTime?> GetCountdownDeadlineAsync()
+
+
+        public async Task<TeamDashboardAPIViewModel> GetMyTeamDashboardAsync(string accountId, string teamId)
         {
-            var rounds = await _uow.Round.GetAllAsync();
-            var currentRound = rounds
+            var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+            if (isMember == null) throw new Exception("You are not a member of this team.");
+
+            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+            if (team == null) return null;
+
+            string eventName = "Unspecified";
+            if (!string.IsNullOrEmpty(team.EventId))
+            {
+                var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == team.EventId);
+                if (eventDb != null) eventName = eventDb.EventName;
+            }
+
+            string categoryName = "Chưa chọn đề tài";
+            var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
+
+            if (submittedProject != null && !string.IsNullOrEmpty(submittedProject.TrackId))
+            {
+                var track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
+                if (track != null)
+                {
+                    categoryName = track.TrackName;
+                    if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                    {
+                        var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
+                        if (topic != null) categoryName += " - " + topic.TopicDetail;
+                    }
+                }
+            }
+
+            var allMembers = await _uow.TeamMember.GetAllAsync();
+            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
+
+            return new TeamDashboardAPIViewModel
+            {
+                TeamName = team.TeamName,
+                EventName = eventName,
+                CategoryName = categoryName,
+                TotalMembers = memberCount
+            };
+        }
+
+        public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
+        {
+            // 1. Tìm cái Team để biết nó đang thi Event nào
+            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+            if (team == null || string.IsNullOrEmpty(team.EventId)) return null;
+
+            // 2. Tìm tất cả Vòng thi (Round) thuộc về cái Event này
+            var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == team.EventId);
+
+            // 3. Lấy ra Vòng thi đang Active (chưa hết hạn) và lấy cái ngày kết thúc gần nhất
+            var activeRound = roundsInEvent
                 .Where(r => r.EndDate > DateTime.Now)
                 .OrderBy(r => r.EndDate)
                 .FirstOrDefault();
 
-            return currentRound?.EndDate;
+            return activeRound?.EndDate; // Trả về đồng hồ đếm ngược của đúng Event đó!
         }
 
         public async Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId)
@@ -178,10 +231,30 @@ namespace Services.TeamService
 
             var existingRecord = await _uow.TeamMember.GetFirstOrDefaultAsync(ut => ut.TeamId == teamId && ut.StudentId == requester.StudentId);
             if (existingRecord != null) throw new Exception("You are already a member of this team!");
+            var targetTeamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tir => tir.TeamId == teamId);
+            if (targetTeamSubmission != null)
+            {
+                // Đội này đã đăng ký thi. Truy vết xem EventId là gì.
+                var targetRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == targetTeamSubmission.RoundId);
 
-            var inAnotherTeam = await _uow.TeamMember.GetFirstOrDefaultAsync(ut => ut.StudentId == requester.StudentId);
-            if (inAnotherTeam != null) throw new Exception("You are already in a team! Please leave your current team before joining a new one.");
+                // Tìm tất cả các đội đã nộp bài vào EventId này
+                var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == targetRound.EventId);
+                var roundIdsInEvent = roundsInEvent.Select(r => r.RoundId).ToList();
 
+                var allSubmissionsOfEvent = await _uow.TeamInRound.GetAllAsync(tir => roundIdsInEvent.Contains(tir.RoundId));
+                var teamIdsInEvent = allSubmissionsOfEvent.Select(tir => tir.TeamId).ToList();
+
+                // Kiểm tra xem thằng xin vào nhóm này có mặt trong danh sách team kia không
+                var isAlreadyInEvent = await _uow.TeamMember.GetFirstOrDefaultAsync(tm =>
+                    tm.StudentId == requesterAccountId &&
+                    teamIdsInEvent.Contains(tm.TeamId)
+                );
+
+                if (isAlreadyInEvent != null)
+                {
+                    throw new Exception("Join failed! You are already in another team that is competing in the same event!");
+                }
+            }
             var allUserTeams = await _uow.TeamMember.GetAllAsync();
             var currentMemberCount = allUserTeams.Count(ut => ut.TeamId == teamId);
 
@@ -202,63 +275,17 @@ namespace Services.TeamService
             return true;
         }
 
-        public async Task<TeamDashboardViewModel> GetMyTeamDashboardAsync(string accountId)
+        public async Task<bool> UpdateTeamInfoAsync(string accountId, string teamId, UpdateTeamAPIViewModel request)
         {
-            var student = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
-            if (student == null || student.TeamMembers == null || !student.TeamMembers.Any()) return null;
+            var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
-            string teamId = student.TeamMembers.FirstOrDefault().TeamId;
+            if (myTeamInfo == null) throw new Exception("You are not in this team!");
+            if (!myTeamInfo.IsLeader) throw new Exception("Only the Team Captain can change the team name.");
 
-            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
-            if (team == null) return null;
+            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
+            if (existingSubmit != null) throw new Exception("Cannot change team name after locking the submission topic.");
 
-            string categoryName = "Not selected yet";
-            var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
-
-            if (submittedProject != null && !string.IsNullOrEmpty(submittedProject.TrackId))
-            {
-                var track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
-                if (track != null)
-                {
-                    categoryName = track.TrackName;
-                    if (!string.IsNullOrEmpty(submittedProject.TopicId))
-                    {
-                        var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
-                        if (topic != null)
-                        {
-                            categoryName += " - " + topic.TopicDetail;
-                        }
-                    }
-                }
-            }
-
-            var allMembers = await _uow.TeamMember.GetAllAsync();
-            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
-
-            return new TeamDashboardViewModel
-            {
-                TeamName = team.TeamName,
-                CategoryName = categoryName,
-                TotalMembers = memberCount
-            };
-        }
-
-        public async Task<bool> UpdateTeamInfoAsync(string accountId, UpdateTeamAPIViewModel request)
-        {
-            var student = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
-            if (student == null || student.TeamMembers == null || !student.TeamMembers.Any())
-                throw new Exception("You are not in any team!");
-
-            var myTeamInfo = student.TeamMembers.FirstOrDefault();
-
-            if (!myTeamInfo.IsLeader)
-                throw new Exception("Only the Team Leader can update the team information.");
-
-            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == myTeamInfo.TeamId);
-            if (existingSubmit != null)
-                throw new Exception("You cannot change the team name after submitting your project to the judges.");
-
-            var teamToUpdate = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == myTeamInfo.TeamId);
+            var teamToUpdate = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (teamToUpdate != null)
             {
                 teamToUpdate.TeamName = request.TeamName;
@@ -266,8 +293,29 @@ namespace Services.TeamService
                 await _uow.SaveAsync();
                 return true;
             }
-
             return false;
+        }
+        public async Task<List<TeamMemberAPIViewModel>> GetTeamMembersAsync(string teamId, string accountId)
+        {
+            var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.StudentId == accountId);
+            if (isMember == null) throw new Exception("you are not allow to watch this team");
+
+            var teamMembers = await _uow.Student.GetAllAsync(
+                p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
+                includeProperties: "TeamMembers,Account");
+
+            var result = new List<TeamMemberAPIViewModel>();
+            foreach (var member in teamMembers)
+            {
+                result.Add(new TeamMemberAPIViewModel
+                {
+                    StudentId = member.StudentId,
+                    Email = member.Account?.Email,
+                    IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
+                });
+            }
+
+            return result;
         }
     }
 }

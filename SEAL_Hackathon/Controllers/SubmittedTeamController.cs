@@ -10,7 +10,7 @@ namespace SEAL_Hackathon.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Player")] 
+    [Authorize(Roles = "Player")]
     public class SubmittedTeamController : ControllerBase
     {
         private readonly ISubmittedTeamService _submittedTeam;
@@ -20,15 +20,15 @@ namespace SEAL_Hackathon.Controllers
             _submittedTeam = submittedTeam;
         }
 
-        [HttpPost("submit")]
-        public async Task<IActionResult> SubmitProject(SubmitProjectAPIViewModel request)
+        [HttpPost("{teamId}/submit")]
+        public async Task<IActionResult> SubmitProject(string teamId, [FromBody] SubmitProjectAPIViewModel request)
         {
             try
             {
                 string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
-                bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, request);
+                bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, teamId, request);
                 if (isSuccess)
                 {
                     return Ok(new { message = "Track submitted successfully!" });
@@ -37,20 +37,19 @@ namespace SEAL_Hackathon.Controllers
             }
             catch (Exception ex)
             {
-                // In thẳng lỗi do Service ném ra (VD: chưa đủ 3 người)
                 return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpPost("submit-github")]
-        public async Task<IActionResult> SubmitGithubUrl(SubmitGithubAPIViewModel request)
+        [HttpPost("{teamId}/submit-github")]
+        public async Task<IActionResult> SubmitGithubUrl(string teamId, [FromBody] SubmitGithubAPIViewModel request)
         {
             try
             {
                 string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
-                bool isSuccess = await _submittedTeam.SubmitGithubUrlAsync(accountId, request);
+                bool isSuccess = await _submittedTeam.SubmitGithubUrlAsync(accountId, teamId, request);
                 if (isSuccess)
                 {
                     return Ok(new { message = "Github URL submitted successfully!" });

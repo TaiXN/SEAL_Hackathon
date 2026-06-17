@@ -222,7 +222,6 @@ public partial class SealContext : DbContext
 
             entity.Property(e => e.RoundId).HasMaxLength(400).IsUnicode(false).HasColumnName("RoundID");
 
-            // Đổi AdminId thành Creator
             entity.Property(e => e.Creator).HasMaxLength(400).IsUnicode(false).HasColumnName("Creator");
 
             entity.Property(e => e.EventId).HasMaxLength(400).IsUnicode(false).HasColumnName("EventID");
@@ -230,10 +229,8 @@ public partial class SealContext : DbContext
             entity.Property(e => e.StartDate).HasColumnType("datetime");
             entity.Property(e => e.EndDate).HasColumnType("datetime");
 
-            // Viết hoa chữ P
             entity.Property(e => e.TopNPromotion).HasColumnName("TopNPromotion");
 
-            // Bổ sung các cột mới
             entity.Property(e => e.MaxTeam);
             entity.Property(e => e.IsActive);
             entity.Property(e => e.RoundIndex);
@@ -273,6 +270,7 @@ public partial class SealContext : DbContext
                 .HasColumnName("TeamID");
 
             entity.Property(e => e.TeamName).HasMaxLength(255);
+            entity.Property(e => e.EventId).HasMaxLength(400).IsUnicode(false).HasColumnName("EventID");
         });
 
         modelBuilder.Entity<University>(entity =>

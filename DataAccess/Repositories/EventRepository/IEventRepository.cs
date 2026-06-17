@@ -1,13 +1,10 @@
 ﻿using DataAccess.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using DataAccess.Repositories.RepositoryBase;
 
 namespace DataAccess.Repositories.EventRepository
 {
-    public interface IEventRepository
+    public interface IEventRepository : IRepository<Event>
     {
         void Update(Event events);
-        
     }
 }

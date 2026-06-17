@@ -39,7 +39,6 @@ namespace Services.PlayerService
             };
             await _uow.Account.AddAsync(newAccount);
 
-            // TẠO PROFILE STUDENT (Thay cho Player cũ)
             var newStudent = new Student
             {
                 StudentId = newAccountId,
