@@ -223,7 +223,8 @@ namespace Services.CriteriaService
                 CriteriaSet setDb = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
                 if (setDb == null) return false;
 
-                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.IsActive);
+                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.CriteriaSetId != setID && e.IsActive);
+                if (duplicateSet != null) return false;
 
                 foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
                 {
