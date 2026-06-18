@@ -13,51 +13,51 @@ namespace Services.SubmittedTeamService
 
         public SubmittedTeamService(IUnitOfWork uow) { _uow = uow; }
 
-        public async Task<bool> SubmitTopicAsync(string accountId, SubmitProjectAPIViewModel request)
+        public async Task<bool> SubmitTopicAsync(string accountId, string teamId, SubmitProjectAPIViewModel request)
         {
-            var student = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
-            if (student == null || student.TeamMembers == null || !student.TeamMembers.Any())
-                throw new Exception("You are not currently in any team.");
+            // 1. Kiểm tra quyền Leader
+            var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+            if (myTeamInfo == null) throw new Exception("you are not in this team");
+            if (!myTeamInfo.IsLeader) throw new Exception("only team leader can choose ");
 
-            var myTeamInfo = student.TeamMembers.FirstOrDefault();
+            // 2. Lấy thông tin Team để biết nó đang thi Event nào
+            var currentTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+            if (currentTeam == null || string.IsNullOrEmpty(currentTeam.EventId))
+                throw new Exception("This team experienced a data error; their participation event could not be found.");
 
-            if (!myTeamInfo.IsLeader)
-                throw new Exception("Only the Team Leader can submit the track and topic.");
+            // 3. Kiểm tra xem đội đã nộp bài chưa (có trong TeamInRound chưa)
+            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
+            if (existingSubmit != null) throw new Exception("Your team has already locked the competition category, resubmission is not possible!");
 
-            string teamId = myTeamInfo.TeamId;
-
+            // 4. Kiểm tra đủ 3 thành viên chưa
             var allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
-            if (memberCount < 3)
-                throw new Exception($"Your team must have at least 3 members. You currently have {memberCount}.");
+            if (memberCount < 3) throw new Exception($"The team must have at least 3 members (Current: {memberCount}).");
 
-            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
-            if (existingSubmit != null)
-                throw new Exception("Your team has already submitted a track.");
+            // 5. Lấy Vòng thi (Round) đang Active của cái Sự kiện này
+            var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == currentTeam.EventId);
+            var activeRound = roundsOfEvent.FirstOrDefault(r => r.EndDate > DateTime.Now);
+            if (activeRound == null) throw new Exception("No active rounds are open for submission!");
 
+            // 6. Kiểm tra giới hạn Hạng mục (Tối đa 6 đội/Track)
             var track = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == request.TrackId && t.IsActive == true);
-            if (track == null)
-                throw new Exception("Submit failed! The selected Track does not exist or is currently INACTIVE.");
+            if (track == null) throw new Exception("Hạng mục này không tồn tại hoặc đã bị khóa.");
 
             var currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
-            if (currentSubmissionsInTrack.Count() >= 6)
-                throw new Exception("Submit failed! This Track has reached the maximum limit of 6 teams.");
+            if (currentSubmissionsInTrack.Count() >= 6) throw new Exception("Hạng mục này đã đạt giới hạn tối đa 6 đội tham gia.");
 
+            // 7. Kiểm tra Đề tài có hợp lệ không
             var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
-            if (topic == null)
-                throw new Exception("Submit failed! The selected Topic is invalid, inactive, or does not belong to this Track.");
+            if (topic == null) throw new Exception("Đề tài không hợp lệ hoặc không thuộc về Hạng mục này.");
 
-            var activeRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EndDate > DateTime.Now);
-            if (activeRound == null)
-                throw new Exception("There is no active round to submit!");
-
+            // 8. TẠO MỚI DỮ LIỆU GHI DANH (Insert vào TeamInRound)
             var newSubmit = new TeamInRound
             {
                 Id = Guid.NewGuid().ToString(),
                 TeamId = teamId,
+                RoundId = activeRound.RoundId, // Gắn vào vòng thi đang mở
                 TrackId = request.TrackId,
                 TopicId = request.TopicId,
-                RoundId = activeRound.RoundId,
                 IsBanned = false,
                 IsCheck = false
             };
@@ -68,17 +68,17 @@ namespace Services.SubmittedTeamService
             return true;
         }
 
-        public async Task<bool> SubmitGithubUrlAsync(string accountId, SubmitGithubAPIViewModel request)
+        public async Task<bool> SubmitGithubUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request)
         {
-            var student = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == accountId, "TeamMembers");
-            if (student == null || student.TeamMembers == null || !student.TeamMembers.Any())
-                throw new Exception("You are not currently in any team.");
+            var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
-            var myTeamInfo = student.TeamMembers.FirstOrDefault();
+            if (myTeamInfo == null)
+                throw new Exception("You are not currently in this team.");
+
             if (!myTeamInfo.IsLeader)
                 throw new Exception("Only the Team Leader can submit the Github URL.");
 
-            var teamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == myTeamInfo.TeamId);
+            var teamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
             if (teamInRound == null)
                 throw new Exception("Your team must register for a Track and Topic before submitting the Github URL.");
 
@@ -91,7 +91,6 @@ namespace Services.SubmittedTeamService
             }
             else
             {
-                // Chưa nộp thì tạo mới
                 var newSubmission = new Submission
                 {
                     Id = Guid.NewGuid().ToString(),

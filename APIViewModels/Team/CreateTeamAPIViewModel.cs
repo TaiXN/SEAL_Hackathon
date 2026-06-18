@@ -4,9 +4,10 @@ using System.Text;
 
 namespace APIViewModels.Team
 {
-    public class CreateTeamRequestModel
+    public class CreateTeamAPIViewModel
     {
         public string TeamName { get; set; }
+        public string EventId { get; set; }
 
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace APIViewModels.Team
 {
-    public class MyTeamMemberViewModel
+    public class TeamMemberAPIViewModel
     {
         public string StudentId { get; set; }
         public string Email { get; set; }
