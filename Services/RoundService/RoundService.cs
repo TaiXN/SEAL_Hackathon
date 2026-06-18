@@ -12,7 +12,7 @@ namespace Services.RoundService
         {
             _uow = uow;
         }
-        
+
         public async Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID)
         {
             try
@@ -26,6 +26,15 @@ namespace Services.RoundService
                 {
                     return false;
                 }
+  
+                Event targetEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.IsActive);
+                if (targetEvent == null) return false;
+         
+                CriteriaSet targetSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == info.CriteriaSetID && e.IsActive);
+                if (targetSet == null) return false;
+           
+                Round duplicateName = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.RoundName.ToLower() == info.RoundName.ToLower() && e.IsActive);
+                if (duplicateName != null) return false;
 
                 List<Round> count = await _uow.Round.GetAllAsync(e => e.EventId == info.EventID);
                 int RoundIndex = count.Count() + 1;
@@ -57,7 +66,7 @@ namespace Services.RoundService
         {
             try
             {
-                var result = await _uow.Round.GetAllAsync();
+               List<Round> result = await _uow.Round.GetAllAsync();
                 return result.ToList();
             }
             catch
@@ -82,7 +91,7 @@ namespace Services.RoundService
         {
             try
             {
-                var roundDb = await _uow.Round.GetFirstOrDefaultAsync(q => q.RoundId.Equals(info.RoundID));
+                Round roundDb = await _uow.Round.GetFirstOrDefaultAsync(q => q.RoundId.Equals(info.RoundID));
                 if (roundDb == null)
                 {
                     return false;
