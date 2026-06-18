@@ -310,7 +310,7 @@ namespace Services.TeamService
                 result.Add(new TeamMemberAPIViewModel
                 {
                     StudentId = member.StudentId,
-                    Email = member.Account?.Email,
+      
                     IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
                 });
             }
