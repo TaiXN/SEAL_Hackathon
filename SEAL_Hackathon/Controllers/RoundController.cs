@@ -1,11 +1,7 @@
-﻿using APIViewModels.Event;
-using APIViewModels.Round;
+﻿using APIViewModels.Round;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Services.AdminService;
-using Services.EventService;
 using Services.RoundService;
 using System.Security.Claims;
 
@@ -16,11 +12,10 @@ namespace SEAL_Hackathon.Controllers
     public class RoundController : ControllerBase
     {
         private readonly IRoundService _round;
-        private readonly IAdminService _admin;
-        public RoundController(IRoundService round, IAdminService admin)
+        public RoundController(IRoundService round)
         {
             _round = round;
-            _admin = admin;
+           
         }
        
         [Authorize(Roles = "Admin")]

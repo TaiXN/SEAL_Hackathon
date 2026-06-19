@@ -16,13 +16,12 @@ namespace APIViewModels.Auth
         public string FullName { get; set; } = null!;
 
         [Required]
+       
         public string Address { get; set; } = null!;
 
         [Required]
+        [Phone]
         public string Phone { get; set; } = null!;
-
-        [Required]
-        public string StudentId { get; set; } = null!;
 
         [Required]
         public string UniversityId { get; set; } = null!;

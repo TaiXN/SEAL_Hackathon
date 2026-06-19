@@ -15,9 +15,10 @@ namespace APIViewModels.Teacher
         public string Password { get; set; }
         [Required]
         public string FullName { get; set; }
-        [Required]
+        [Required] 
         public string Address { get; set; }
         [Required]
+        [Phone]
         public string Phone { get; set; }
 
         [Required]

@@ -2,7 +2,6 @@
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services.AdminService;
 using Services.CriteriaService;
 
 namespace SEAL_Hackathon.Controllers
@@ -12,11 +11,10 @@ namespace SEAL_Hackathon.Controllers
     public class CriteriaController : ControllerBase
     {
         private readonly ICriteriaService _criteria;
-        private readonly IAdminService _admin;
-        public CriteriaController(ICriteriaService criteria, IAdminService admin)
+        public CriteriaController(ICriteriaService criteria)
         {
             _criteria = criteria;
-            _admin = admin;
+          
         }
 
         [Authorize(Roles = "Admin")]

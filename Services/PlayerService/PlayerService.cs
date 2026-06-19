@@ -36,6 +36,7 @@ namespace Services.PlayerService
                 Address = info.Address,
                 Phone = info.Phone,
                 IsActive = true
+
             };
             await _uow.Account.AddAsync(newAccount);
 
