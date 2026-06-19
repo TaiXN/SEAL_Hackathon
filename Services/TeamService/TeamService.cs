@@ -302,7 +302,7 @@ namespace Services.TeamService
 
             var teamMembers = await _uow.Student.GetAllAsync(
                 p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
-                includeProperties: "TeamMembers,Account");
+                includeProperties: "TeamMembers,StudentNavigation"); 
 
             var result = new List<TeamMemberAPIViewModel>();
             foreach (var member in teamMembers)
