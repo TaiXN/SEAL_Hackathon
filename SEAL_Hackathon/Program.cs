@@ -11,10 +11,12 @@ using Services.CriteriaService;
 using Services.EventService;
 using Services.JudgeService;
 using Services.MentorService;
+using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
+using Services.SubmittedTeamService;
+using Services.TeamService;
 using Services.RoundService;
-using Services.TeacherListService;
 using Services.TeacherService;
 using Services.TopicService;
 using Services.TrackService;
@@ -70,9 +72,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<UnitOfWork>().As<IUnitOfWork>();
                 builder.RegisterType<SealContext>().AsSelf();
                 builder.RegisterType<AccountService>().As<IAccountService>();
-                builder.RegisterType<AdminService>().As<IAdminService>();
                 builder.RegisterType<RoleService>().As<IRoleService>();
-                builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AccessTokenService>().As<IAccessTokenService>();
                 builder.RegisterType<RefreshTokenService>().As<IRefreshTokenService>();
                 builder.RegisterType<RoundService>().As<IRoundService>();
@@ -80,9 +80,12 @@ namespace SEAL_Hackathon
                 builder.RegisterType<CriteriaService>().As<ICriteriaService>();
                 builder.RegisterType<TrackService>().As<ITrackService>();
                 builder.RegisterType<TopicService>().As<ITopicService>();
-                builder.RegisterType<TeacherListService>().As<ITeacherListService>();
                 builder.RegisterType<MentorService>().As<IMentorService>();
                 builder.RegisterType<JudgeService>().As<IJudgeService>();
+                builder.RegisterType<TeamService>().As<ITeamService>();
+                builder.RegisterType<PlayerService>().As<IPlayerService>();
+                builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
+                builder.RegisterType<TeacherService>().As<ITeacherService>();
             });
 
             var app = builder.Build();

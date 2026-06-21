@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace APIViewModels.Admin
 {
     public class CreateAdminAPIViewModel
     {
-       
         [Required]
         [EmailAddress]
         public string Email { get; set; }
@@ -19,7 +15,7 @@ namespace APIViewModels.Admin
         [Required]
         public string Address { get; set; }
         [Required]
-        public string Phone {  get; set; }
-      
+        public string Phone { get; set; }
+
     }
 }

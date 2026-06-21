@@ -1,15 +1,8 @@
-﻿using Azure.Messaging;
-using DataAccess.Entities;
+﻿using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Services.Utils;
 using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-
+using System.Threading.Tasks;
 
 namespace Services.AccountService
 {
@@ -17,6 +10,7 @@ namespace Services.AccountService
     {
         private readonly IUnitOfWork _uow;
         private readonly string PRIVATEKEY = "dasox!@#!mxosnadoxnWCASDASCDASXD12312-123!@#!@#!@";
+
         public AccountService(IUnitOfWork uow)
         {
             _uow = uow;
@@ -25,7 +19,6 @@ namespace Services.AccountService
         public async Task<Account> CheckLoginAsync(string email, string password)
         {
             return await _uow.Account.GetFirstOrDefaultAsync(q => q.Email.Equals(email) && q.Password.Equals(HashBuilder.ComputeSha256Hash(password + PRIVATEKEY)), "Role");
-
         }
 
         public async Task<Account> GetAccountByIdAsync(string accountId)
@@ -55,13 +48,10 @@ namespace Services.AccountService
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }
-
         }
-
-
     }
 }

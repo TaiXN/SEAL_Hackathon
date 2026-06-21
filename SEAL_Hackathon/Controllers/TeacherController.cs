@@ -1,6 +1,4 @@
-﻿using APIViewModels.Admin;
-using APIViewModels.Teacher;
-using DataAccess.Entities;
+﻿using APIViewModels.Teacher;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.AccountService;
@@ -23,34 +21,34 @@ namespace SEAL_Hackathon.Controllers
             _role = role;
         }
 
-      
+
         [HttpPost]
         public async Task<IActionResult> Create(CreateTeacherAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-              
-                    string accountId = Guid.NewGuid().ToString();
+
+                string accountId = Guid.NewGuid().ToString();
 
 
-                    bool isTeacherCreated = await _teacher.CreateAsync(new DataAccess.Entities.Account()
-                    {
-                        AccountId = accountId,
-                        Address = info.Address,
-                        Email = info.Email,
-                        FullName = info.FullName,
-                        Password = info.Password,
-                        Phone = info.Phone
-                    }, info.IsGuest);
-                    if (isTeacherCreated)
-                    {
-                        return Ok("Create teacher successfully");
-                    }
-                    else
-                    {
-                        return BadRequest("Error while create teacher");
-                    }
-              
+                bool isTeacherCreated = await _teacher.CreateAsync(new DataAccess.Entities.Account()
+                {
+                    AccountId = accountId,
+                    Address = info.Address,
+                    Email = info.Email,
+                    FullName = info.FullName,
+                    Password = info.Password,
+                    Phone = info.Phone
+                }, info.IsGuest);
+                if (isTeacherCreated)
+                {
+                    return Ok("Create teacher successfully");
+                }
+                else
+                {
+                    return BadRequest("Error while create teacher");
+                }
+
 
             }
             else return BadRequest();

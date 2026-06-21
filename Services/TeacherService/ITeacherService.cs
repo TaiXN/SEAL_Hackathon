@@ -7,6 +7,6 @@ namespace Services.TeacherService
 {
     public interface ITeacherService
     {
-        Task<bool> CreateAsync(Account account,bool isGuest);
+        Task<bool> CreateAsync(Account account, bool isGuest);
     }
 }
