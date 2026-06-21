@@ -2,7 +2,7 @@
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services.AdminService;
+
 using Services.EventService;
 using System.Security.Claims;
 
@@ -13,11 +13,10 @@ namespace SEAL_Hackathon.Controllers
     public class EventController : ControllerBase
     {
         private readonly IEventService _event;
-        private readonly IAdminService _admin;
-        public EventController(IEventService events, IAdminService admin)
+
+        public EventController(IEventService events)
         {
             _event = events;
-            _admin = admin;
         }
 
         [Authorize(Roles = "Admin")]
@@ -86,16 +85,16 @@ namespace SEAL_Hackathon.Controllers
         [HttpPut("{eventID}/nextround")]
         public async Task<IActionResult> NextRound(string eventID)
         {
-           
+
             if (string.IsNullOrEmpty(eventID))
             {
                 return BadRequest("Invalid event ID.");
             }
 
-           
+
             bool isPromoted = await _event.NextRound(eventID);
 
-            
+
             if (isPromoted)
             {
                 return Ok("Advancement successful! The event has been moved to the next round.");

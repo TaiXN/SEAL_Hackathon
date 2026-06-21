@@ -6,8 +6,13 @@ using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
+using DataAccess.Repositories.StudentRepository;
+using DataAccess.Repositories.SubmissionRepository;
 using DataAccess.Repositories.TeacherListRepository;
 using DataAccess.Repositories.TeacherRepository;
+using DataAccess.Repositories.TeamInRoundRepository;
+using DataAccess.Repositories.TeamMemberRepository;
+using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
 
@@ -18,10 +23,18 @@ namespace DataAccess.Repositories.UnitOfWork
         IAccountRepository Account { get; }
         IRoleRepository Role { get; }
         IRefreshTokenRepository RefreshToken { get; }
-        
+
+        ITeamRepository Team { get; }
+
+        IStudentRepository Student { get; }
+        ITeamMemberRepository TeamMember { get; }
+        ITeamInRoundRepository TeamInRound { get; }
+
+        IEventRepository Event { get; }
+      
         ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
-        IEventRepository Event { get; }
+
 
         ICriteriaRepository Criteria { get; }
         IMappingRepository Mapping { get; }
@@ -30,6 +43,10 @@ namespace DataAccess.Repositories.UnitOfWork
         ITopicRepository Topic { get; }
         ITeacherListRepository TeacherList { get; }
        
+
+
+        ISubmissionRepository Submission { get; }
+
         Task SaveAsync();
     }
 }

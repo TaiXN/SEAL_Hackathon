@@ -6,7 +6,7 @@ using System.Text;
 
 namespace DataAccess.Repositories.RoundRepository
 {
-    public interface IRoundRepository:IRepository<Round>
+    public interface IRoundRepository : IRepository<Round>
     {
         void Update(Round round);
     }

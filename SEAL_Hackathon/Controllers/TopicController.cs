@@ -1,11 +1,7 @@
-﻿using APIViewModels.Criteria;
-using APIViewModels.Topic;
+﻿using APIViewModels.Topic;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Services.AdminService;
-using Services.CriteriaService;
 using Services.TopicService;
 
 namespace SEAL_Hackathon.Controllers
@@ -15,11 +11,11 @@ namespace SEAL_Hackathon.Controllers
     public class TopicController : ControllerBase
     {
         private readonly ITopicService _topic;
-        private readonly IAdminService _admin;
-        public TopicController(ITopicService topic, IAdminService admin)
+  
+        public TopicController(ITopicService topic)
         {
             _topic = topic;
-            _admin = admin;
+          
         }
 
         [Authorize(Roles = "Admin")]

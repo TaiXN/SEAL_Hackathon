@@ -324,18 +324,18 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("StudentID");
-            entity.Property(e => e.UniversittId)
+            entity.Property(e => e.UniversityId)
                 .HasMaxLength(400)
                 .IsUnicode(false)
-                .HasColumnName("UniversittID");
+                .HasColumnName("UniversityID");
 
             entity.HasOne(d => d.StudentNavigation).WithOne(p => p.Student)
                 .HasForeignKey<Student>(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Student_Account");
 
-            entity.HasOne(d => d.Universitt).WithMany(p => p.Students)
-                .HasForeignKey(d => d.UniversittId)
+            entity.HasOne(d => d.University).WithMany(p => p.Students)
+                .HasForeignKey(d => d.UniversityId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Student_University");
         });

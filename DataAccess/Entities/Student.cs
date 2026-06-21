@@ -7,7 +7,7 @@ public partial class Student
 {
     public string StudentId { get; set; } = null!;
 
-    public string UniversittId { get; set; } = null!;
+    public string UniversityId { get; set; } = null!;
 
     public bool IsApproved { get; set; }
 
@@ -15,5 +15,5 @@ public partial class Student
 
     public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
 
-    public virtual University Universitt { get; set; } = null!;
+    public virtual University University { get; set; } = null!;
 }

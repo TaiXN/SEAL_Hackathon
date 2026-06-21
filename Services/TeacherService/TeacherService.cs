@@ -53,7 +53,7 @@ namespace Services.TeacherService
                     };
                     await _uow.Account.AddAsync(newAccount);
                     Teacher newTeacher = new Teacher()
-                    {    
+                    {
                         Id = newAccount.AccountId,
                         IsGuest = isGuest
                     };
@@ -71,6 +71,88 @@ namespace Services.TeacherService
                 return false;
             }
 
+        }
+
+        public async Task<List<Teacher>> GetAllAsync()
+        {
+            try
+            {
+                List<Teacher> result = await _uow.Teacher.GetAllAsync();
+                return result.ToList();
+            }
+            catch
+            {
+                return new List<Teacher>();
+            }
+        }
+
+        public async Task<Teacher> GetByIdAsync(string id)
+        {
+            try
+            {
+                return await _uow.Teacher.GetFirstOrDefaultAsync(e => e.Id == id);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task<bool> UpdateAsync(string id, Account updatedAccount, bool isGuest)
+        {
+            try
+            {
+                Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(q => q.AccountId.Equals(id));
+                if (accountDb == null)
+                {
+                    return false;
+                }
+
+                if (accountDb.Email.ToLower() != updatedAccount.Email.ToLower())
+                {
+                    Account checkEmail = await _uow.Account.GetFirstOrDefaultAsync(e => e.Email.ToLower() == updatedAccount.Email.ToLower() && e.AccountId != id);
+                    if (checkEmail != null) return false;
+                    accountDb.Email = updatedAccount.Email;
+                }
+
+                accountDb.FullName = updatedAccount.FullName;
+                accountDb.Address = updatedAccount.Address;
+                accountDb.Phone = updatedAccount.Phone;
+                _uow.Account.Update(accountDb);
+
+                Teacher teacherDb = await _uow.Teacher.GetFirstOrDefaultAsync(q => q.Id.Equals(id));
+                if (teacherDb != null)
+                {
+                    teacherDb.IsGuest = isGuest;
+                    _uow.Teacher.Update(teacherDb);
+                }
+
+                await _uow.SaveAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteAsync(string id)
+        {
+            try
+            {
+                Account result = await _uow.Account.GetFirstOrDefaultAsync(e => e.AccountId.Equals(id));
+                if (result == null) return false;
+
+                result.IsActive = false;
+                _uow.Account.Update(result);
+                await _uow.SaveAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
     }
 }

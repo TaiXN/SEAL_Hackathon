@@ -1,15 +1,11 @@
 ﻿using APIViewModels.Auth;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Identity.Client;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.RefreshTokenService;
-using Services.Utils;
 using System.Security.Claims;
 
 namespace SEAL_Hackathon.Controllers
@@ -22,6 +18,7 @@ namespace SEAL_Hackathon.Controllers
         private readonly IAccessTokenService _accessToken;
         private readonly IRefreshTokenService _refreshToken;
         private readonly IMemoryCache _cache;
+
         public AuthController(IAccountService account, IAccessTokenService accessToken, IRefreshTokenService refreshToken, IMemoryCache cache)
         {
             _accessToken = accessToken;
@@ -234,6 +231,51 @@ namespace SEAL_Hackathon.Controllers
                 //generate refresh token
             }
             else return BadRequest();
+        }
+
+        [AllowAnonymous]
+        [HttpPost("player/login")]
+        public async Task<IActionResult> Login(LoginAPIViewModel info)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
+                    if (accountDb != null)
+                    {
+                        if (accountDb.Role.RoleName.Equals("Player"))
+                        {
+                            string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
+                            string refreshToken = await _refreshToken.GenerateRefreshTokenAsync(accountDb.AccountId);
+                            CookieOptions cookieOptions = new CookieOptions
+                            {
+                                HttpOnly = true,
+                                Secure = true,
+                                SameSite = SameSiteMode.None,
+                                Expires = DateTime.UtcNow.AddDays(14)
+                            };
+                            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+                            return Ok(new LoginResultAPIViewModel()
+                            {
+                                AccessToken = accessToken,
+                                RefreshToken = refreshToken
+                            });
+                        }
+                        else
+                        {
+                            return Unauthorized("This account is not a player");
+                        }
+                    }
+                    else return BadRequest("Email or password is incorrect");
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, "Error occurred: " + ex.Message);
+                }
+            }
+            return BadRequest();
         }
 
         [Authorize]

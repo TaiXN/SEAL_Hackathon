@@ -1,10 +1,5 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.RepositoryBase;
-using DataAccess.Repositories.RoundRepository;
-using DataAccess.Repositories.TeacherRepository;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DataAccess.Repositories.TeacherListRepository
 {
