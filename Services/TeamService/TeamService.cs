@@ -49,7 +49,9 @@ namespace Services.TeamService
         {
             if (string.IsNullOrWhiteSpace(request.TeamName)) throw new Exception("Team name cant be empty");
             if (string.IsNullOrWhiteSpace(request.EventId)) throw new Exception("invalid eventID!");
-
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == accountId);
+            if (student == null || student.IsApproved == false)
+                throw new Exception("Your account must be approved by an Admin before you can create a team!");
             string newTeamId = Guid.NewGuid().ToString();
 
             var newTeam = new Team
@@ -225,6 +227,9 @@ namespace Services.TeamService
 
             var requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
             if (requester == null) throw new Exception("Player profile not found!");
+
+            if (requester.IsApproved == false)
+                throw new Exception("Your account must be approved by an Admin before you can join a team!");
 
             var targetTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (targetTeam == null) throw new Exception("The team does not exist!");
