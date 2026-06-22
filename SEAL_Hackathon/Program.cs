@@ -8,6 +8,7 @@ using Services.AccessTokenService;
 using Services.AccountService;
 using Services.AdminService;
 using Services.CriteriaService;
+using Services.EvaluationService;
 using Services.EventService;
 using Services.JudgeService;
 using Services.MentorService;
@@ -87,6 +88,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
                 builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<AdminService>().As<IAdminService>();
+                builder.RegisterType<EvaluationService>().As<IEvaluationService>();
             });
 
             var app = builder.Build();

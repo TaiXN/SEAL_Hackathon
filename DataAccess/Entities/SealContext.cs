@@ -351,9 +351,15 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamInRoundID");
+            entity.Property(e => e.Urldemo)
+                .HasMaxLength(400)
+                .HasColumnName("URLDemo");
             entity.Property(e => e.Urlgithub)
                 .HasMaxLength(400)
                 .HasColumnName("URLGithub");
+            entity.Property(e => e.Urlslide)
+                .HasMaxLength(400)
+                .HasColumnName("URLSlide");
 
             entity.HasOne(d => d.TeamInRound).WithMany(p => p.Submissions)
                 .HasForeignKey(d => d.TeamInRoundId)
@@ -411,7 +417,15 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
+            entity.Property(e => e.EventId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("EventID");
             entity.Property(e => e.TeamName).HasMaxLength(255);
+
+            entity.HasOne(d => d.Event).WithMany(p => p.Teams)
+                .HasForeignKey(d => d.EventId)
+                .HasConstraintName("FK_Team_Event");
         });
 
         modelBuilder.Entity<TeamInRound>(entity =>

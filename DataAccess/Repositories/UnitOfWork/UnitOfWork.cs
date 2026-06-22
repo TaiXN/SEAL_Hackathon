@@ -23,6 +23,7 @@ using DataAccess.Repositories.TrackRepository;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using DataAccess.Repositories.EvaluationRepository;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
@@ -31,8 +32,7 @@ namespace DataAccess.Repositories.UnitOfWork
         private readonly SealContext _context;
         public IAccountRepository Account { get; private set; }
         public IRoleRepository Role { get; private set; }
-        public IRefreshTokenRepository RefreshToken { get; private set; }
-       
+        public IRefreshTokenRepository RefreshToken { get; private set; }  
         public ITeacherRepository Teacher { get; private set; }
         public IEventRepository Event { get; private set; }
         public IRoundRepository Round { get; private set; }
@@ -43,14 +43,12 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITrackRepository Track { get; private set; }
         public ITopicRepository Topic { get; private set; }
         public ISubmissionRepository Submission { get; private set; }
-
-
-
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
         public ICriteriaSetRepository CriteriaSet { get; private set; }
-
         public ITeacherListRepository TeacherList { get; private set; }
+        public IEvaluationRepository Evaluation { get; private set; }
+
 
 
         public UnitOfWork(SealContext context)
@@ -58,11 +56,9 @@ namespace DataAccess.Repositories.UnitOfWork
             _context = context;
             Account = new AccountRepository.AccountRepository(context);
             Role = new RoleRepository.RoleRepository(context);
-            RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);
-           
+            RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);           
             Teacher = new TeacherRepository.TeacherRepository(context);
-            Event = new EventRepository.EventRepository(context);
-           
+            Event = new EventRepository.EventRepository(context);      
             Round = new RoundRepository.RoundRepository(context);
             Team = new TeamRepository.TeamRepository(context);
             Student = new StudentRepository.StudentRepository(context);
@@ -71,9 +67,6 @@ namespace DataAccess.Repositories.UnitOfWork
             Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
-
-
-
             Round = new RoundRepository.RoundRepository(context);
             Criteria = new CriteriaRepository.CriteriaRepository(context);
             Mapping = new MappingRepository.MappingRepository(context);
@@ -81,7 +74,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
             TeacherList = new TeacherListRepository.TeacherListRepository(context);
-
+            Evaluation = new EvaluationRepository.EvaluationRepository(context);
         }
 
         public async Task SaveAsync()

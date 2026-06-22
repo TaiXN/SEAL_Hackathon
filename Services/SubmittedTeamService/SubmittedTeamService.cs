@@ -68,7 +68,7 @@ namespace Services.SubmittedTeamService
             return true;
         }
 
-        public async Task<bool> SubmitGithubUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request)
+        public async Task<bool> SubmitUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request)
         {
             var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
@@ -86,7 +86,9 @@ namespace Services.SubmittedTeamService
 
             if (existingSubmission != null)
             {
-                existingSubmission.Urlgithub = request.GithubUrl;
+                existingSubmission.Urlgithub = request.UrlGithub;
+                existingSubmission.Urldemo = request.UrlDemo;
+                existingSubmission.Urlslide = request.UrlSlide;
                 _uow.Submission.Update(existingSubmission);
             }
             else
@@ -95,7 +97,9 @@ namespace Services.SubmittedTeamService
                 {
                     Id = Guid.NewGuid().ToString(),
                     TeamInRoundId = teamInRound.Id,
-                    Urlgithub = request.GithubUrl
+                    Urlgithub = request.UrlGithub,
+                    Urldemo = request.UrlDemo,
+                    Urlslide = request.UrlSlide,
                 };
                 await _uow.Submission.AddAsync(newSubmission);
             }
