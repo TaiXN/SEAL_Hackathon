@@ -10,6 +10,8 @@ public partial class Submission
     public string TeamInRoundId { get; set; } = null!;
 
     public string Urlgithub { get; set; } = null!;
+    public string UrlDemo { get; set; }
+    public string UrlSlide { get; set; }
 
     public virtual ICollection<Evaluation> Evaluations { get; set; } = new List<Evaluation>();
 

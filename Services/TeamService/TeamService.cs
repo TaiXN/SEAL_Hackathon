@@ -123,20 +123,17 @@ namespace Services.TeamService
 
         public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
         {
-            // 1. Tìm cái Team để biết nó đang thi Event nào
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null || string.IsNullOrEmpty(team.EventId)) return null;
 
-            // 2. Tìm tất cả Vòng thi (Round) thuộc về cái Event này
             var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == team.EventId);
 
-            // 3. Lấy ra Vòng thi đang Active (chưa hết hạn) và lấy cái ngày kết thúc gần nhất
             var activeRound = roundsInEvent
                 .Where(r => r.EndDate > DateTime.Now)
                 .OrderBy(r => r.EndDate)
                 .FirstOrDefault();
 
-            return activeRound?.EndDate; // Trả về đồng hồ đếm ngược của đúng Event đó!
+            return activeRound?.EndDate; 
         }
 
         public async Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId)
@@ -239,17 +236,14 @@ namespace Services.TeamService
             var targetTeamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tir => tir.TeamId == teamId);
             if (targetTeamSubmission != null)
             {
-                // Đội này đã đăng ký thi. Truy vết xem EventId là gì.
                 var targetRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == targetTeamSubmission.RoundId);
 
-                // Tìm tất cả các đội đã nộp bài vào EventId này
                 var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == targetRound.EventId);
                 var roundIdsInEvent = roundsInEvent.Select(r => r.RoundId).ToList();
 
                 var allSubmissionsOfEvent = await _uow.TeamInRound.GetAllAsync(tir => roundIdsInEvent.Contains(tir.RoundId));
                 var teamIdsInEvent = allSubmissionsOfEvent.Select(tir => tir.TeamId).ToList();
 
-                // Kiểm tra xem thằng xin vào nhóm này có mặt trong danh sách team kia không
                 var isAlreadyInEvent = await _uow.TeamMember.GetFirstOrDefaultAsync(tm =>
                     tm.StudentId == requesterAccountId &&
                     teamIdsInEvent.Contains(tm.TeamId)

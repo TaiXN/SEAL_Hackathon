@@ -354,6 +354,13 @@ public partial class SealContext : DbContext
             entity.Property(e => e.Urlgithub)
                 .HasMaxLength(400)
                 .HasColumnName("URLGithub");
+            entity.Property(e => e.UrlDemo)
+                .HasMaxLength(400)
+                .HasColumnName("URLDemo");
+
+            entity.Property(e => e.UrlSlide)
+                .HasMaxLength(400)
+                .HasColumnName("URLSlide");
 
             entity.HasOne(d => d.TeamInRound).WithMany(p => p.Submissions)
                 .HasForeignKey(d => d.TeamInRoundId)
