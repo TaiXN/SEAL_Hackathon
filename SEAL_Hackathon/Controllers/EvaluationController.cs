@@ -1,10 +1,8 @@
 ﻿using APIViewModels.Evaluation;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.EvaluationService;
-using Services.JudgeService;
 
 namespace SEAL_Hackathon.Controllers
 {
