@@ -5,5 +5,6 @@ namespace DataAccess.Repositories.UniversityRepository
 {
     public interface IUniversityRepository : IRepository<University>
     {
+        void Update(University uni);
     }
 }

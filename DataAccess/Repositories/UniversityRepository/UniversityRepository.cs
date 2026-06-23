@@ -10,5 +10,10 @@ namespace DataAccess.Repositories.UniversityRepository
         {
             _db = db;
         }
+
+        public void Update(University uni)
+        {
+            _db.Universities.Update(uni);
+        }
     }
 }
