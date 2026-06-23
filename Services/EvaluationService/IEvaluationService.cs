@@ -8,8 +8,7 @@ namespace Services.EvaluationService
 {
     public interface IEvaluationService
     {
-        Task<bool> EvaluateSubmissionAsync(string teacherId, EvaluationAPIViewModel info);
-        Task<List<Evaluation>> GetEvaluationsBySubmissionAsync(string submissionId);
+        
 
     }
 }

@@ -2,10 +2,10 @@
 using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
+using DataAccess.Repositories.EvaluationRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
-using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.StudentRepository;
@@ -16,14 +16,8 @@ using DataAccess.Repositories.TeamInRoundRepository;
 using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
-using DataAccess.Repositories.TopicRepository;
-using DataAccess.Repositories.TrackRepository;
 using DataAccess.Repositories.TrackRepository;
 using DataAccess.Repositories.UniversityRepository;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using DataAccess.Repositories.EvaluationRepository;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
@@ -67,7 +61,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Student = new StudentRepository.StudentRepository(context);
             TeamMember = new TeamMemberRepository.TeamMemberRepository(context);
             TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
-            Submission = new SubmissionRepository.SubmissionRepository(context);
+            //Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
 

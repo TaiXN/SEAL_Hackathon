@@ -28,7 +28,7 @@ namespace APIViewModels.Auth
 
         [Required]
 
-        [Required]
+      
         public string UniversityId { get; set; } = null!;
     }
 }

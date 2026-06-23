@@ -47,7 +47,7 @@ namespace Services.SubmittedTeamService
             {
                 Id = Guid.NewGuid().ToString(),
                 TeamId = teamId,
-                RoundId = activeRound.RoundId, 
+                RoundId = activeRound.RoundId,
                 TrackId = request.TrackId,
                 TopicId = request.TopicId,
                 IsBanned = false,
@@ -78,9 +78,8 @@ namespace Services.SubmittedTeamService
 
             if (existingSubmission != null)
             {
-                existingSubmission.Urlgithub = request.GithubUrl;
-                existingSubmission.UrlDemo = request.UrlDemo;
-                existingSubmission.UrlSlide = request.UrlSlide;
+                existingSubmission.Urlgithub = request.UrlGithub;
+
                 _uow.Submission.Update(existingSubmission);
             }
             else
@@ -89,9 +88,8 @@ namespace Services.SubmittedTeamService
                 {
                     Id = Guid.NewGuid().ToString(),
                     TeamInRoundId = teamInRound.Id,
-                    Urlgithub = request.GithubUrl,
-                    UrlDemo = request.UrlDemo,
-                    UrlSlide = request.UrlSlide
+                    Urlgithub = request.UrlGithub,
+
                 };
                 await _uow.Submission.AddAsync(newSubmission);
             }

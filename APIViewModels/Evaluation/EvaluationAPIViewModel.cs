@@ -15,5 +15,7 @@ namespace APIViewModels.Evaluation
 
         [Required]
         public string Reason { get; set; }
+
+        public string TrackID { get; set; }
     }
 }

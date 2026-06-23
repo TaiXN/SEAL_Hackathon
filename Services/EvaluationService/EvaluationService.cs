@@ -18,34 +18,24 @@ namespace Services.EvaluationService
         public async Task<bool> EvaluateSubmissionAsync(string teacherId, EvaluationAPIViewModel info)
         {
             try
-            { 
-                Submission checkSubmission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == info.SubmissionID);
-                if (checkSubmission == null) return false;
-        
-                TeamInRound teamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(q => q.Id == checkSubmission.TeamInRoundId);
-                if (teamInRound == null) return false;
+            {
 
-                Evaluation evalDb = await _uow.Evaluation.GetFirstOrDefaultAsync(q => q.SubmissionId == info.SubmissionID && q.TeacherId == teacherId);
+                Track track = await _uow.Track.GetFirstOrDefaultAsync(q => q.TrackId == info.TrackID && q.IsActive);
+                if (track == null) return false;
 
-                if (evalDb != null)
+                TeacherList judge = await _uow.TeacherList.GetFirstOrDefaultAsync(q=> q.TrackId == info.TrackID && q.TeacherId == teacherId && !q.IsMentor);
+                if(judge == null) return false;
+
+                Evaluation newEval = new Evaluation()
                 {
-                    evalDb.Score = info.Score;
-                    evalDb.Reason = info.Reason;
-                    _uow.Evaluation.Update(evalDb);
-                }
-                else
-                {
-                    Evaluation newEval = new Evaluation()
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        SubmissionId = info.SubmissionID,
-                        TeacherId = teacherId,
-                        Score = info.Score,
-                        Reason = info.Reason
-                    };
-                    await _uow.Evaluation.AddAsync(newEval);
-                }
+                    Id = Guid.NewGuid().ToString(),
+                    SubmissionId = info.SubmissionID,
+                    TeacherId = teacherId,
+                    Score = info.Score,
+                    Reason = info.Reason,
+                };
 
+                await _uow.Evaluation.AddAsync(newEval);
                 await _uow.SaveAsync();
                 return true;
             }
@@ -55,17 +45,6 @@ namespace Services.EvaluationService
             }
         }
 
-        public async Task<List<Evaluation>> GetEvaluationsBySubmissionAsync(string submissionId)
-        {
-            try
-            {
-                List<Evaluation> result = await _uow.Evaluation.GetAllAsync(q => q.SubmissionId == submissionId);
-                return result.ToList();
-            }
-            catch
-            {
-                return new List<Evaluation>();
-            }
-        }
+    
     }
 }
