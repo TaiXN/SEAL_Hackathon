@@ -49,7 +49,9 @@ namespace Services.TeamService
         {
             if (string.IsNullOrWhiteSpace(request.TeamName)) throw new Exception("Team name cant be empty");
             if (string.IsNullOrWhiteSpace(request.EventId)) throw new Exception("invalid eventID!");
-
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == accountId);
+            if (student == null || student.IsApproved == false)
+                throw new Exception("Your account must be approved by an Admin before you can create a team!");
             string newTeamId = Guid.NewGuid().ToString();
 
             var newTeam = new Team
@@ -121,20 +123,17 @@ namespace Services.TeamService
 
         public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
         {
-            // 1. Tìm cái Team để biết nó đang thi Event nào
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null || string.IsNullOrEmpty(team.EventId)) return null;
 
-            // 2. Tìm tất cả Vòng thi (Round) thuộc về cái Event này
             var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == team.EventId);
 
-            // 3. Lấy ra Vòng thi đang Active (chưa hết hạn) và lấy cái ngày kết thúc gần nhất
             var activeRound = roundsInEvent
                 .Where(r => r.EndDate > DateTime.Now)
                 .OrderBy(r => r.EndDate)
                 .FirstOrDefault();
 
-            return activeRound?.EndDate; // Trả về đồng hồ đếm ngược của đúng Event đó!
+            return activeRound?.EndDate; 
         }
 
         public async Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId)
@@ -226,6 +225,9 @@ namespace Services.TeamService
             var requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
             if (requester == null) throw new Exception("Player profile not found!");
 
+            if (requester.IsApproved == false)
+                throw new Exception("Your account must be approved by an Admin before you can join a team!");
+
             var targetTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (targetTeam == null) throw new Exception("The team does not exist!");
 
@@ -234,17 +236,14 @@ namespace Services.TeamService
             var targetTeamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tir => tir.TeamId == teamId);
             if (targetTeamSubmission != null)
             {
-                // Đội này đã đăng ký thi. Truy vết xem EventId là gì.
                 var targetRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == targetTeamSubmission.RoundId);
 
-                // Tìm tất cả các đội đã nộp bài vào EventId này
                 var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == targetRound.EventId);
                 var roundIdsInEvent = roundsInEvent.Select(r => r.RoundId).ToList();
 
                 var allSubmissionsOfEvent = await _uow.TeamInRound.GetAllAsync(tir => roundIdsInEvent.Contains(tir.RoundId));
                 var teamIdsInEvent = allSubmissionsOfEvent.Select(tir => tir.TeamId).ToList();
 
-                // Kiểm tra xem thằng xin vào nhóm này có mặt trong danh sách team kia không
                 var isAlreadyInEvent = await _uow.TeamMember.GetFirstOrDefaultAsync(tm =>
                     tm.StudentId == requesterAccountId &&
                     teamIdsInEvent.Contains(tm.TeamId)
@@ -302,7 +301,7 @@ namespace Services.TeamService
 
             var teamMembers = await _uow.Student.GetAllAsync(
                 p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
-                includeProperties: "TeamMembers,StudentNavigation");
+                includeProperties: "TeamMembers,StudentNavigation"); 
 
             var result = new List<TeamMemberAPIViewModel>();
             foreach (var member in teamMembers)

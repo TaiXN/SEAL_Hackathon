@@ -10,16 +10,16 @@ using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.StudentRepository;
 using DataAccess.Repositories.SubmissionRepository;
+using DataAccess.Repositories.TeacherListRepository;
+using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TeamInRoundRepository;
 using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
-using DataAccess.Repositories.TrackRepository;
-using DataAccess.Repositories.TeacherListRepository;
-using DataAccess.Repositories.TeacherRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
-
+using DataAccess.Repositories.TrackRepository;
+using DataAccess.Repositories.UniversityRepository;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -43,6 +43,9 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITrackRepository Track { get; private set; }
         public ITopicRepository Topic { get; private set; }
         public ISubmissionRepository Submission { get; private set; }
+
+        public IUniversityRepository University { get; private set; }
+
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
         public ICriteriaSetRepository CriteriaSet { get; private set; }
@@ -67,6 +70,9 @@ namespace DataAccess.Repositories.UnitOfWork
             Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
+
+            University = new UniversityRepository.UniversityRepository(context);
+
             Round = new RoundRepository.RoundRepository(context);
             Criteria = new CriteriaRepository.CriteriaRepository(context);
             Mapping = new MappingRepository.MappingRepository(context);

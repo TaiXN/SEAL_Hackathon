@@ -16,6 +16,7 @@ using DataAccess.Repositories.TeamMemberRepository;
 using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
+using DataAccess.Repositories.UniversityRepository;
 
 namespace DataAccess.Repositories.UnitOfWork
 {
@@ -38,6 +39,9 @@ namespace DataAccess.Repositories.UnitOfWork
         ITopicRepository Topic { get; }
         ITeacherListRepository TeacherList { get; }
         IEvaluationRepository Evaluation { get; }
+
+
+        IUniversityRepository University { get; }
         ISubmissionRepository Submission { get; }
 
         Task SaveAsync();

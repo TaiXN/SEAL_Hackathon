@@ -44,11 +44,23 @@ namespace Services.PlayerService
             {
                 StudentId = newAccountId,
                 UniversityId = info.UniversityId,
-                IsApproved = true
+                IsApproved = false
             };
             await _uow.Student.AddAsync(newStudent);
 
             await _uow.SaveAsync();
+            return true;
+        }
+
+        public async Task<bool> ApprovePlayerAsync(string studentId)
+        {
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == studentId);
+            if (student == null) return false;
+
+            student.IsApproved = true;
+            _uow.Student.Update(student);
+            await _uow.SaveAsync();
+
             return true;
         }
     }
