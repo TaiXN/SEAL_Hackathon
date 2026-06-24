@@ -23,25 +23,25 @@ const getList = (res: any): any[] => {
   return [];
 };
 
-// Hàm hỗ trợ dò tìm ID bất chấp BE đổi tên biến
-// Hàm hỗ trợ dò tìm ID bất chấp BE đổi tên biến
+// Hàm hỗ trợ dò tìm ID ĐÃ ĐƯỢC FIX LỖI ƯU TIÊN
 const extractId = (obj: any): string => {
   if (!obj) return "";
   return (
-    // 1. ƯU TIÊN SỐ 1: Lấy ID của con người (Teacher/Mentor/Judge) trước!
+    // Ưu tiên 1: Lấy ID của con người trước
     obj.teacherId ||
     obj.teacherID ||
     obj.mentorId ||
     obj.judgeId ||
-    // 2. ƯU TIÊN SỐ 2: Lấy ID chung chung
+    // Ưu tiên 2: ID chung chung
     obj.id ||
     obj.Id ||
-    // 3. ƯU TIÊN CUỐI CÙNG: Để trackId ở chót để không bị lấy nhầm khi object có cả User lẫn Track
+    // Ưu tiên cuối: trackId (để không bị lấy nhầm ID của Track)
     obj.trackId ||
     obj.trackID ||
     ""
   );
 };
+
 export function ManageUsersAndAssign() {
   const [activeTab, setActiveTab] = useState("approve");
 
@@ -168,8 +168,8 @@ export function ManageUsersAndAssign() {
   const [tracks, setTracks] = useState<any[]>([]);
   const [trackIdToManage, setTrackIdToManage] = useState("");
 
-  const [allTeachers, setAllTeachers] = useState<any[]>([]); // Chứa list Teacher để làm Dropdown
-  const [assignedList, setAssignedList] = useState<any[]>([]); // Chứa cả Mentor và Judge
+  const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [assignedList, setAssignedList] = useState<any[]>([]);
 
   const [assignForm, setAssignForm] = useState({
     teacherID: "",
@@ -177,7 +177,6 @@ export function ManageUsersAndAssign() {
   });
   const [activeEventName, setActiveEventName] = useState("");
 
-  // Lấy dữ liệu Sự kiện & Danh sách TOÀN BỘ Teacher khi mở Tab 3
   useEffect(() => {
     if (activeTab === "assign") {
       (async () => {
@@ -198,9 +197,9 @@ export function ManageUsersAndAssign() {
           setActiveEventName("Không có sự kiện đang diễn ra");
         }
 
-        // 2. Lấy TOÀN BỘ Teacher để làm Dropdown
+        // 2. Lấy TOÀN BỘ Teacher
         try {
-          const resTeachers = await apiClient.get("/api/Teacher"); // Đổi đúng endpoint get all teacher của BE nha
+          const resTeachers = await apiClient.get("/api/Teacher");
           setAllTeachers(getList(resTeachers.data));
         } catch (e) {
           console.warn("Lỗi lấy danh sách Teacher", e);
@@ -209,7 +208,6 @@ export function ManageUsersAndAssign() {
     }
   }, [activeTab]);
 
-  // Lấy danh sách Mentor và Judge của Track đang chọn
   const fetchAssignedPersonnel = async () => {
     if (!trackIdToManage) {
       setAssignedList([]);
@@ -217,7 +215,6 @@ export function ManageUsersAndAssign() {
     }
 
     try {
-      // Gọi song song 2 API GET Mentor và GET Judge
       const [mentorsRes, judgesRes] = await Promise.all([
         apiClient
           .get(`/api/Mentor/track/${trackIdToManage}`)
@@ -227,15 +224,14 @@ export function ManageUsersAndAssign() {
           .catch(() => ({ data: [] })),
       ]);
 
-      // Đồng bộ format data để hiển thị chung 1 bảng
       const mentors = getList(mentorsRes.data).map((m) => ({
         id: extractId(m),
-        name: m.fullName || m.name || m.mentorName || "Mentor cần tên",
+        name: m.fullName || m.name || m.mentorName || "Mentor ẩn danh",
         isMentor: true,
       }));
       const judges = getList(judgesRes.data).map((j) => ({
         id: extractId(j),
-        name: j.fullName || j.name || j.judgeName || "Judge cần tên",
+        name: j.fullName || j.name || j.judgeName || "Judge ẩn danh",
         isMentor: false,
       }));
 
@@ -249,7 +245,7 @@ export function ManageUsersAndAssign() {
     fetchAssignedPersonnel();
   }, [trackIdToManage]);
 
-  // HÀM PHÂN CÔNG (POST MENTOR / JUDGE)
+  // HÀM PHÂN CÔNG ĐÃ ĐƯỢC CHẶN LỖI TRÙNG LẶP (LOGIC MỚI)
   const handleAssignTeacher = async () => {
     if (!assignForm.teacherID || !trackIdToManage)
       return Swal.fire(
@@ -257,6 +253,22 @@ export function ManageUsersAndAssign() {
         "Vui lòng chọn Track và chọn Nhân sự!",
         "warning",
       );
+
+    // 🛡️ CHẶN NẾU TEACHER ĐÃ TỒN TẠI TRONG TRACK NÀY
+    const existingPerson = assignedList.find(
+      (a) => String(a.id) === String(assignForm.teacherID),
+    );
+    if (existingPerson) {
+      const currentRole = existingPerson.isMentor ? "Mentor" : "Judge";
+      const attemptedRole = assignForm.isMentor ? "Mentor" : "Judge";
+
+      return Swal.fire({
+        icon: "warning",
+        title: "Trùng lặp phân công!",
+        html: `Nhân sự này đã được phân công làm <b>${currentRole}</b> của Track này rồi.<br/><br/><i>Lưu ý: Một người không thể vừa làm Judge vừa làm Mentor trong cùng một Track.</i>`,
+        confirmButtonColor: "#0f172a",
+      });
+    }
 
     try {
       Swal.fire({
@@ -272,18 +284,16 @@ export function ManageUsersAndAssign() {
 
       Swal.fire("Thành công!", "Đã gán nhân sự vào Track.", "success");
       setAssignForm({ ...assignForm, teacherID: "" });
-      fetchAssignedPersonnel(); // Gọi hàm load lại bảng
+      fetchAssignedPersonnel();
     } catch (error: any) {
       Swal.fire(
         "Thất bại",
-        error.response?.data ||
-          "Lỗi phân công (Có thể nhân sự này đã tồn tại)!",
+        error.response?.data || "Lỗi phân công từ Backend!",
         "error",
       );
     }
   };
 
-  // HÀM XÓA PHÂN CÔNG (DELETE MENTOR / JUDGE)
   const handleRemoveTeacher = async (teacherId: string, isMentor: boolean) => {
     const result = await Swal.fire({
       title: "Gỡ nhân sự này khỏi Track?",
@@ -307,17 +317,15 @@ export function ManageUsersAndAssign() {
           showConfirmButton: false,
           timer: 1000,
         });
-        fetchAssignedPersonnel(); // Gọi hàm load lại bảng
+        fetchAssignedPersonnel();
       } catch (error) {
         Swal.fire("Lỗi", "Không thể xóa phân công!", "error");
       }
     }
   };
 
-  // Lọc ra danh sách Teacher CHƯA được phân công vào Track này để hiện trong Dropdown
-  const availableTeachers = allTeachers.filter(
-    (t) => !assignedList.some((a) => String(a.id) === String(extractId(t))),
-  );
+  // KHÔNG DÙNG HÀM FILTER NỮA -> HIỂN THỊ TOÀN BỘ TEACHER ĐỂ ADMIN CÓ THỂ GÁN CHO NHIỀU TRACK
+  const availableTeachers = allTeachers;
 
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
@@ -573,7 +581,6 @@ export function ManageUsersAndAssign() {
                     2. PHÂN CÔNG NHÂN SỰ VÀO TRACK
                   </h3>
                   <div className="flex gap-4 items-end">
-                    {/* ĐÃ ĐỔI INPUT THÀNH DROPDOWN CHỌN TÊN TEACHER */}
                     <div className="flex-1 space-y-2 relative">
                       <label className="text-[11px] font-bold text-slate-500">
                         Chọn Tài khoản Teacher
@@ -589,17 +596,17 @@ export function ManageUsersAndAssign() {
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
                       >
                         <option value="" disabled>
-                          -- Chọn tài khoản chưa phân công --
+                          -- Chọn Tài khoản Teacher --
                         </option>
                         {availableTeachers.map((t: any) => {
                           const rawId = extractId(t);
                           return (
                             <option key={rawId} value={rawId}>
-                              {/* NẾU KHÔNG CÓ TÊN THÌ LẤY TẠM 8 CHỮ SỐ ĐẦU CỦA ID ĐỂ HIỂN THỊ */}
+                              {/* FALLBACK TÊN NẾU BACKEND TRẢ VỀ LỖI THIẾU NAME */}
                               {t.fullName ||
                                 t.name ||
                                 t.email ||
-                                `Teacher ID (thiếu name): (ID: ${rawId.substring(0, 8)}...)`}
+                                `Teacher ẩn danh (ID: ${rawId.substring(0, 8)}...)`}
                             </option>
                           );
                         })}
@@ -654,8 +661,7 @@ export function ManageUsersAndAssign() {
                       <tr>
                         <th className="px-6 py-4">Tên Nhân sự</th>
                         <th className="px-6 py-4 font-mono font-normal opacity-50">
-                          Mã ID (hiện tạm để phân biệt vì chưa có tên, must
-                          delete)
+                          Mã ID
                         </th>
                         <th className="px-6 py-4 text-center">Vai trò</th>
                         <th className="px-6 py-4 text-right">Thao tác</th>
@@ -682,7 +688,6 @@ export function ManageUsersAndAssign() {
                             )}
                           </td>
                           <td className="px-6 py-4 flex justify-end gap-2">
-                            {/* BỎ NÚT CHUYỂN ĐỔI VAI TRÒ ĐỂ DÙNG THAO TÁC XÓA SẠCH VÀ POST LẠI */}
                             <button
                               onClick={() =>
                                 handleRemoveTeacher(item.id, item.isMentor)
