@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
 using Services.CriteriaService;
+using Services.DropdownService;
 using Services.EvaluationService;
 using Services.EventService;
 using Services.JudgeService;
@@ -21,6 +22,7 @@ using Services.TeamService;
 using Services.TopicService;
 using Services.TrackService;
 using Services.UniversityService;
+using Services.DropdownService;
 using System.Text;
 
 namespace SEAL_Hackathon
@@ -89,6 +91,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<UniversityService>().As<IUniversityService>();
                 builder.RegisterType<EvaluationService>().As<IEvaluationService>();
+                builder.RegisterType<DropdownService>().As<IDropdownService>();
 
             });
 

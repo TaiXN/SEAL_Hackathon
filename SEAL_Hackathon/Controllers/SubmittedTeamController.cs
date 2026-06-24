@@ -31,9 +31,9 @@ namespace SEAL_Hackathon.Controllers
                 bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, teamId, request);
                 if (isSuccess)
                 {
-                    return Ok(new { message = "Track submitted successfully!" });
+                    return Ok(new { message = " submitted successfully!" });
                 }
-                return BadRequest(new { message = "Cannot submit track." });
+                return BadRequest(new { message = "Cannot submit ." });
             }
             catch (Exception ex)
             {

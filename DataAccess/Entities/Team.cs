@@ -9,9 +9,7 @@ public partial class Team
 
     public string TeamName { get; set; } = null!;
 
-    public string? EventId { get; set; }
 
-    public virtual Event? Event { get; set; }
 
     public virtual ICollection<TeamInRound> TeamInRounds { get; set; } = new List<TeamInRound>();
 

@@ -24,9 +24,6 @@ namespace APIViewModels.Auth
         public string Phone { get; set; } = null!;
 
         [Required]
-        public string StudentId { get; set; } = null!;
-
-        [Required]
 
       
         public string UniversityId { get; set; } = null!;

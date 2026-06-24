@@ -351,6 +351,8 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamInRoundID");
+            entity.Property(e => e.AverageScore)
+                .HasColumnName("AverageScore");
             entity.Property(e => e.Urldemo)
                 .HasMaxLength(400)
                 .HasColumnName("URLDemo");
@@ -417,15 +419,8 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
-            entity.Property(e => e.EventId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("EventID");
-            entity.Property(e => e.TeamName).HasMaxLength(255);
 
-            entity.HasOne(d => d.Event).WithMany(p => p.Teams)
-                .HasForeignKey(d => d.EventId)
-                .HasConstraintName("FK_Team_Event");
+            entity.Property(e => e.TeamName).HasMaxLength(255);
         });
 
         modelBuilder.Entity<TeamInRound>(entity =>

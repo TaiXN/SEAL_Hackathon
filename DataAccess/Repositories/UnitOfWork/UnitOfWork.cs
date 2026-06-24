@@ -61,18 +61,17 @@ namespace DataAccess.Repositories.UnitOfWork
             Student = new StudentRepository.StudentRepository(context);
             TeamMember = new TeamMemberRepository.TeamMemberRepository(context);
             TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
-            //Submission = new SubmissionRepository.SubmissionRepository(context);
+            Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
 
             University = new UniversityRepository.UniversityRepository(context);
 
-            Round = new RoundRepository.RoundRepository(context);
+
             Criteria = new CriteriaRepository.CriteriaRepository(context);
             Mapping = new MappingRepository.MappingRepository(context);
             CriteriaSet = new CriteriaSetRepository.CriteriaSetRepository(context);
-            Track = new TrackRepository.TrackRepository(context);
-            Topic = new TopicRepository.TopicRepository(context);
+
             TeacherList = new TeacherListRepository.TeacherListRepository(context);
             Evaluation = new EvaluationRepository.EvaluationRepository(context);
         }

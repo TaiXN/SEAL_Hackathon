@@ -23,7 +23,6 @@ public partial class Event
 
     public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
 
-    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 
     public virtual ICollection<Track> Tracks { get; set; } = new List<Track>();
 }
