@@ -18,7 +18,7 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [HttpPost("{teacherId}")]
-        [Authorize(Roles = "Judge, Teacher")]
+        [Authorize(Roles = "Judge, Teacher, Admin")]
         public async Task<IActionResult> Evaluate(string teacherId, EvaluationAPIViewModel info)
         {
             if (ModelState.IsValid)
@@ -62,7 +62,7 @@ namespace SEAL_Hackathon.Controllers
 
      
         [HttpPut("{teacherId}")]
-        [Authorize(Roles = "Judge, Teacher")]
+        [Authorize(Roles = "Judge, Teacher, Admin")]
         public async Task<IActionResult> Update(string teacherId, UpdateEvaluationAPIViewModel info)
         {
             if (ModelState.IsValid)
@@ -82,7 +82,7 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Judge, Teacher, Admin")]
         public async Task<IActionResult> Delete(string id)
         {
             bool isSuccess = await _evaluation.DeleteEvaluationAsync(id);
