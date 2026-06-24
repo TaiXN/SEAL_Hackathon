@@ -587,11 +587,18 @@ export function ManageUsersAndAssign() {
                         <option value="" disabled>
                           -- Chọn tài khoản chưa phân công --
                         </option>
-                        {availableTeachers.map((t: any) => (
-                          <option key={extractId(t)} value={extractId(t)}>
-                            {t.fullName || t.name || t.email}
-                          </option>
-                        ))}
+                        {availableTeachers.map((t: any) => {
+                          const rawId = extractId(t);
+                          return (
+                            <option key={rawId} value={rawId}>
+                              {/* NẾU KHÔNG CÓ TÊN THÌ LẤY TẠM 8 CHỮ SỐ ĐẦU CỦA ID ĐỂ HIỂN THỊ */}
+                              {t.fullName ||
+                                t.name ||
+                                t.email ||
+                                `Teacher ID (thiếu name): (ID: ${rawId.substring(0, 8)}...)`}
+                            </option>
+                          );
+                        })}
                       </select>
                       <ChevronDown
                         className="absolute right-4 top-[38px] text-slate-400 pointer-events-none"
