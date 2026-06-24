@@ -16,7 +16,6 @@ namespace SEAL_Hackathon.Controllers
             _university = university;
         }
 
-        // Mở tự do để load Dropdown lúc đăng ký tài khoản
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -32,7 +31,6 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        // ---> CHỈ ADMIN MỚI ĐƯỢC TẠO
         [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(UniversityAPIViewModel info)
