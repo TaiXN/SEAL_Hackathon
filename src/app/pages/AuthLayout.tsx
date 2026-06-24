@@ -164,8 +164,7 @@ export function AuthLayout() {
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="admin">Admin</option>
                 <option value="judge">Judge</option>
-                <option value="member">Team Member</option>
-                <option value="leader">Team Leader</option>
+                <option value="member">Participants</option>
               </select>
 
               <form className="space-y-5" onSubmit={handleLoginSubmit}>

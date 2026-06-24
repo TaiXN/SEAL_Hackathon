@@ -21,18 +21,12 @@ import { Sidebar as MemberSidebar } from "./pages/Member/Sidebar";
 
 // 3. IMPORT CỤM TRANG ADMIN
 import { AdminLayout as AdminLayout } from "../app/components/adminPage/AdminLayout";
-import {
-  AdminViolationsPage,
-  AdminViolationsPage as ViolationsPage,
-} from "./pages/Admin/AdminViolationsPage";
-import { AdminUsersPage as AdminUsersPage } from "./pages/Admin/AdminUsersPage";
-import {
-  CreateEventWizard as CreateEvent,
-  CreateEventWizard,
-} from "./pages/Admin/CreateEventWizard";
+import { AdminViolationsPage as AdminViolationsPage } from "./pages/Admin/AdminViolationsPage";
+import { ManageUsersAndAssign as ManageUsersAndAssign } from "./pages/Admin/ManageUsersAndAssign";
+import { CreateEvents as CreateEvents } from "./pages/Admin/CreateEvents";
 import { Dashboard as AdminDashboard } from "./pages/Admin/Dashboard";
-import { EventDetailPage as AdminEventDetail } from "./pages/Admin/EventDetailPage";
-import { EventsPage as AdminEvents } from "./pages/Admin/EventsPage";
+import { EventDetailsPage as EventDetailsPage } from "./pages/Admin/EventDetailsPage";
+import { EventHistoryPage as EventHistoryPage } from "./pages/Admin/EventHistoryPage";
 import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 // import { AdminUsersPage as AdminUsers } from "./pages/Admin/AdminUsersPage";
 // import { AdminViolationsPage as AdminViolations } from "./pages/Admin/AdminViolationsPage";
@@ -61,13 +55,13 @@ export const router = createBrowserRouter([
         path: "/admin",
         element: <AdminLayout />,
         children: [
-          { index: true, element: <CreateEvent /> }, // Trang chính của Admin
-          { path: "users", element: <AdminUsersPage /> },
+          { index: true, element: <CreateEvents /> }, // Trang chính của Admin
+          { path: "users", element: <ManageUsersAndAssign /> },
           { path: "violations", element: <AdminViolationsPage /> },
-          { path: "events/create", element: <CreateEventWizard /> },
+          { path: "events/create", element: <CreateEvents /> },
           { path: "dashboard", element: <AdminDashboard /> },
-          { path: "events", element: <AdminEvents /> },
-          { path: "event/:id", element: <AdminEventDetail /> },
+          { path: "events", element: <EventHistoryPage /> },
+          { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
           // { path: "users", element: <AdminUsers /> },
           // { path: "violations", element: <AdminViolations /> },

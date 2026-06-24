@@ -1,29 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, AlertTriangle, X, HelpCircle } from "lucide-react";
 import Swal from "sweetalert2";
 
-export function AdminViolationsPage() {
-  const [teams, setTeams] = useState([
-    { id: "1", name: "TechWizards", status: "Hợp lệ", reason: "-" },
-    {
-      id: "2",
-      name: "LateComers",
-      status: "Đã loại",
-      reason: "Trễ giờ check-in",
-    },
-  ]);
+// [NOTE] Thêm Interface để TypeScript không báo lỗi never[]
+interface Team {
+  id: string;
+  name: string;
+  status: string;
+  reason: string;
+}
 
+export function AdminViolationsPage() {
+  // [NOTE] Khởi tạo mảng rỗng, chờ dữ liệu từ API
+  const [teams, setTeams] = useState<Team[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả tình trạng");
-
-  const filteredTeams = teams.filter((team) => {
-    const matchSearch = team.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchFilter =
-      statusFilter === "Tất cả tình trạng" || team.status === statusFilter;
-    return matchSearch && matchFilter;
-  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<{
@@ -31,6 +22,26 @@ export function AdminViolationsPage() {
     name: string;
   } | null>(null);
   const [violationReason, setViolationReason] = useState("");
+
+  // ==========================================
+  // [NOTE] HÀM GỌI API LẤY DANH SÁCH ĐỘI THI
+  // ==========================================
+  const fetchTeams = async () => {
+    // [GỌI API CHỖ NÀY]: GET /api/teams?search={searchTerm}&status={statusFilter}
+    // Ví dụ: const res = await axios.get(`/api/teams?search=${searchTerm}&status=${statusFilter}`);
+    // setTeams(res.data);
+    console.log(
+      "Đang gọi API lấy danh sách đội thi với filter:",
+      statusFilter,
+      "và search:",
+      searchTerm,
+    );
+  };
+
+  // Tự động gọi API mỗi khi load trang hoặc khi user gõ tìm kiếm/đổi bộ lọc
+  useEffect(() => {
+    fetchTeams();
+  }, [searchTerm, statusFilter]);
 
   const openDisqualifyModal = (id: string, name: string) => {
     setSelectedTeam({ id, name });
@@ -43,7 +54,7 @@ export function AdminViolationsPage() {
     setSelectedTeam(null);
   };
 
-  const handleConfirmDisqualify = () => {
+  const handleConfirmDisqualify = async () => {
     if (!violationReason.trim()) {
       Swal.fire({
         icon: "error",
@@ -53,22 +64,16 @@ export function AdminViolationsPage() {
       return;
     }
 
-    // DÀNH CHO BACKEND:
-    // TODO: Gọi API POST/PUT /api/teams/{id}/disqualify để loại đội
+    // ==========================================
+    // [NOTE] HÀM GỌI API ĐỂ LOẠI ĐỘI THI
+    // ==========================================
+    // [GỌI API CHỖ NÀY]: PUT hoặc POST /api/teams/{selectedTeam?.id}/disqualify
+    // Body truyền lên: { reason: violationReason }
     console.log(
       `Đã gửi API loại đội ID: ${selectedTeam?.id} với lý do: ${violationReason}`,
     );
 
-    if (selectedTeam) {
-      setTeams((prevTeams) =>
-        prevTeams.map((team) =>
-          team.id === selectedTeam.id
-            ? { ...team, status: "Đã loại", reason: violationReason }
-            : team,
-        ),
-      );
-    }
-
+    // Đợi gọi API thành công xong thì báo và Load lại DB:
     closeModal();
     Swal.fire({
       icon: "success",
@@ -78,6 +83,8 @@ export function AdminViolationsPage() {
       timer: 2000,
       showConfirmButton: false,
     });
+
+    fetchTeams(); // Cập nhật lại danh sách mới nhất từ server
   };
 
   return (
@@ -131,7 +138,8 @@ export function AdminViolationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredTeams.length === 0 ? (
+              {/* [NOTE] Đổi filteredTeams thành mảng teams thẳng luôn */}
+              {teams.length === 0 ? (
                 <tr>
                   <td
                     colSpan={4}
@@ -141,7 +149,7 @@ export function AdminViolationsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredTeams.map((team) => (
+                teams.map((team) => (
                   <tr
                     key={team.id}
                     className="hover:bg-slate-50/50 transition-colors"
@@ -161,9 +169,9 @@ export function AdminViolationsPage() {
                       )}
                     </td>
                     <td
-                      className={`px-6 py-5 font-medium text-xs ${team.reason === "-" ? "text-slate-400" : "text-slate-700"}`}
+                      className={`px-6 py-5 font-medium text-xs ${team.reason === "-" || !team.reason ? "text-slate-400" : "text-slate-700"}`}
                     >
-                      {team.reason}
+                      {team.reason || "-"}
                     </td>
                     <td className="px-6 py-5 text-right">
                       {team.status === "Hợp lệ" ? (
