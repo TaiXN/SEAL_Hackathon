@@ -48,6 +48,7 @@ namespace DataAccess.Repositories.UnitOfWork
 
 
 
+
         public UnitOfWork(SealContext context)
         {
             _context = context;
@@ -61,7 +62,7 @@ namespace DataAccess.Repositories.UnitOfWork
             Student = new StudentRepository.StudentRepository(context);
             TeamMember = new TeamMemberRepository.TeamMemberRepository(context);
             TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
-            //Submission = new SubmissionRepository.SubmissionRepository(context);
+            Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
             Topic = new TopicRepository.TopicRepository(context);
 
