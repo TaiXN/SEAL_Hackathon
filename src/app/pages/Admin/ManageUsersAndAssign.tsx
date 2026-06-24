@@ -24,20 +24,24 @@ const getList = (res: any): any[] => {
 };
 
 // Hàm hỗ trợ dò tìm ID bất chấp BE đổi tên biến
+// Hàm hỗ trợ dò tìm ID bất chấp BE đổi tên biến
 const extractId = (obj: any): string => {
+  if (!obj) return "";
   return (
-    obj.id ||
-    obj.Id ||
-    obj.trackId ||
-    obj.trackID ||
+    // 1. ƯU TIÊN SỐ 1: Lấy ID của con người (Teacher/Mentor/Judge) trước!
     obj.teacherId ||
     obj.teacherID ||
     obj.mentorId ||
     obj.judgeId ||
+    // 2. ƯU TIÊN SỐ 2: Lấy ID chung chung
+    obj.id ||
+    obj.Id ||
+    // 3. ƯU TIÊN CUỐI CÙNG: Để trackId ở chót để không bị lấy nhầm khi object có cả User lẫn Track
+    obj.trackId ||
+    obj.trackID ||
     ""
   );
 };
-
 export function ManageUsersAndAssign() {
   const [activeTab, setActiveTab] = useState("approve");
 
@@ -226,12 +230,12 @@ export function ManageUsersAndAssign() {
       // Đồng bộ format data để hiển thị chung 1 bảng
       const mentors = getList(mentorsRes.data).map((m) => ({
         id: extractId(m),
-        name: m.fullName || m.name || m.mentorName || "Mentor ẩn danh",
+        name: m.fullName || m.name || m.mentorName || "Mentor cần tên",
         isMentor: true,
       }));
       const judges = getList(judgesRes.data).map((j) => ({
         id: extractId(j),
-        name: j.fullName || j.name || j.judgeName || "Judge ẩn danh",
+        name: j.fullName || j.name || j.judgeName || "Judge cần tên",
         isMentor: false,
       }));
 
@@ -650,7 +654,8 @@ export function ManageUsersAndAssign() {
                       <tr>
                         <th className="px-6 py-4">Tên Nhân sự</th>
                         <th className="px-6 py-4 font-mono font-normal opacity-50">
-                          Mã ID
+                          Mã ID (hiện tạm để phân biệt vì chưa có tên, must
+                          delete)
                         </th>
                         <th className="px-6 py-4 text-center">Vai trò</th>
                         <th className="px-6 py-4 text-right">Thao tác</th>
