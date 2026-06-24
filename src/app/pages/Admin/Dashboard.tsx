@@ -55,15 +55,14 @@ export function Dashboard() {
       // BƯỚC 1: LẤY ID VÀ TRẠNG THÁI SỰ KIỆN TỪ DATABASE
       // ==========================================
       if (!targetEventId) {
-        // Lọc TÌM ĐÚNG sự kiện ĐANG DIỄN RA (Round hiện tại < Số vòng thực tế)
-        const ongoingEvents = allEvents.filter((e: any) => {
-          // Lọc các vòng thi thuộc về sự kiện này
+        // CLEAN CODE: Tìm DUY NHẤT 1 sự kiện đang diễn ra (vì mỗi học kỳ chỉ có 1 sự kiện)
+        const activeEvent = allEvents.find((e: any) => {
           const evRounds = allRounds.filter(
             (r: any) => String(r.eventID || r.eventId) === String(e.id),
           );
-          // Đếm linh hoạt: sự kiện có bao nhiêu vòng thì max bấy nhiêu (mặc định 2)
           const maxRounds = evRounds.length > 0 ? evRounds.length : 2;
 
+          // Sự kiện Đang diễn ra là sự kiện có currentRound >= 0 và chưa đạt maxRounds
           return (
             e.currentRound !== undefined &&
             e.currentRound >= 0 &&
@@ -71,11 +70,10 @@ export function Dashboard() {
           );
         });
 
-        if (ongoingEvents && ongoingEvents.length > 0) {
-          const latestActiveEvent = ongoingEvents[ongoingEvents.length - 1];
-          targetEventId = latestActiveEvent.id;
-          setEventName(latestActiveEvent.name || "");
-          actualCurrentRoundIndex = latestActiveEvent.currentRound || 0;
+        if (activeEvent) {
+          targetEventId = activeEvent.id;
+          setEventName(activeEvent.name || activeEvent.EventName || "");
+          actualCurrentRoundIndex = activeEvent.currentRound || 0;
         }
       } else {
         try {

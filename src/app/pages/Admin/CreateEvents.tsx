@@ -237,7 +237,7 @@ export function CreateEvents() {
         title: "Đang đồng bộ Hạng mục...",
         didOpen: () => Swal.showLoading(),
       });
-
+      const topicFails: string[] = [];
       const allTracksRaw = await trackTopicApi.getAllTracks();
       const existingTracks = getList(allTracksRaw).filter(
         (t) => String(t.eventId || t.eventID) === String(savedEventId),
@@ -328,18 +328,39 @@ export function CreateEvents() {
               trackID: currentTrackId,
               topicDetail: name,
             } as any);
-          } catch (e) {
-            console.error("🟥 POST topic lỗi:", e);
+          } catch (e: any) {
+            const msg =
+              e?.response?.data?.message ||
+              e?.response?.data?.title ||
+              (typeof e?.response?.data === "string" ? e.response.data : "") ||
+              e?.message ||
+              "lỗi không rõ";
+            console.error(
+              "🟥 POST topic lỗi:",
+              name,
+              e?.response?.status,
+              e?.response?.data,
+            );
+            topicFails.push(`"${name}" — ${msg}`);
           }
         }
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Đã lưu Hạng mục!",
-        showConfirmButton: false,
-        timer: 1000,
-      });
+      if (topicFails.length > 0) {
+        Swal.fire(
+          "Một số chủ đề KHÔNG tạo được",
+          `Backend từ chối ${topicFails.length} chủ đề (thường do trùng tên đã tồn tại trong hệ thống):<br><br>` +
+            topicFails.join("<br>"),
+          "warning",
+        );
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Đã lưu Hạng mục!",
+          showConfirmButton: false,
+          timer: 1000,
+        });
+      }
       setActiveTab(3);
     } catch (error) {
       console.error(error);

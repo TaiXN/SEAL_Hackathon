@@ -76,6 +76,24 @@ export function EventHistoryPage() {
     }
   };
 
+  // 🛡️ CHỐT CHẶN: Kiểm tra xem có sự kiện nào chưa kết thúc không (currentRound < maxRounds)
+  const hasActiveEvent = events.some(
+    (e) => e.currentRound < (e.maxRounds || 2),
+  );
+
+  const handleCreateNewEvent = () => {
+    if (hasActiveEvent) {
+      Swal.fire({
+        icon: "warning",
+        title: "Chưa thể tạo sự kiện mới!",
+        text: "Hệ thống có một sự kiện đang diễn ra. Phải kết thúc sự kiện hiện tại trước khi khởi tạo sự kiện mới.",
+        confirmButtonColor: "#0f172a",
+      });
+    } else {
+      navigate("create");
+    }
+  };
+
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
       <div className="flex justify-between items-start mb-8">
@@ -88,8 +106,12 @@ export function EventHistoryPage() {
           </p>
         </div>
         <button
-          onClick={() => navigate("create")}
-          className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors flex items-center gap-2"
+          onClick={handleCreateNewEvent}
+          className={`px-6 py-3 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2 ${
+            hasActiveEvent
+              ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
+              : "bg-black hover:bg-slate-800"
+          }`}
         >
           <Plus size={18} /> Tạo sự kiện mới
         </button>
@@ -133,7 +155,7 @@ export function EventHistoryPage() {
                       {event.year}
                     </td>
 
-                    {/* CỘT TRẠNG THÁI ĐÃ ĐƯỢC LÀM CHO LINH HOẠT THEO MAX ROUNDS */}
+                    {/* CỘT TRẠNG THÁI */}
                     <td className="px-6 py-5 text-center">
                       {event.currentRound < 0 && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
