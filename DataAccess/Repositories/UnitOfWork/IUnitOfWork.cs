@@ -25,10 +25,16 @@ namespace DataAccess.Repositories.UnitOfWork
         IAccountRepository Account { get; }
         IRoleRepository Role { get; }
         IRefreshTokenRepository RefreshToken { get; }
+
+        
+=========
+
         ITeamRepository Team { get; }
-        IStudentRepository Student { get; }
+      
         ITeamMemberRepository TeamMember { get; }
         IEventRepository Event { get; }
+      
+>>>>>>>>> Temporary merge branch 2
         ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
         ICriteriaRepository Criteria { get; }

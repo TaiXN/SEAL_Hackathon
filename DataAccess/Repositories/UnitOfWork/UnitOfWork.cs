@@ -56,7 +56,8 @@ namespace DataAccess.Repositories.UnitOfWork
             _context = context;
             Account = new AccountRepository.AccountRepository(context);
             Role = new RoleRepository.RoleRepository(context);
-            RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);           
+            RefreshToken = new RefreshTokenRepository.RefreshTokenRepository(context);
+           
             Teacher = new TeacherRepository.TeacherRepository(context);
             Event = new EventRepository.EventRepository(context);      
             Round = new RoundRepository.RoundRepository(context);
