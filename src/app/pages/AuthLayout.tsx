@@ -5,6 +5,7 @@ import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 import { authApi } from "../lib/api/authApi";
 import Swal from "sweetalert2";
+import { playerApi } from "../lib/api/playerApi";
 
 type AuthView =
   | "login"
@@ -23,7 +24,7 @@ export function AuthLayout() {
   // ================= STATE CHO LOGIN =================
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [role, setRole] = useState("member"); // mặc định là member
+  const [role, setRole] = useState("player"); // mặc định là member
 
   // ================= STATE CHO REGISTER =================
   const [studentType, setStudentType] = useState<"fpt" | "other" | null>("fpt");
@@ -32,6 +33,10 @@ export function AuthLayout() {
   const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regFullName, setRegFullName] = useState("");
+  const [regAddress, setRegAddress] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regUniversityId, setRegUniversityId] = useState("UNI_FPT");
 
   // ================= STATE CHO FORGOT / RESET PASSWORD =================
   const [forgotEmail, setForgotEmail] = useState("");
@@ -56,9 +61,8 @@ export function AuthLayout() {
         data = await authApi.loginTeacher(credentials);
         navigateTo = "/judge";
       } else {
-        // data = await authApi.loginMember(credentials);
-        // navigateTo = "/gateway"; //sửa lại url
-        throw new Error("Chức năng đăng nhập cho Member chưa hoàn thiện!");
+        data = await authApi.loginPlayer(credentials);
+        navigateTo = "/player"; //sửa lại url
       }
 
       if (!data) {
@@ -90,25 +94,49 @@ export function AuthLayout() {
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // FE kiểm tra Cấp độ 1: Xem 2 mật khẩu có giống nhau không
+
     if (regPassword !== regConfirmPassword) {
-      alert("Mật khẩu xác nhận không khớp! Vui lòng nhập lại.");
-      return; // Dừng lại, không gom gửi đi nữa
+      Swal.fire("Lỗi", "Mật khẩu xác nhận không khớp!", "error");
+      return;
     }
 
-    const dataToSend = {
-      email: regEmail,
-      isFptStudent: studentType === "fpt",
-      university: studentType === "fpt" ? "FPT University" : regUniversity,
-      studentId: regStudentId,
-      password: regPassword,
-    };
-    console.log("[REGISTER] Dữ liệu thu thập chuẩn bị gửi BE:", dataToSend);
-    alert("Thu thập Register thành công! Check Console F12 nha.");
-  };
+    const loadingToastId = toast.loading("Đang tạo tài khoản sinh viên...");
 
+    try {
+      await playerApi.register({
+        email: regEmail.trim(),
+        password: regPassword,
+        fullName: regFullName.trim(),
+        address: regAddress.trim(),
+        phone: regPhone.trim(),
+        studentId: regStudentId.trim(),
+        universityId: regUniversityId.trim(),
+      });
+
+      toast.success("Đăng ký thành công! Đăng nhập để tiếp tục.", {
+        id: loadingToastId,
+      });
+
+      setView("login");
+      setLoginEmail(regEmail);
+      setRole("player");
+    } catch (error: any) {
+      console.error("Register player failed:", error);
+
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data ||
+        "Không thể đăng ký tài khoản sinh viên.";
+
+      toast.error(errorMsg, {
+        id: loadingToastId,
+      });
+
+      Swal.fire("Lỗi", errorMsg, "error");
+    }
+  };
   const handleForgotSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("[FORGOT PWD] Gửi yêu cầu reset cho email:", forgotEmail);
@@ -164,7 +192,7 @@ export function AuthLayout() {
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="admin">Admin</option>
                 <option value="judge">Judge</option>
-                <option value="member">Participants</option>
+                <option value="player">Participants</option>
               </select>
 
               <form className="space-y-5" onSubmit={handleLoginSubmit}>

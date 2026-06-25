@@ -190,11 +190,10 @@ export function EventDetailsPage() {
     Number(it.score ?? it.Score ?? it.weight ?? it.Weight ?? 0);
   // Chuẩn hóa list để gửi lên updateSet (gửi cả 2 cách viết cho chắc)
   const toPayloadList = (items: any[]) =>
-    items.map((it: any) => {
-      const cid = it.criteriaId ?? itemCriteriaId(it);
-      const sc = Number(it.score ?? itemScore(it));
-      return { criteriaId: cid, CriteriaId: cid, score: sc, Score: sc };
-    });
+    items.map((it: any) => ({
+      criteriaId: it.criteriaId ?? itemCriteriaId(it),
+      score: Number(it.score ?? itemScore(it)),
+    }));
 
   // Lấy đúng câu báo lỗi backend trả về (thay vì câu chung chung)
   const getServerMsg = (e: any): string =>
@@ -424,7 +423,6 @@ export function EventDetailsPage() {
         setName: set.setName,
         isDefault: set.isDefault,
         criteriaList: list,
-        CriteriaList: list,
       } as any);
       Swal.fire({
         icon: "success",
@@ -487,7 +485,6 @@ export function EventDetailsPage() {
         setName: value.trim(),
         isDefault,
         criteriaList: list,
-        CriteriaList: list,
       } as any);
       Swal.fire({
         icon: "success",

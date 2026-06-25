@@ -1,5 +1,5 @@
 import { Outlet } from "react-router";
-import { Sidebar } from "../../pages/Member/Sidebar";
+import { Sidebar } from "../../pages/Player/Sidebar";
 
 export function Layout() {
   return (

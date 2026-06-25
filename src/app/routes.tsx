@@ -4,20 +4,13 @@ import { createBrowserRouter } from "react-router-dom";
 import { Landing } from "./pages/Landing";
 import { AuthLayout } from "./pages/AuthLayout";
 import { Gateway } from "./pages/Gateway";
-import Judge from "./pages/Judge";
 import RequireAuth from "../app/components/guards/RequireAuth";
 
-// 2. IMPORT CỤM TRANG LEADER
-import { Layout as LeaderLayout } from "./components/leaderPage/Layout";
-import { Dashboard as LeaderDashboard } from "./pages/Leader/Dashboard";
-import { Team as LeaderTeam } from "./pages/Leader/Team";
-import { Submit as LeaderSubmit } from "./pages/Leader/Submit";
-
-// 3. IMPORT CỤM TRANG MEMBER
-import { Layout as MemberLayout } from "./components/memberPage/Layout";
-import { Dashboard as MemberDashboard } from "./pages/Member/Dashboard";
-import { MyTeam as MemberMyTeam } from "./pages/Member/MyTeam";
-import { Sidebar as MemberSidebar } from "./pages/Member/Sidebar";
+// 2. IMPORT CỤM TRANG PLAYER
+import { Dashboard as PlayerDashboard } from "./pages/Player/Dashboard";
+import { Team as PlayerTeam } from "./pages/Player/Team";
+import { Submit as PlayerSubmit } from "./pages/Player/Submit";
+import { PlayerLayout } from "./pages/Player/PlayerLayout";
 
 // 3. IMPORT CỤM TRANG ADMIN
 import { AdminLayout as AdminLayout } from "../app/components/adminPage/AdminLayout";
@@ -78,27 +71,46 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // --- Khu vực của Leader (Cũng được bảo mật) ---
       {
-        path: "/leader",
-        element: <LeaderLayout />,
+        path: "/player",
+        element: <PlayerLayout />,
         children: [
-          { index: true, element: <LeaderDashboard /> },
-          { path: "team", element: <LeaderTeam /> },
-          { path: "submit", element: <LeaderSubmit /> },
+          {
+            index: true,
+            element: <PlayerDashboard />,
+          },
+          {
+            path: "team",
+            element: <PlayerTeam />,
+          },
+          {
+            path: "submit",
+            element: <PlayerSubmit />,
+          },
         ],
       },
 
+      // --- Khu vực của Leader (Cũng được bảo mật) ---
+      // {
+      //   path: "/leader",
+      //   element: <LeaderLayout />,
+      //   children: [
+      //     { index: true, element: <LeaderDashboard /> },
+      //     { path: "team", element: <LeaderTeam /> },
+      //     { path: "submit", element: <LeaderSubmit /> },
+      //   ],
+      // },
+
       // --- Khu vực của Member (Cũng được bảo mật) ---
-      {
-        path: "/member",
-        element: <MemberLayout />,
-        children: [
-          { index: true, element: <MemberDashboard /> },
-          { path: "team", element: <MemberMyTeam /> },
-          { path: "sidebar", element: <MemberSidebar /> },
-        ],
-      },
+      // {
+      //   path: "/member",
+      //   element: <MemberLayout />,
+      //   children: [
+      //     { index: true, element: <MemberDashboard /> },
+      //     { path: "team", element: <MemberMyTeam /> },
+      //     { path: "sidebar", element: <MemberSidebar /> },
+      //   ],
+      // },
     ],
   },
 ]);

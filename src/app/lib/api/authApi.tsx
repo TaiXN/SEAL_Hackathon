@@ -31,16 +31,16 @@ export const authApi = {
     };
   },
 
-  //   async loginMember(credentials: {
-  //     email: string;
-  //     password: string;
-  //   }): Promise<AuthTokens> {
-  //     const res = await apiClient.post("/api/Auth/login", credentials);
-  //     return {
-  //       accessToken: res.data.accessToken,
-  //       refreshToken: res.data.refreshToken,
-  //     };
-  //   },
+  async loginPlayer(credentials: {
+    email: string;
+    password: string;
+  }): Promise<AuthTokens> {
+    const res = await apiClient.post("/api/Auth/player/login", credentials);
+    return {
+      accessToken: res.data.accessToken,
+      refreshToken: res.data.refreshToken,
+    };
+  },
 
   async refreshToken(): Promise<AuthTokens> {
     const res = await apiClient.post("/api/Auth/refreshtoken");
