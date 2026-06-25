@@ -28,7 +28,6 @@ namespace DataAccess.Repositories.UnitOfWork
         ITeamRepository Team { get; }
         IStudentRepository Student { get; }
         ITeamMemberRepository TeamMember { get; }
-        ITeamInRoundRepository TeamInRound { get; }
         IEventRepository Event { get; }
         ITeacherRepository Teacher { get; }
         IRoundRepository Round { get; }
@@ -40,9 +39,12 @@ namespace DataAccess.Repositories.UnitOfWork
         ITeacherListRepository TeacherList { get; }
         IEvaluationRepository Evaluation { get; }
 
+     
 
         IUniversityRepository University { get; }
         ISubmissionRepository Submission { get; }
+
+        ITeamInRoundRepository TeamInRound { get; }
 
         Task SaveAsync();
     }

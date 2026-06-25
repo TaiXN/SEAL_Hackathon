@@ -44,7 +44,7 @@ namespace Services.TeamService
                     TeamId = mem.TeamId,
                     TeamName = mem.Team?.TeamName,
                     IsLeader = mem.IsLeader,
-                    //EventId = eventId,
+                    EventId = eventId,
                     EventName = eventName
                 });
             }
@@ -90,8 +90,8 @@ namespace Services.TeamService
             var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
             if (isMember == null) throw new Exception("You are not a member of this team.");
 
-        //    var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
-        //    if (team == null) return null;
+            var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+            if (team == null) return null;
 
             string eventName = "Chưa đăng ký sự kiện";
             string categoryName = "Chưa chọn đề tài";
@@ -125,14 +125,14 @@ namespace Services.TeamService
             var allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
 
-        //    return new TeamDashboardAPIViewModel
-        //    {
-        //        TeamName = team.TeamName,
-        //        //EventName = eventName,
-        //        CategoryName = categoryName,
-        //        TotalMembers = memberCount
-        //    };
-        //}
+            return new TeamDashboardAPIViewModel
+            {
+                TeamName = team.TeamName,
+                EventName = eventName,
+                CategoryName = categoryName,
+                TotalMembers = memberCount
+            };
+        }
 
 
 
@@ -149,10 +149,10 @@ namespace Services.TeamService
 
             var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == round.EventId);
 
-        //    //var activeRound = roundsInEvent
-        //        .Where(r => r.EndDate > DateTime.Now)
-        //        .OrderBy(r => r.EndDate)
-        //        .FirstOrDefault();
+            var activeRound = roundsInEvent
+                .Where(r => r.EndDate > DateTime.Now)
+                .OrderBy(r => r.EndDate)
+                .FirstOrDefault();
 
             return activeRound?.EndDate;
         }

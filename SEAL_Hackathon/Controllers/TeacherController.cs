@@ -61,11 +61,13 @@ namespace SEAL_Hackathon.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            List<Teacher> result = await _teacher.GetAllAsync();
+            
+            List<TeacherAPIViewModel> result = await _teacher.GetAllAsync();
+
+           
             return Ok(result);
         }
 
-     
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin, Teacher")]
         public async Task<IActionResult> GetById(string id)
@@ -78,14 +80,14 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        
+
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin, Teacher")]
         public async Task<IActionResult> Update(string id, UpdateTeacherAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-               
+
                 bool isUpdated = await _teacher.UpdateAsync(id, new Account()
                 {
                     Email = info.Email,

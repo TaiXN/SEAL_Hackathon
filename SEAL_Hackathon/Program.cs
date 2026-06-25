@@ -16,13 +16,13 @@ using Services.PlayerService;
 using Services.RefreshTokenService;
 using Services.RoleService;
 using Services.RoundService;
-using Services.SubmittedTeamService;
+using Services.SubmissionService;
 using Services.TeacherService;
+using Services.TeamInRoundService;
 using Services.TeamService;
 using Services.TopicService;
 using Services.TrackService;
 using Services.UniversityService;
-using Services.DropdownService;
 using System.Text;
 
 namespace SEAL_Hackathon
@@ -87,11 +87,13 @@ namespace SEAL_Hackathon
                 builder.RegisterType<JudgeService>().As<IJudgeService>();
                 builder.RegisterType<TeamService>().As<ITeamService>();
                 builder.RegisterType<PlayerService>().As<IPlayerService>();
-                builder.RegisterType<SubmittedTeamService>().As<ISubmittedTeamService>();
+                builder.RegisterType<TeamInRoundService>().As<ITeamInRoundService>();
                 builder.RegisterType<TeacherService>().As<ITeacherService>();
                 builder.RegisterType<UniversityService>().As<IUniversityService>();
                 builder.RegisterType<EvaluationService>().As<IEvaluationService>();
                 builder.RegisterType<DropdownService>().As<IDropdownService>();
+                builder.RegisterType<SubmissionService>().As<ISubmissionService>();
+
 
             });
 
