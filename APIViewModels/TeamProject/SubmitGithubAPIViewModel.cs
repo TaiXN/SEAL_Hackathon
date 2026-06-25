@@ -7,6 +7,8 @@ namespace APIViewModels.TeamProject
 {
     public class SubmitGithubAPIViewModel
     {
-        public string GithubUrl { get; set; }
+        public string UrlGithub { get; set; }
+        public string UrlDemo { get; set; }
+        public string UrlSlide { get; set; }
     }
 }

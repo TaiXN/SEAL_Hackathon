@@ -1,4 +1,5 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Teacher;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using Services.Utils;
 using System;
@@ -73,16 +74,46 @@ namespace Services.TeacherService
 
         }
 
-        public async Task<List<Teacher>> GetAllAsync()
+        public async Task<List<TeacherAPIViewModel>> GetAllAsync()
         {
             try
             {
-                List<Teacher> result = await _uow.Teacher.GetAllAsync();
-                return result.ToList();
+
+                List<TeacherList> teachers = await _uow.TeacherList.GetAllAsync();
+
+                List<TeacherAPIViewModel> result = new List<TeacherAPIViewModel>();
+
+
+                foreach (TeacherList teacher in teachers)
+                {
+
+                    Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == teacher.TeacherId);
+
+
+                    TeacherAPIViewModel newTeacher = new TeacherAPIViewModel()
+                    {
+                        TeacherId = teacher.TeacherId,
+                        TrackId = teacher.TrackId,
+                        IsMentor = teacher.IsMentor,
+                    };
+
+                    if (accountDb != null)
+                    {
+                        newTeacher.TeacherName = accountDb.FullName;
+                    }
+                    else
+                    {
+                        newTeacher.TeacherName = "Unknown Teacher";
+                    }
+
+                    result.Add(newTeacher);
+                }
+
+                return result;
             }
-            catch
+            catch (Exception ex)
             {
-                return new List<Teacher>();
+                return new List<TeacherAPIViewModel>();
             }
         }
 

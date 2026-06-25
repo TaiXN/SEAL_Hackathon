@@ -22,14 +22,20 @@ namespace Services.TeamService
             foreach (var mem in myMemberships)
             {
                 string eventName = "Unspecified";
-                string eventId = mem.Team?.EventId;
+                string eventId = null;
 
-                if (!string.IsNullOrEmpty(eventId))
+                var teamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == mem.TeamId);
+                if (teamSubmission != null)
                 {
-                    var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
-                    if (eventDb != null)
+                    var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == teamSubmission.RoundId);
+                    if (round != null)
                     {
-                        eventName = eventDb.EventName;
+                        var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
+                        if (eventDb != null)
+                        {
+                            eventId = eventDb.EventId;
+                            eventName = eventDb.EventName;
+                        }
                     }
                 }
 
@@ -48,15 +54,18 @@ namespace Services.TeamService
         public async Task<bool> CreateTeamAsync(string accountId, CreateTeamAPIViewModel request)
         {
             if (string.IsNullOrWhiteSpace(request.TeamName)) throw new Exception("Team name cant be empty");
-            if (string.IsNullOrWhiteSpace(request.EventId)) throw new Exception("invalid eventID!");
+
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == accountId);
+            if (student == null || student.IsApproved == false)
+                throw new Exception("Your account must be approved by an Admin before you can create a team!");
+
 
             string newTeamId = Guid.NewGuid().ToString();
 
             var newTeam = new Team
             {
                 TeamId = newTeamId,
-                TeamName = request.TeamName,
-                EventId = request.EventId 
+                TeamName = request.TeamName
             };
             await _uow.Team.AddAsync(newTeam);
 
@@ -75,6 +84,7 @@ namespace Services.TeamService
 
 
 
+        //dashboard
         public async Task<TeamDashboardAPIViewModel> GetMyTeamDashboardAsync(string accountId, string teamId)
         {
             var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
@@ -83,27 +93,32 @@ namespace Services.TeamService
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            string eventName = "Unspecified";
-            if (!string.IsNullOrEmpty(team.EventId))
-            {
-                var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == team.EventId);
-                if (eventDb != null) eventName = eventDb.EventName;
-            }
-
+            string eventName = "Chưa đăng ký sự kiện";
             string categoryName = "Chưa chọn đề tài";
+
             var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
 
-            if (submittedProject != null && !string.IsNullOrEmpty(submittedProject.TrackId))
+            if (submittedProject != null)
             {
-                var track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
-                if (track != null)
+                if (!string.IsNullOrEmpty(submittedProject.TrackId))
                 {
-                    categoryName = track.TrackName;
-                    if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                    var track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
+                    if (track != null)
                     {
-                        var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
-                        if (topic != null) categoryName += " - " + topic.TopicDetail;
+                        categoryName = track.TrackName;
+                        if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                        {
+                            var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
+                            if (topic != null) categoryName += " - " + topic.TopicDetail;
+                        }
                     }
+                }
+
+                var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == submittedProject.RoundId);
+                if (round != null)
+                {
+                    var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
+                    if (eventDb != null) eventName = eventDb.EventName;
                 }
             }
 
@@ -119,22 +134,27 @@ namespace Services.TeamService
             };
         }
 
+
+
         public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
         {
-            // 1. Tìm cái Team để biết nó đang thi Event nào
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
-            if (team == null || string.IsNullOrEmpty(team.EventId)) return null;
+            if (team == null) return null;
 
-            // 2. Tìm tất cả Vòng thi (Round) thuộc về cái Event này
-            var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == team.EventId);
+            var submission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
+            if (submission == null) return null;
 
-            // 3. Lấy ra Vòng thi đang Active (chưa hết hạn) và lấy cái ngày kết thúc gần nhất
+            var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == submission.RoundId);
+            if (round == null) return null;
+
+            var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == round.EventId);
+
             var activeRound = roundsInEvent
                 .Where(r => r.EndDate > DateTime.Now)
                 .OrderBy(r => r.EndDate)
                 .FirstOrDefault();
 
-            return activeRound?.EndDate; // Trả về đồng hồ đếm ngược của đúng Event đó!
+            return activeRound?.EndDate;
         }
 
         public async Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId)
@@ -224,47 +244,23 @@ namespace Services.TeamService
             int MAX_TEAM_SIZE = 5;
 
             var requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
-            if (requester == null) throw new Exception("Player profile not found!");
+            if (requester == null || requester.IsApproved == false)
+                throw new Exception("invalid account to join");
 
             var targetTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
-            if (targetTeam == null) throw new Exception("The team does not exist!");
+            if (targetTeam == null) throw new Exception("team doesnt exist");
 
-            var existingRecord = await _uow.TeamMember.GetFirstOrDefaultAsync(ut => ut.TeamId == teamId && ut.StudentId == requester.StudentId);
-            if (existingRecord != null) throw new Exception("You are already a member of this team!");
-            var targetTeamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tir => tir.TeamId == teamId);
-            if (targetTeamSubmission != null)
-            {
-                // Đội này đã đăng ký thi. Truy vết xem EventId là gì.
-                var targetRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == targetTeamSubmission.RoundId);
+            var existingRecord = await _uow.TeamMember.GetFirstOrDefaultAsync(ut => ut.TeamId == teamId && ut.StudentId == requesterAccountId);
+            if (existingRecord != null) throw new Exception("u already in this team");
 
-                // Tìm tất cả các đội đã nộp bài vào EventId này
-                var roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == targetRound.EventId);
-                var roundIdsInEvent = roundsInEvent.Select(r => r.RoundId).ToList();
-
-                var allSubmissionsOfEvent = await _uow.TeamInRound.GetAllAsync(tir => roundIdsInEvent.Contains(tir.RoundId));
-                var teamIdsInEvent = allSubmissionsOfEvent.Select(tir => tir.TeamId).ToList();
-
-                // Kiểm tra xem thằng xin vào nhóm này có mặt trong danh sách team kia không
-                var isAlreadyInEvent = await _uow.TeamMember.GetFirstOrDefaultAsync(tm =>
-                    tm.StudentId == requesterAccountId &&
-                    teamIdsInEvent.Contains(tm.TeamId)
-                );
-
-                if (isAlreadyInEvent != null)
-                {
-                    throw new Exception("Join failed! You are already in another team that is competing in the same event!");
-                }
-            }
             var allUserTeams = await _uow.TeamMember.GetAllAsync();
-            var currentMemberCount = allUserTeams.Count(ut => ut.TeamId == teamId);
-
-            if (currentMemberCount >= MAX_TEAM_SIZE)
-                throw new Exception($"This team is already full! (Maximum {MAX_TEAM_SIZE} members allowed)");
+            if (allUserTeams.Count(ut => ut.TeamId == teamId) >= MAX_TEAM_SIZE)
+                throw new Exception($"team is full: {MAX_TEAM_SIZE} people, unable to join!");
 
             var newMember = new TeamMember
             {
                 TeamId = teamId,
-                StudentId = requester.StudentId,
+                StudentId = requesterAccountId,
                 IsLeader = false,
                 InviteStatus = true
             };
@@ -310,7 +306,7 @@ namespace Services.TeamService
                 result.Add(new TeamMemberAPIViewModel
                 {
                     StudentId = member.StudentId,
-      
+
                     IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
                 });
             }

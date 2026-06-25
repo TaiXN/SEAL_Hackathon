@@ -4,6 +4,7 @@ using Services.Utils;
 using System;
 using System.Threading.Tasks;
 using APIViewModels.Auth;
+using APIViewModels.Student;
 
 namespace Services.PlayerService
 {
@@ -44,9 +45,59 @@ namespace Services.PlayerService
             {
                 StudentId = newAccountId,
                 UniversityId = info.UniversityId,
-                IsApproved = true
+                IsApproved = false
             };
             await _uow.Student.AddAsync(newStudent);
+
+            await _uow.SaveAsync();
+            return true;
+        }
+
+        public async Task<bool> ApprovePlayerAsync(string studentId)
+        {
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == studentId);
+            if (student == null) return false;
+
+            student.IsApproved = true;
+            _uow.Student.Update(student);
+            await _uow.SaveAsync();
+
+            return true;
+        }
+
+        public async Task<List<StudentAPIViewModel>> GetPendingPlayersAsync()
+        {
+            var pendingList = await _uow.Student.GetAllAsync(
+                s => s.IsApproved == false,
+                includeProperties: "StudentNavigation,University"
+            );
+
+            return pendingList.Select(s => new StudentAPIViewModel
+            {
+                StudentId = s.StudentId,
+                FullName = s.StudentNavigation?.FullName,
+                Email = s.StudentNavigation?.Email,
+                Phone = s.StudentNavigation?.Phone,
+                UniversityName = s.University?.UniversityName
+            }).ToList();
+        }
+
+        public async Task<bool> RejectPlayerAsync(string studentId)
+        {
+            var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == studentId);
+            if (student == null) return false;
+
+            var account = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == studentId);
+
+            var tokens = await _uow.RefreshToken.GetAllAsync(rt => rt.AccountId == studentId); 
+            if (tokens != null && tokens.Any())
+            {
+                _uow.RefreshToken.RemoveRange(tokens);//delete token
+            }
+
+            _uow.Student.Remove(student);
+
+            if (account != null) _uow.Account.Remove(account);
 
             await _uow.SaveAsync();
             return true;

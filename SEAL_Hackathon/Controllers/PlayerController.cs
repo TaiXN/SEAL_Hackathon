@@ -55,5 +55,40 @@ namespace SEAL_Hackathon.Controllers
             }
             return BadRequest(ModelState);
         }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{studentId}/approve")]
+        public async Task<IActionResult> ApprovePlayer(string studentId)
+        {
+            if (string.IsNullOrEmpty(studentId))
+                return BadRequest(new { message = "Student ID is required." });
+
+            bool isApproved = await _player.ApprovePlayerAsync(studentId);
+            if (isApproved)
+            {
+                return Ok(new { message = "Student has been approved successfully!" });
+            }
+            return BadRequest(new { message = "Student not found or an error occurred." });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("pending")]
+        public async Task<IActionResult> GetPendingPlayers()
+        {
+            var result = await _player.GetPendingPlayersAsync();
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{studentId}/reject")]
+        public async Task<IActionResult> RejectPlayer(string studentId)
+        {
+            if (string.IsNullOrEmpty(studentId)) return BadRequest(new { message = "Student ID is required." });
+
+            bool isRejected = await _player.RejectPlayerAsync(studentId);
+            if (isRejected) return Ok(new { message = "Student has been rejected and deleted successfully!" });
+
+            return BadRequest(new { message = "Student not found or an error occurred." });
+        }
     }
 }

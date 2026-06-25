@@ -8,7 +8,6 @@ public partial class Team
     public string TeamId { get; set; } = null!;
 
     public string TeamName { get; set; } = null!;
-    public string EventId { get; set; }
 
     public virtual ICollection<TeamInRound> TeamInRounds { get; set; } = new List<TeamInRound>();
 
