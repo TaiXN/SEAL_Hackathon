@@ -28,18 +28,18 @@ namespace SEAL_Hackathon.Controllers
         //        string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         //        if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
-        //        bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, teamId, request);
-        //        if (isSuccess)
-        //        {
-        //            return Ok(new { message = "Track submitted successfully!" });
-        //        }
-        //        return BadRequest(new { message = "Cannot submit track." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = ex.Message });
-        //    }
-        //}
+                bool isSuccess = await _submittedTeam.SubmitTopicAsync(accountId, teamId, request);
+                if (isSuccess)
+                {
+                    return Ok(new { message = " submitted successfully!" });
+                }
+                return BadRequest(new { message = "Cannot submit ." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
         [HttpPost("{teamId}/submit-urls")]
         public async Task<IActionResult> SubmitProjectUrls(string teamId, [FromBody] SubmitGithubAPIViewModel request)

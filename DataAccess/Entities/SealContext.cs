@@ -351,6 +351,8 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamInRoundID");
+            entity.Property(e => e.AverageScore)
+                .HasColumnName("AverageScore");
             entity.Property(e => e.Urldemo)
                 .HasMaxLength(400)
                 .HasColumnName("URLDemo");
