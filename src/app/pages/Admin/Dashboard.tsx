@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Target,
   Activity,
   Clock,
-  ListChecks,
   AlertCircle,
-  Download,
   ArrowRight,
   RefreshCw,
+  CalendarClock,
+  CheckCircle2,
+  LayoutGrid,
+  Plus,
 } from "lucide-react";
 
-// IMPORT API INSTANCES
 import { roundApi } from "../../lib/api/roundApi";
-import { criteriaApi } from "../../lib/api/criteriaApi";
 import { eventApi } from "../../lib/api/eventApi";
 
 const getList = (res: any): any[] => {
@@ -25,218 +25,108 @@ const getList = (res: any): any[] => {
   return [];
 };
 
+const formatDate = (d: any): string => {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "—";
+  return dt.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// Lấy id sự kiện an toàn
+const eventId = (e: any): string =>
+  String(e?.id || e?.eventId || e?.eventID || "");
+
+// Chuẩn hóa field round (backend đặt tên lẫn lộn hoa/thường)
+const roundIdx = (r: any): number =>
+  Number(r?.roundIndex ?? r?.RoundIndex ?? r?.roundindex ?? 0);
+const roundTopN = (r: any): number =>
+  Number(
+    r?.topNpromotion ?? r?.topNPromotion ?? r?.TopNPromotion ?? r?.topN ?? 0,
+  );
+
+type EnrichedEvent = {
+  raw: any;
+  id: string;
+  name: string;
+  semester: string;
+  year: any;
+  cur: number;
+  numRounds: number;
+  status: "ongoing" | "upcoming" | "ended" | "unknown";
+  curRound: any | null;
+};
+
 export function Dashboard() {
-  const { id: urlId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeEventId, setActiveEventId] = useState<string | null>(null);
-  const [currentRound, setCurrentRound] = useState<any>(null);
-  const [criteriaList, setCriteriaList] = useState<any[]>([]);
-  const [eventName, setEventName] = useState<string>("");
+  const [events, setEvents] = useState<EnrichedEvent[]>([]);
 
-  const fetchDashboardData = async (isManualRefresh = false) => {
+  const fetchData = async (manual = false) => {
     try {
-      if (isManualRefresh) setIsRefreshing(true);
+      if (manual) setIsRefreshing(true);
       else setIsLoading(true);
 
-      let targetEventId = urlId;
-      let actualCurrentRoundIndex = 0;
+      const [allEventsRaw, allRoundsRaw] = await Promise.all([
+        eventApi.getAllEvents(),
+        roundApi.getAllRounds(),
+      ]);
+      const allEvents = getList(allEventsRaw);
+      const allRounds = getList(allRoundsRaw);
 
-      // ==========================================
-      // [BẢN VÁ LỖI]: KÉO CẢ ALL ROUNDS LÊN ĐẦU ĐỂ ĐẾM SỐ VÒNG
-      // ==========================================
-      const allRounds = await roundApi.getAllRounds().catch(() => []);
-      const allEvents = await eventApi.getAllEvents();
-
-      // ==========================================
-      // BƯỚC 1: LẤY ID VÀ TRẠNG THÁI SỰ KIỆN TỪ DATABASE
-      // ==========================================
-      if (!targetEventId) {
-        // CLEAN CODE: Tìm DUY NHẤT 1 sự kiện đang diễn ra (vì mỗi học kỳ chỉ có 1 sự kiện)
-        const activeEvent = allEvents.find((e: any) => {
-          const evRounds = allRounds.filter(
-            (r: any) => String(r.eventID || r.eventId) === String(e.id),
-          );
-          const maxRounds = evRounds.length > 0 ? evRounds.length : 2;
-
-          // Sự kiện Đang diễn ra là sự kiện có currentRound >= 0 và chưa đạt maxRounds
-          return (
-            e.currentRound !== undefined &&
-            e.currentRound >= 0 &&
-            e.currentRound < maxRounds
-          );
-        });
-
-        if (activeEvent) {
-          targetEventId = activeEvent.id;
-          setEventName(activeEvent.name || activeEvent.EventName || "");
-          actualCurrentRoundIndex = activeEvent.currentRound || 0;
-        }
-      } else {
-        try {
-          const eventData = allEvents.find(
-            (e: any) => String(e.id) === String(targetEventId),
-          );
-          if (eventData) {
-            setEventName(eventData.name || eventData.EventName || "");
-            actualCurrentRoundIndex = eventData.currentRound || 0;
-          }
-        } catch (err) {
-          console.warn("Không lấy được tên Event", err);
-        }
-      }
-
-      if (!targetEventId) {
-        setActiveEventId(null);
-        setCurrentRound(null);
-        setCriteriaList([]);
-        setEventName("");
-        if (isManualRefresh) setIsRefreshing(false);
-        else setIsLoading(false);
-        return;
-      }
-
-      setActiveEventId(targetEventId);
-
-      // ==========================================
-      // BƯỚC 2: TẢI DỮ LIỆU ROUND VÀ CRITERIA (ĐÃ BỌC THÉP)
-      // ==========================================
-      const eventRounds = allRounds.filter(
-        (r: any) => String(r.eventID || r.eventId) === String(targetEventId),
+      // Gom round theo từng sự kiện (đã sort theo thứ tự vòng)
+      const roundsByEvent: Record<string, any[]> = {};
+      allRounds.forEach((r: any) => {
+        const eid = String(r.eventID || r.eventId);
+        (roundsByEvent[eid] ||= []).push(r);
+      });
+      Object.values(roundsByEvent).forEach((list) =>
+        list.sort((a, b) => roundIdx(a) - roundIdx(b)),
       );
 
-      // (Từ đây trở xuống bà giữ nguyên y chang code cũ của bà nha)
-      if (eventRounds.length > 0) {
-        const currentEventRound = Number(actualCurrentRoundIndex);
+      const enriched: EnrichedEvent[] = allEvents.map((e: any) => {
+        const id = eventId(e);
+        const rounds = roundsByEvent[id] || [];
+        const numRounds = rounds.length;
+        const curRaw = e.currentRound;
+        const cur =
+          curRaw === undefined || curRaw === null ? NaN : Number(curRaw);
 
-        // Chuẩn hóa field round (backend đặt tên lẫn lộn hoa/thường: topNpromotion vs topNPromotion...)
-        const safeRounds = eventRounds.map((r: any) => ({
-          ...r,
-          safeRoundIndex: Number(
-            r.roundIndex ?? r.RoundIndex ?? r.roundindex ?? 0,
-          ),
-          safeTopN: Number(
-            r.topNpromotion ??
-              r.topNPromotion ??
-              r.TopNPromotion ??
-              r.topN ??
-              0,
-          ),
-          safeStart: r.startDate ?? r.StartDate ?? "",
-        }));
+        let status: EnrichedEvent["status"];
+        if (Number.isNaN(cur)) status = "unknown";
+        else if (cur < 0) status = "upcoming";
+        else if (cur >= (numRounds || 2)) status = "ended";
+        else status = "ongoing";
 
-        // Sắp xếp theo thứ tự vòng (roundIndex tăng dần; startDate là tiêu chí phụ)
-        safeRounds.sort((a, b) => {
-          if (a.safeRoundIndex !== b.safeRoundIndex)
-            return a.safeRoundIndex - b.safeRoundIndex;
-          return (
-            new Date(a.safeStart).getTime() - new Date(b.safeStart).getTime()
-          );
-        });
+        // Vòng hiện tại (theo vị trí) — dùng để hiển thị tóm tắt
+        const pos = cur >= 0 && cur < numRounds ? cur : numRounds > 0 ? 0 : -1;
+        const curRound = pos >= 0 ? rounds[pos] : null;
 
-        console.log("🚀 ROUNDS (đã sort):", safeRounds);
-        console.log("🚀 event.currentRound =", currentEventRound);
-
-        // ⭐ KHỚP THEO VỊ TRÍ, KHÔNG theo roundIndex tuyệt đối.
-        // currentRound là bộ đếm 0-based theo thứ tự vòng: 0=vòng đầu, 1=vòng kế tiếp...
-        // (Backend gán roundIndex không khớp currentRound, nên match tuyệt đối sẽ sai.)
-        let pickedPos: number;
-        if (currentEventRound < 0) {
-          pickedPos = 0; // chưa bắt đầu -> hiển thị vòng đầu
-        } else if (currentEventRound >= safeRounds.length) {
-          pickedPos = safeRounds.length - 1; // đã kết thúc -> hiển thị vòng cuối
-        } else {
-          pickedPos = currentEventRound;
-        }
-
-        const activeRound = {
-          ...safeRounds[pickedPos],
-          displayIndex: pickedPos, // số vòng để HIỂN THỊ, khớp với currentRound
+        return {
+          raw: e,
+          id,
+          name: e.name || e.eventName || "(Sự kiện)",
+          semester: e.semester || e.season || "—",
+          year: e.year || e.Year || "",
+          cur: Number.isNaN(cur) ? 0 : cur,
+          numRounds,
+          status,
+          curRound: curRound
+            ? { ...curRound, _displayIndex: pos, _topN: roundTopN(curRound) }
+            : null,
         };
+      });
 
-        console.log("🚀 => Chọn vòng ở vị trí:", pickedPos, activeRound);
-
-        setCurrentRound(activeRound);
-
-        // Tải bộ tiêu chí của đúng cái Vòng thi vừa chốt
-        const criteriaSetId =
-          activeRound.criteriaSetID ||
-          activeRound.criteriaSetId ||
-          activeRound.CriteriaSetID ||
-          activeRound.CriteriaSetId;
-
-        if (criteriaSetId) {
-          try {
-            const criteriaRes = await criteriaApi.getSetById(criteriaSetId);
-            const setData = (criteriaRes as any)?.data || criteriaRes;
-
-            let list: any[] = [];
-            if (Array.isArray(setData)) list = setData;
-            else if (Array.isArray(setData.criteriaList))
-              list = setData.criteriaList;
-            else if (Array.isArray(setData.CriteriaList))
-              list = setData.CriteriaList;
-            else if (Array.isArray(setData.criteriaMappingItemViewModels))
-              list = setData.criteriaMappingItemViewModels;
-            else {
-              for (const key in setData) {
-                if (Array.isArray(setData[key])) {
-                  list = setData[key];
-                  break;
-                }
-              }
-            }
-
-            const allCriteria = await criteriaApi.getAllCriteria();
-            const allCriteriaList = getList(allCriteria);
-
-            const enrichedList = list.map((item) => {
-              const cId =
-                item.criteriaId ||
-                item.criteriaID ||
-                item.CriteriaId ||
-                item.CriteriaID;
-              const matched = allCriteriaList.find((c) => {
-                const rawId =
-                  c.criteriaId ||
-                  c.criteriaID ||
-                  c.id ||
-                  c.CriteriaId ||
-                  c.CriteriaID;
-                return String(rawId) === String(cId);
-              });
-
-              return {
-                ...item,
-                resolvedName:
-                  matched?.criteriaName ||
-                  matched?.name ||
-                  item.criteria?.criteriaName ||
-                  item.criteriaName ||
-                  item.name ||
-                  "Tiêu chí (Chưa map được tên)",
-                resolvedScore:
-                  item.score || item.Score || item.weight || item.Weight || 0,
-              };
-            });
-
-            setCriteriaList(enrichedList);
-          } catch (err) {
-            console.warn("Lỗi khi kéo Criteria Set:", err);
-            setCriteriaList([]);
-          }
-        } else {
-          setCriteriaList([]);
-        }
-      } else {
-        setCurrentRound(null);
-        setCriteriaList([]);
-      }
-    } catch (error) {
-      console.error("Lỗi khi fetch dữ liệu Dashboard:", error);
+      setEvents(enriched);
+    } catch (err) {
+      console.error("Lỗi tải Dashboard:", err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -244,77 +134,66 @@ export function Dashboard() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [urlId, location.key]);
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "--/--/----";
-    const date = new Date(dateString);
-    return date.toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return (
-      <div className="flex flex-col justify-center items-center h-[70vh] w-full text-slate-500">
-        <Activity className="animate-spin text-blue-600 mb-4" size={40} />
-        <p className="font-bold">Đang đồng bộ dữ liệu sự kiện...</p>
+      <div className="p-10 flex items-center justify-center min-h-[60vh] text-slate-400">
+        <RefreshCw size={20} className="animate-spin mr-2" /> Đang tải tổng
+        quan...
       </div>
     );
   }
 
-  if (!isLoading && !activeEventId) {
-    return (
-      <div className="flex flex-col justify-center items-center h-[70vh] w-full text-slate-500 animate-in fade-in">
-        <AlertCircle size={48} className="text-slate-400 mb-4" />
-        <h2 className="text-xl font-bold text-slate-800">
-          Không có Sự kiện Đang diễn ra
-        </h2>
-        <p className="mt-2 text-center max-w-md">
-          Hệ thống hiện tại không có sự kiện nào đang diễn ra (Các sự kiện trước
-          đó đều đã kết thúc). Hãy tạo một sự kiện mới để bắt đầu.
-        </p>
+  const ongoing = events.filter((e) => e.status === "ongoing");
+  const upcoming = events.filter((e) => e.status === "upcoming");
+  const ended = events.filter((e) => e.status === "ended");
 
-        <div className="flex items-center gap-4 mt-6">
-          <button
-            onClick={() => fetchDashboardData(true)}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-50"
-          >
-            <RefreshCw
-              size={18}
-              className={isRefreshing ? "animate-spin text-blue-600" : ""}
-            />{" "}
-            Làm mới
-          </button>
-          <button
-            onClick={() => navigate(`/admin/events/create`)}
-            className="flex items-center gap-2 px-6 py-2.5 bg-black text-white font-bold rounded-xl shadow-sm hover:bg-slate-800"
-          >
-            Khởi tạo Sự kiện
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const stats = [
+    {
+      label: "Đang diễn ra",
+      value: ongoing.length,
+      icon: <Activity size={22} />,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      label: "Sắp diễn ra",
+      value: upcoming.length,
+      icon: <CalendarClock size={22} />,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+    {
+      label: "Đã kết thúc",
+      value: ended.length,
+      icon: <CheckCircle2 size={22} />,
+      color: "text-slate-500",
+      bg: "bg-slate-100",
+    },
+    {
+      label: "Tổng sự kiện",
+      value: events.length,
+      icon: <LayoutGrid size={22} />,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+  ];
 
   return (
     <div className="p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-2">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            Tổng quan:{" "}
-            <span className="text-blue-600">{eventName || "Hackathon"}</span>
+            Tổng quan Sự kiện
             <button
-              onClick={() => fetchDashboardData(true)}
+              onClick={() => fetchData(true)}
               disabled={isRefreshing}
-              title="Làm mới dữ liệu"
-              className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-full shadow-sm hover:shadow transition-all"
+              title="Làm mới"
+              className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-full shadow-sm transition-all"
             >
               <RefreshCw
                 size={18}
@@ -322,167 +201,160 @@ export function Dashboard() {
               />
             </button>
           </h1>
-          <p className="text-slate-500 mt-2 flex items-center gap-2 text-sm font-medium">
+          <p className="text-slate-500 mt-2 text-sm font-medium flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            {ongoing.length > 0
+              ? `Có ${ongoing.length} sự kiện đang diễn ra đồng thời`
+              : "Hiện không có sự kiện nào đang diễn ra"}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 text-slate-700">
-            <Download size={16} /> Xuất Báo Cáo
-          </button>
-          <button
-            onClick={() => navigate(`/admin/events/${activeEventId}`)}
-            className="flex items-center gap-2 px-4 py-2 bg-black text-white text-sm font-bold rounded-lg shadow-sm hover:bg-slate-800"
-          >
-            Chỉnh sửa Sự kiện <ArrowRight size={16} />
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/admin/events/create")}
+          className="flex items-center gap-2 px-6 py-2.5 bg-black text-white font-bold rounded-xl shadow-sm hover:bg-slate-800"
+        >
+          <Plus size={18} /> Tạo sự kiện mới
+        </button>
       </div>
 
-      {currentRound ? (
-        <div className="space-y-6">
-          <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-white/10 rounded-xl">
-                <Activity size={32} className="text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                  Trạng thái hiện tại
-                </h2>
-                <div className="text-2xl font-black">
-                  {/* Số vòng hiển thị theo VỊ TRÍ, khớp với currentRound của sự kiện */}
-                  {currentRound.roundName} (Round{" "}
-                  {currentRound.displayIndex ?? 0})
-                </div>
-              </div>
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4"
+          >
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center ${s.bg} ${s.color}`}
+            >
+              {s.icon}
             </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-slate-400 flex items-center gap-2 justify-end mb-1">
-                <Clock size={16} /> Thời gian mở / đóng cổng
-              </div>
-              <div className="font-bold text-emerald-400 bg-white/10 px-4 py-2 rounded-lg inline-block">
-                {formatDate(currentRound.startDate)} -{" "}
-                {formatDate(currentRound.endDate)}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-5">
-              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                <Users size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase">
-                  Giới hạn đội tham gia
-                </p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  {currentRound.maxTeam}{" "}
-                  <span className="text-base font-semibold text-slate-500">
-                    đội thi
-                  </span>
-                </h3>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-5">
-              <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                <Target size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase">
-                  Chỉ tiêu vào vòng sau
-                </p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  Top {currentRound.safeTopN}{" "}
-                  <span className="text-base font-semibold text-slate-500">
-                    đội xuất sắc
-                  </span>
-                </h3>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mt-8">
-            <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-              <ListChecks size={20} className="text-slate-700" />
-              <h3 className="text-lg font-black text-slate-900">
-                Bộ tiêu chí đánh giá ({currentRound.roundName})
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                {s.label}
+              </p>
+              <h3 className="text-3xl font-black text-slate-900 mt-0.5">
+                {s.value}
               </h3>
             </div>
-
-            <table className="w-full text-left text-sm">
-              <thead className="bg-white text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4 w-16 text-center">STT</th>
-                  <th className="px-6 py-4">Tên Tiêu Chí (Criteria)</th>
-                  <th className="px-6 py-4 text-right w-40">
-                    Trọng số (Score)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {criteriaList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-6 py-12 text-center text-slate-500 font-medium"
-                    >
-                      <AlertCircle
-                        className="mx-auto mb-2 opacity-50"
-                        size={24}
-                      />
-                      Chưa có dữ liệu tiêu chí đánh giá cho vòng này. (Bấm F12
-                      xem log để kiểm tra API)
-                    </td>
-                  </tr>
-                ) : (
-                  criteriaList.map((item: any, idx: number) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-slate-50/50 transition-colors"
-                    >
-                      <td className="px-6 py-4 text-center font-bold text-slate-400">
-                        {idx + 1}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-800">
-                        {item.resolvedName}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full font-black text-sm">
-                          {item.resolvedScore}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center">
-          <AlertCircle size={48} className="mx-auto text-slate-300 mb-4" />
-          <h3 className="text-xl font-bold text-slate-700">
-            Chưa tìm thấy dữ liệu Vòng thi
-          </h3>
-          <p className="text-slate-500 mt-2">
-            Sự kiện này hiện chưa có vòng thi nào được thiết lập trên hệ thống.
-          </p>
-          <button
-            onClick={() => fetchDashboardData(true)}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200"
-          >
-            <RefreshCw
-              size={16}
-              className={isRefreshing ? "animate-spin text-blue-600" : ""}
-            />{" "}
-            Thử tải lại
-          </button>
-        </div>
-      )}
+        ))}
+      </div>
+
+      {/* DANH SÁCH SỰ KIỆN ĐANG DIỄN RA */}
+      <div>
+        <h2 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
+          <Activity size={20} className="text-emerald-500" />
+          Sự kiện đang diễn ra
+        </h2>
+
+        {ongoing.length === 0 ? (
+          <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center">
+            <AlertCircle size={44} className="mx-auto text-slate-300 mb-3" />
+            <h3 className="text-lg font-bold text-slate-700">
+              Không có sự kiện đang diễn ra
+            </h3>
+            <p className="text-slate-500 mt-1 text-sm">
+              Các sự kiện trước đó đã kết thúc, hoặc bạn chưa khởi tạo sự kiện
+              mới.
+            </p>
+            <button
+              onClick={() => navigate("/admin/events/create")}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white font-bold rounded-xl hover:bg-slate-800"
+            >
+              <Plus size={16} /> Khởi tạo sự kiện
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {ongoing.map((e) => (
+              <div
+                key={e.id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+              >
+                {/* Thanh trên: tên + kỳ/năm */}
+                <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">
+                      {e.name}
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-400 mt-1">
+                      {e.semester} {e.year}
+                    </p>
+                  </div>
+                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Đang diễn ra
+                  </span>
+                </div>
+
+                {/* Vòng hiện tại */}
+                <div className="p-5 space-y-4">
+                  {e.curRound ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold">
+                            {e.curRound.roundName || "Vòng thi"}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold uppercase">
+                            Round {e.curRound._displayIndex}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-medium">
+                          {e.numRounds} vòng
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                        <Clock size={14} />
+                        {formatDate(e.curRound.startDate)} →{" "}
+                        {formatDate(e.curRound.endDate)}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2.5">
+                          <Users size={18} className="text-blue-500" />
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">
+                              Giới hạn đội
+                            </p>
+                            <p className="text-base font-black text-slate-800">
+                              {e.curRound.maxTeam ?? "—"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2.5">
+                          <Target size={18} className="text-purple-500" />
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">
+                              Vào vòng sau
+                            </p>
+                            <p className="text-base font-black text-slate-800">
+                              Top {e.curRound._topN}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic py-2">
+                      Sự kiện chưa thiết lập vòng thi nào.
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => navigate(`/admin/events/${e.id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition-colors"
+                  >
+                    Xem chi tiết <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
