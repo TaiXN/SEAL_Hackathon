@@ -15,6 +15,8 @@ public partial class Submission
 
     public string Urlslide { get; set; } = null!;
 
+    public double? AverageScore { get; set; }
+
     public virtual ICollection<Evaluation> Evaluations { get; set; } = new List<Evaluation>();
 
     public virtual TeamInRound TeamInRound { get; set; } = null!;

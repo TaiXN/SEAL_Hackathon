@@ -417,15 +417,7 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamID");
-            entity.Property(e => e.EventId)
-                .HasMaxLength(400)
-                .IsUnicode(false)
-                .HasColumnName("EventID");
             entity.Property(e => e.TeamName).HasMaxLength(255);
-
-            entity.HasOne(d => d.Event).WithMany(p => p.Teams)
-                .HasForeignKey(d => d.EventId)
-                .HasConstraintName("FK_Team_Event");
         });
 
         modelBuilder.Entity<TeamInRound>(entity =>
