@@ -17,7 +17,6 @@ export function EventHistoryPage() {
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
-      // Tải song song cả Event và Round để map số vòng thực tế
       const [data, allRounds] = await Promise.all([
         eventApi.getAllEvents(),
         roundApi.getAllRounds().catch(() => []),
@@ -29,7 +28,6 @@ export function EventHistoryPage() {
         );
         return {
           ...e,
-          // Đếm linh hoạt tổng số vòng của sự kiện
           maxRounds: evRounds.length > 0 ? evRounds.length : 2,
         };
       });
@@ -70,27 +68,8 @@ export function EventHistoryPage() {
           prevEvents.filter((event) => event.id !== id),
         );
       } catch (error) {
-        console.error("Lỗi xóa:", error);
         Swal.fire("Lỗi", "Xóa thất bại, check lại mạng hoặc quyền.", "error");
       }
-    }
-  };
-
-  // 🛡️ CHỐT CHẶN: Kiểm tra xem có sự kiện nào chưa kết thúc không (currentRound < maxRounds)
-  const hasActiveEvent = events.some(
-    (e) => e.currentRound < (e.maxRounds || 2),
-  );
-
-  const handleCreateNewEvent = () => {
-    if (hasActiveEvent) {
-      Swal.fire({
-        icon: "warning",
-        title: "Chưa thể tạo sự kiện mới!",
-        text: "Hệ thống có một sự kiện đang diễn ra. Phải kết thúc sự kiện hiện tại trước khi khởi tạo sự kiện mới.",
-        confirmButtonColor: "#0f172a",
-      });
-    } else {
-      navigate("create");
     }
   };
 
@@ -105,13 +84,10 @@ export function EventHistoryPage() {
             Xem lịch sử lưu trữ các kỳ thi trước hoặc khởi tạo kỳ thi mới.
           </p>
         </div>
+        {/* [NEW] ĐÃ MỞ KHÓA TẠO SỰ KIỆN TỰ DO */}
         <button
-          onClick={handleCreateNewEvent}
-          className={`px-6 py-3 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2 ${
-            hasActiveEvent
-              ? "bg-slate-400 cursor-not-allowed hover:bg-slate-400"
-              : "bg-black hover:bg-slate-800"
-          }`}
+          onClick={() => navigate("create")}
+          className="px-6 py-3 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2 bg-black hover:bg-slate-800"
         >
           <Plus size={18} /> Tạo sự kiện mới
         </button>
@@ -154,8 +130,6 @@ export function EventHistoryPage() {
                     <td className="px-6 py-5 text-slate-500 font-medium text-xs">
                       {event.year}
                     </td>
-
-                    {/* CỘT TRẠNG THÁI */}
                     <td className="px-6 py-5 text-center">
                       {event.currentRound < 0 && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
@@ -163,7 +137,6 @@ export function EventHistoryPage() {
                           Sắp diễn ra
                         </span>
                       )}
-
                       {event.currentRound >= 0 &&
                         event.currentRound < (event.maxRounds || 2) && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[11px] font-bold border border-blue-200">
@@ -171,7 +144,6 @@ export function EventHistoryPage() {
                             Đang diễn ra
                           </span>
                         )}
-
                       {event.currentRound >= (event.maxRounds || 2) && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[11px] font-bold border border-purple-200">
                           <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
@@ -179,7 +151,6 @@ export function EventHistoryPage() {
                         </span>
                       )}
                     </td>
-
                     <td className="px-6 py-5 flex justify-end gap-3">
                       <button
                         onClick={() =>

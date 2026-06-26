@@ -23,49 +23,38 @@ const getList = (res: any): any[] => {
   return [];
 };
 
-// Hàm hỗ trợ dò tìm ID bất chấp BE đổi tên biến
+// Hàm hỗ trợ dò tìm ID
 const extractId = (obj: any): string => {
+  if (!obj) return "";
   return (
-    obj.id ||
-    obj.Id ||
-    obj.trackId ||
-    obj.trackID ||
     obj.teacherId ||
     obj.teacherID ||
     obj.mentorId ||
     obj.judgeId ||
+    obj.id ||
+    obj.Id ||
+    obj.trackId ||
+    obj.trackID ||
     ""
   );
 };
-
-// Lấy id sinh viên (để gọi approve/reject) bất chấp BE đặt tên gì
-const studentKey = (s: any): string =>
-  s?.studentId ||
-  s?.studentID ||
-  s?.id ||
-  s?.Id ||
-  s?.playerId ||
-  s?.playerID ||
-  s?.studentCode ||
-  "";
 
 export function ManageUsersAndAssign() {
   const [activeTab, setActiveTab] = useState("approve");
 
   // ==========================================
-  // TAB 1: PHÊ DUYỆT SINH VIÊN
+  // TAB 1: PHÊ DUYỆT SINH VIÊN (DÙNG API THẬT)
   // ==========================================
   const [students, setStudents] = useState<any[]>([]);
 
   const fetchPendingStudents = async () => {
     try {
+      // 1. GET API lấy danh sách chờ
       const res = await apiClient.get("/api/Player/pending");
-      const list = getList(res.data);
-      if (list[0])
-        console.log("🟦 1 sinh viên chờ duyệt (xem field):", list[0]);
-      setStudents(list);
+      setStudents(getList(res.data));
     } catch (error) {
-      console.error("Lỗi tải danh sách sinh viên chờ duyệt:", error);
+      console.error("Lỗi lấy danh sách sinh viên chờ duyệt:", error);
+      // Xóa mock data, nếu lỗi thì set mảng rỗng
       setStudents([]);
     }
   };
@@ -83,27 +72,29 @@ export function ManageUsersAndAssign() {
         title: isApprove ? "Đang duyệt..." : "Đang từ chối...",
         didOpen: () => Swal.showLoading(),
       });
-      if (isApprove) await apiClient.put(`/api/Player/${studentId}/approve`);
-      else await apiClient.delete(`/api/Player/${studentId}/reject`);
+
+      // 2 & 3. PUT để duyệt, DELETE để xóa
+      if (isApprove) {
+        await apiClient.put(`/api/Player/${studentId}/approve`);
+      } else {
+        await apiClient.delete(`/api/Player/${studentId}/reject`);
+      }
 
       Swal.fire({
         icon: "success",
-        title: isApprove ? "Đã duyệt tài khoản!" : "Đã từ chối tài khoản!",
+        title: "Thành công!",
         showConfirmButton: false,
-        timer: 1200,
+        timer: 1000,
       });
       fetchPendingStudents();
     } catch (error: any) {
-      console.error("🟥 Lỗi xử lý duyệt/từ chối:", error?.response?.data);
-      const msg =
-        error?.response?.data?.message ||
-        (typeof error?.response?.data === "string"
-          ? error.response.data
-          : "") ||
-        (isApprove
-          ? "Duyệt tài khoản thất bại!"
-          : "Từ chối tài khoản thất bại!");
-      Swal.fire("Thất bại", msg, "error");
+      Swal.fire(
+        "Lỗi",
+        error.response?.data?.message ||
+          error.response?.data ||
+          "Không thể thao tác với tài khoản này!",
+        "error",
+      );
     }
   };
 
@@ -130,6 +121,22 @@ export function ManageUsersAndAssign() {
       const res: any = await apiClient.post("/api/Teacher", newTeacher);
       const createdId =
         extractId(res.data) || (typeof res.data === "string" ? res.data : null);
+
+      // ==========================================
+      // [FIX LỖI]: BƠM TRỰC TIẾP DỮ LIỆU VÀO DROPDOWN NGAY LẬP TỨC
+      // Phòng trường hợp nhảy Tab mà API GET load chậm hoặc bị Cache
+      if (createdId) {
+        setAllTeachers((prev) => [
+          ...prev,
+          {
+            id: createdId,
+            teacherName: newTeacher.fullName,
+            email: newTeacher.email,
+            isGuest: newTeacher.isGuest,
+          },
+        ]);
+      }
+      // ==========================================
 
       if (createdId) {
         Swal.fire({
@@ -165,103 +172,97 @@ export function ManageUsersAndAssign() {
   };
 
   // ==========================================
-  // TAB 3: PHÂN CÔNG (SỬ DỤNG MENTOR & JUDGE API)
+  // TAB 3: PHÂN CÔNG MENTOR/JUDGE
   // ==========================================
+  const [activeEvents, setActiveEvents] = useState<any[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
+
   const [tracks, setTracks] = useState<any[]>([]);
   const [trackIdToManage, setTrackIdToManage] = useState("");
 
-  // ===== Phần 2: chọn SỰ KIỆN trước khi chọn track =====
-  const [ongoingEvents, setOngoingEvents] = useState<any[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState("");
-
-  const [allTeachers, setAllTeachers] = useState<any[]>([]); // Chứa list Teacher để làm Dropdown
-  const [assignedList, setAssignedList] = useState<any[]>([]); // Chứa cả Mentor và Judge
+  const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [assignedList, setAssignedList] = useState<any[]>([]);
 
   const [assignForm, setAssignForm] = useState({
     teacherID: "",
     isMentor: true,
   });
-  const [activeEventName, setActiveEventName] = useState("");
 
-  // Khi mở Tab Phân công: nạp DANH SÁCH sự kiện (cho dropdown) + toàn bộ Teacher
+  // Tải danh sách Sự kiện & Teacher
+  // Tải danh sách Sự kiện & Teacher
   useEffect(() => {
     if (activeTab === "assign") {
       (async () => {
-        // 1. Lấy danh sách sự kiện để admin tự chọn (theo eventID)
         try {
-          const evs = getList(await eventApi.getAllEvents());
-          // sắp xếp mới nhất lên đầu (nếu có year)
-          evs.sort(
-            (a: any, b: any) => Number(b.year || 0) - Number(a.year || 0),
+          const events = getList(await eventApi.getAllEvents());
+          const ongoing = events.filter(
+            (e: any) => e.currentRound !== undefined && e.currentRound >= 0,
           );
-          setOngoingEvents(evs);
-        } catch (e) {
-          console.warn("Lỗi lấy danh sách sự kiện", e);
-        }
+          setActiveEvents(ongoing);
 
-        // 2. Lấy TOÀN BỘ Teacher để làm Dropdown
-        try {
-          const resTeachers = await apiClient.get("/api/Teacher"); // Đổi đúng endpoint get all teacher của BE nha
-          console.log(
-            "🟦 GET /api/Teacher trả về:",
-            resTeachers.status,
-            resTeachers.data,
+          // Chống Cache trình duyệt
+          const resTeachers = await apiClient.get(
+            `/api/Teacher?t=${new Date().getTime()}`,
           );
-          const list = getList(resTeachers.data);
-          console.log("🟦 Số teacher đọc được:", list.length, list[0]);
-          setAllTeachers(list);
-        } catch (e: any) {
-          console.error(
-            "🟥 Lỗi GET /api/Teacher:",
-            e?.response?.status,
-            e?.response?.data,
-          );
-          setAllTeachers([]);
+          const fetchedTeachers = getList(resTeachers.data);
+
+          // [FIX TÀNG HÌNH]: Trộn danh sách Server và Local
+          setAllTeachers((prevTeachers) => {
+            // 1. Lấy danh sách ID mà server vừa trả về
+            const fetchedIds = new Set(
+              fetchedTeachers.map((t: any) => extractId(t)),
+            );
+
+            // 2. Lọc ra những ông Teacher "mới toanh" (có trong state hiện tại nhưng Server chưa có)
+            const newlyCreated = prevTeachers.filter(
+              (t: any) => extractId(t) && !fetchedIds.has(extractId(t)),
+            );
+
+            // 3. Ghép lại: Nhét mấy ông mới tạo lên ĐẦU danh sách luôn cho dễ chọn
+            return [...newlyCreated, ...fetchedTeachers];
+          });
+        } catch (e) {
+          console.warn("Lỗi load Data Tab 3", e);
         }
       })();
     }
   }, [activeTab]);
 
-  // Khi chọn 1 sự kiện -> nạp các track của ĐÚNG sự kiện đó
+  // Đổi Sự kiện -> Tải lại Track
   useEffect(() => {
-    (async () => {
-      setTrackIdToManage("");
-      setAssignedList([]);
-      if (!selectedEventId) {
-        setTracks([]);
-        setActiveEventName("");
-        return;
-      }
-      const ev = ongoingEvents.find(
-        (e: any) =>
-          String(e.id || e.eventId || e.eventID) === String(selectedEventId),
-      );
-      setActiveEventName(ev?.name || ev?.eventName || "Sự kiện");
-      try {
-        const allTracks = getList(await trackTopicApi.getAllTracks());
-        setTracks(
-          allTracks.filter(
-            (t: any) =>
-              String(t.eventId || t.eventID) === String(selectedEventId),
-          ),
+    if (selectedEventId) {
+      trackTopicApi.getAllTracks().then((res) => {
+        const eventTracks = getList(res).filter(
+          (t: any) =>
+            String(t.eventId || t.eventID) === String(selectedEventId),
         );
-      } catch (e) {
-        console.warn("Lỗi lấy track của sự kiện", e);
-        setTracks([]);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        setTracks(eventTracks);
+      });
+    } else {
+      setTracks([]);
+    }
+    setTrackIdToManage("");
+    setAssignedList([]);
   }, [selectedEventId]);
 
-  // Lấy danh sách Mentor và Judge của Track đang chọn
+  // Load danh sách người đã phân công + Đính kèm tên Event & Track
   const fetchAssignedPersonnel = async () => {
     if (!trackIdToManage) {
       setAssignedList([]);
       return;
     }
 
+    // Lấy tên Event và Track hiện tại để đổ vào bảng
+    const curEv = activeEvents.find(
+      (e) => String(e.id) === String(selectedEventId),
+    );
+    const curTr = tracks.find(
+      (t) => String(extractId(t)) === String(trackIdToManage),
+    );
+    const evName = curEv?.name || curEv?.eventName || "—";
+    const trName = curTr?.trackName || curTr?.name || "—";
+
     try {
-      // Gọi song song 2 API GET Mentor và GET Judge
       const [mentorsRes, judgesRes] = await Promise.all([
         apiClient
           .get(`/api/Mentor/track/${trackIdToManage}`)
@@ -271,18 +272,20 @@ export function ManageUsersAndAssign() {
           .catch(() => ({ data: [] })),
       ]);
 
-      // Đồng bộ format data để hiển thị chung 1 bảng
       const mentors = getList(mentorsRes.data).map((m) => ({
         id: extractId(m),
-        name: m.fullName || m.name || m.mentorName || "Mentor ẩn danh",
+        name: m.teacherName || m.fullName || m.name || m.mentorName || "Mentor",
+        eventName: evName,
+        trackName: trName,
         isMentor: true,
       }));
       const judges = getList(judgesRes.data).map((j) => ({
         id: extractId(j),
-        name: j.fullName || j.name || j.judgeName || "Judge ẩn danh",
+        name: j.teacherName || j.fullName || j.name || j.judgeName || "Judge",
+        eventName: evName,
+        trackName: trName,
         isMentor: false,
       }));
-
       setAssignedList([...mentors, ...judges]);
     } catch (error) {
       setAssignedList([]);
@@ -293,7 +296,6 @@ export function ManageUsersAndAssign() {
     fetchAssignedPersonnel();
   }, [trackIdToManage]);
 
-  // HÀM PHÂN CÔNG (POST MENTOR / JUDGE)
   const handleAssignTeacher = async () => {
     if (!assignForm.teacherID || !trackIdToManage)
       return Swal.fire(
@@ -302,32 +304,41 @@ export function ManageUsersAndAssign() {
         "warning",
       );
 
+    const existingPerson = assignedList.find(
+      (a) => String(a.id) === String(assignForm.teacherID),
+    );
+    if (existingPerson) {
+      const currentRole = existingPerson.isMentor ? "Mentor" : "Judge";
+      return Swal.fire({
+        icon: "warning",
+        title: "Trùng lặp phân công!",
+        html: `Nhân sự này đã được phân công làm <b>${currentRole}</b> của Track này rồi.<br/><br/><i>Lưu ý: Một người không thể vừa làm Judge vừa làm Mentor trong cùng một Track.</i>`,
+        confirmButtonColor: "#0f172a",
+      });
+    }
+
     try {
       Swal.fire({
         title: "Đang phân công...",
         didOpen: () => Swal.showLoading(),
       });
-
       const endpoint = assignForm.isMentor
         ? `/api/Mentor/track/${trackIdToManage}/mentor/${assignForm.teacherID}`
         : `/api/Judge/track/${trackIdToManage}/judge/${assignForm.teacherID}`;
 
       await apiClient.post(endpoint);
-
       Swal.fire("Thành công!", "Đã gán nhân sự vào Track.", "success");
       setAssignForm({ ...assignForm, teacherID: "" });
-      fetchAssignedPersonnel(); // Gọi hàm load lại bảng
+      fetchAssignedPersonnel();
     } catch (error: any) {
       Swal.fire(
         "Thất bại",
-        error.response?.data ||
-          "Lỗi phân công (Có thể nhân sự này đã tồn tại)!",
+        error.response?.data || "Lỗi phân công từ Backend!",
         "error",
       );
     }
   };
 
-  // HÀM XÓA PHÂN CÔNG (DELETE MENTOR / JUDGE)
   const handleRemoveTeacher = async (teacherId: string, isMentor: boolean) => {
     const result = await Swal.fire({
       title: "Gỡ nhân sự này khỏi Track?",
@@ -338,30 +349,23 @@ export function ManageUsersAndAssign() {
     if (result.isConfirmed) {
       try {
         Swal.fire({ title: "Đang xóa...", didOpen: () => Swal.showLoading() });
-
         const endpoint = isMentor
           ? `/api/Mentor/track/${trackIdToManage}/mentor/${teacherId}`
           : `/api/Judge/track/${trackIdToManage}/judge/${teacherId}`;
 
         await apiClient.delete(endpoint);
-
         Swal.fire({
           icon: "success",
           title: "Đã gỡ thành công",
           showConfirmButton: false,
           timer: 1000,
         });
-        fetchAssignedPersonnel(); // Gọi hàm load lại bảng
+        fetchAssignedPersonnel();
       } catch (error) {
         Swal.fire("Lỗi", "Không thể xóa phân công!", "error");
       }
     }
   };
-
-  // Lọc ra danh sách Teacher CHƯA được phân công vào Track này để hiện trong Dropdown
-  const availableTeachers = allTeachers.filter(
-    (t) => !assignedList.some((a) => String(a.id) === String(extractId(t))),
-  );
 
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
@@ -411,50 +415,45 @@ export function ManageUsersAndAssign() {
               <table className="w-full text-left text-sm border border-slate-100 rounded-xl overflow-hidden">
                 <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="px-6 py-4">Họ tên</th>
-                    <th className="px-6 py-4">MSSV</th>
+                    <th className="px-6 py-4 w-1/4">Họ tên</th>
                     <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Trường đại học</th>
                     <th className="px-6 py-4 text-right">Hành động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {students.map((s) => {
-                    const sid = studentKey(s);
-                    return (
-                      <tr key={sid} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 font-bold">
-                          {s.fullName || s.name || s.studentName || "—"}
-                        </td>
-                        <td className="px-6 py-4 font-mono">
-                          {s.studentCode || s.studentId || s.code || "—"}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500">
-                          {s.email || "—"}
-                        </td>
-                        <td className="px-6 py-4 flex justify-end gap-2">
-                          <button
-                            onClick={() => handleApproveStudent(sid, true)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold text-xs"
-                          >
-                            <CheckCircle size={14} /> Duyệt
-                          </button>
-                          <button
-                            onClick={() => handleApproveStudent(sid, false)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs"
-                          >
-                            <XCircle size={14} /> Từ chối
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {students.map((s) => (
+                    <tr key={s.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-bold text-slate-800">
+                        {s.fullName || s.playerName || s.name}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">{s.email}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-600">
+                        {s.university || s.school || "Đại học FPT"}
+                      </td>
+                      <td className="px-6 py-4 flex justify-end gap-2">
+                        <button
+                          onClick={() => handleApproveStudent(s.id, true)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold text-xs"
+                        >
+                          <CheckCircle size={14} /> Duyệt
+                        </button>
+                        <button
+                          onClick={() => handleApproveStudent(s.id, false)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs"
+                        >
+                          <XCircle size={14} /> Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                   {students.length === 0 && (
                     <tr>
                       <td
                         colSpan={4}
-                        className="text-center py-8 text-slate-400"
+                        className="text-center py-8 text-slate-400 font-medium"
                       >
-                        Không có tài khoản nào đang chờ duyệt.
+                        Hiện không có tài khoản sinh viên nào đang chờ duyệt.
                       </td>
                     </tr>
                   )}
@@ -586,37 +585,25 @@ export function ManageUsersAndAssign() {
             </div>
           )}
 
-          {/* TAB 3: PHÂN CÔNG MENTOR/JUDGE */}
+          {/* TAB 3: PHÂN CÔNG */}
           {activeTab === "assign" && (
-            <div className="space-y-8 animate-in fade-in">
-              {/* BƯỚC 1: CHỌN SỰ KIỆN */}
+            <div className="space-y-6 animate-in fade-in">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                  1. CHỌN SỰ KIỆN ĐỂ PHÂN CÔNG
+                  1. CHỌN SỰ KIỆN ĐANG DIỄN RA
                 </h3>
                 <div className="relative">
                   <select
                     value={selectedEventId}
                     onChange={(e) => setSelectedEventId(e.target.value)}
-                    disabled={ongoingEvents.length === 0}
                     className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
                   >
-                    <option value="">
-                      {ongoingEvents.length === 0
-                        ? "-- Chưa có sự kiện nào --"
-                        : "-- Chọn sự kiện --"}
-                    </option>
-                    {ongoingEvents.map((ev: any) => {
-                      const eid = ev.id || ev.eventId || ev.eventID;
-                      return (
-                        <option key={eid} value={eid}>
-                          {(ev.name || ev.eventName) ?? "Sự kiện"}
-                          {ev.semester || ev.year
-                            ? ` — ${ev.semester || ""} ${ev.year || ""}`
-                            : ""}
-                        </option>
-                      );
-                    })}
+                    <option value="">-- Lựa chọn Sự kiện Hackathon --</option>
+                    {activeEvents.map((e: any) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name || e.eventName}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown
                     className="absolute right-4 top-4 text-slate-400 pointer-events-none"
@@ -625,39 +612,31 @@ export function ManageUsersAndAssign() {
                 </div>
               </div>
 
-              {/* BƯỚC 2: CHỌN TRACK (chỉ bật khi đã chọn sự kiện) */}
               <div
-                className={`transition-all duration-300 ${!selectedEventId ? "opacity-50 pointer-events-none" : ""}`}
+                className={`bg-slate-50 border border-slate-200 rounded-xl p-6 transition-all duration-300 ${!selectedEventId ? "opacity-50 pointer-events-none" : ""}`}
               >
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                    2. CHỌN HẠNG MỤC (TRACK) ĐỂ QUẢN LÝ
-                  </h3>
-                  <div className="relative">
-                    <select
-                      value={trackIdToManage}
-                      onChange={(e) => setTrackIdToManage(e.target.value)}
-                      disabled={!selectedEventId || tracks.length === 0}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
-                    >
-                      <option value="" disabled>
-                        {!selectedEventId
-                          ? "-- Hãy chọn sự kiện trước --"
-                          : tracks.length === 0
-                            ? `-- Sự kiện "${activeEventName}" chưa có track --`
-                            : `-- Chọn Track của: ${activeEventName} --`}
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                  2. CHỌN HẠNG MỤC (TRACK) ĐỂ QUẢN LÝ
+                </h3>
+                <div className="relative">
+                  <select
+                    value={trackIdToManage}
+                    onChange={(e) => setTrackIdToManage(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="" disabled>
+                      -- Chọn Track thuộc sự kiện này --
+                    </option>
+                    {tracks.map((t: any) => (
+                      <option key={extractId(t)} value={extractId(t)}>
+                        {t.trackName || t.name}
                       </option>
-                      {tracks.map((t: any) => (
-                        <option key={extractId(t)} value={extractId(t)}>
-                          {t.trackName || t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="absolute right-4 top-4 text-slate-400 pointer-events-none"
-                      size={18}
-                    />
-                  </div>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="absolute right-4 top-4 text-slate-400 pointer-events-none"
+                    size={18}
+                  />
                 </div>
               </div>
 
@@ -669,7 +648,6 @@ export function ManageUsersAndAssign() {
                     3. PHÂN CÔNG NHÂN SỰ VÀO TRACK
                   </h3>
                   <div className="flex gap-4 items-end">
-                    {/* ĐÃ ĐỔI INPUT THÀNH DROPDOWN CHỌN TÊN TEACHER */}
                     <div className="flex-1 space-y-2 relative">
                       <label className="text-[11px] font-bold text-slate-500">
                         Chọn Tài khoản Teacher
@@ -685,13 +663,20 @@ export function ManageUsersAndAssign() {
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
                       >
                         <option value="" disabled>
-                          -- Chọn tài khoản chưa phân công --
+                          -- Chọn Tài khoản Teacher --
                         </option>
-                        {availableTeachers.map((t: any) => (
-                          <option key={extractId(t)} value={extractId(t)}>
-                            {t.fullName || t.name || t.email}
-                          </option>
-                        ))}
+                        {allTeachers.map((t: any) => {
+                          const rawId = extractId(t);
+                          return (
+                            <option key={rawId} value={rawId}>
+                              {/* HIỂN THỊ TÊN TEACHER ĐẸP ĐẼ (Ưu tiên lấy teacherName) */}
+                              {t.teacherName ||
+                                t.fullName ||
+                                t.name ||
+                                "Teacher chưa cập nhật tên"}
+                            </option>
+                          );
+                        })}
                       </select>
                       <ChevronDown
                         className="absolute right-4 top-[38px] text-slate-400 pointer-events-none"
@@ -742,9 +727,8 @@ export function ManageUsersAndAssign() {
                     <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold">
                       <tr>
                         <th className="px-6 py-4">Tên Nhân sự</th>
-                        <th className="px-6 py-4 font-mono font-normal opacity-50">
-                          Mã ID
-                        </th>
+                        <th className="px-6 py-4">Tên Sự kiện</th>
+                        <th className="px-6 py-4">Tên Track</th>
                         <th className="px-6 py-4 text-center">Vai trò</th>
                         <th className="px-6 py-4 text-right">Thao tác</th>
                       </tr>
@@ -755,8 +739,11 @@ export function ManageUsersAndAssign() {
                           <td className="px-6 py-4 font-bold text-slate-900">
                             {item.name}
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs text-slate-400">
-                            {item.id}
+                          <td className="px-6 py-4 text-slate-600 text-xs font-semibold">
+                            {item.eventName}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 text-xs font-semibold">
+                            {item.trackName}
                           </td>
                           <td className="px-6 py-4 text-center">
                             {item.isMentor ? (
@@ -770,7 +757,6 @@ export function ManageUsersAndAssign() {
                             )}
                           </td>
                           <td className="px-6 py-4 flex justify-end gap-2">
-                            {/* BỎ NÚT CHUYỂN ĐỔI VAI TRÒ ĐỂ DÙNG THAO TÁC XÓA SẠCH VÀ POST LẠI */}
                             <button
                               onClick={() =>
                                 handleRemoveTeacher(item.id, item.isMentor)
@@ -785,7 +771,7 @@ export function ManageUsersAndAssign() {
                       {assignedList.length === 0 && (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={5}
                             className="px-6 py-12 text-center text-slate-500 font-medium"
                           >
                             Chưa có ai được phân công.

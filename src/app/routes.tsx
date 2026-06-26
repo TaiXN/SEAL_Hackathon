@@ -63,13 +63,15 @@ export const router = createBrowserRouter([
       // --- Khu vực của Judge (Cũng được bảo mật) ---
       {
         path: "/judge",
-        // element: <JudgeDashboard />,
         children: [
           { index: true, element: <JudgeDashboard /> },
           { path: "profile", element: <ProfilePage /> },
-          { path: "score", element: <ScoringPage /> },
+          // Thêm :teamId vào URL để trang Scoring biết đang chấm cho đội nào
+          { path: "score/:teamId", element: <ScoringPage /> },
         ],
       },
+
+      // ... (Các route khác giữ nguyên)
 
       {
         path: "/player",

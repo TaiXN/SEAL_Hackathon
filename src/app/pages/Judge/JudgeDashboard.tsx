@@ -3,210 +3,161 @@ import { useNavigate } from "react-router-dom";
 import {
   Hexagon,
   Search,
-  Lock,
-  Unlock,
-  ArrowRight,
   PlayCircle,
+  CheckCircle2,
+  ListTodo,
+  Activity,
 } from "lucide-react";
-import Swal from "sweetalert2";
+
+// Import API Client & Store
+import apiClient from "../../lib/api/apiClient";
+import { eventApi } from "../../lib/api/eventApi";
+import { roundApi } from "../../lib/api/roundApi";
+import { trackTopicApi } from "../../lib/api/trackTopicApi";
+import { useAuthStore } from "../../stores/auth.store";
+
+const getList = (res: any): any[] => {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.items)) return res.items;
+  if (Array.isArray(res?.result)) return res.result;
+  return [];
+};
 
 export function JudgeDashboard() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // ĐỌC DỮ LIỆU LÚC MỞ TRANG
+// Bóc ID của Giám khảo đang đăng nhập (Thêm các trường hợp viết hoa)
+  const user = useAuthStore((state: any) => state.user);
+  const currentTeacherId = user?.id || user?.Id || user?.teacherId || user?.teacherID || user?.sub || "";
+
+  // ĐỌC DỮ LIỆU BẰNG API THẬT 100%
   useEffect(() => {
-    // DÀNH CHO BACKEND:
-    // TODO: Gọi API GET /api/judge/teams để lấy danh sách đội thi được phân công chấm
+    const fetchTeamsAndEvaluations = async () => {
+      // 🛡️ CHỐT CHẶN: Nếu không có ID, tắt loading ngay và in log ra để kiểm tra
+      if (!currentTeacherId) {
+        console.error("🔴 LỖI: Không tìm thấy ID Giám khảo trong Store! Dữ liệu user hiện tại:", user);
+        setIsLoading(false); // Phải tắt vòng quay
+        Swal.fire("Lỗi phiên đăng nhập", "Không trích xuất được mã ID của Giám khảo. Vui lòng đăng nhập lại hoặc kiểm tra F12 Console!", "error");
+        return;
+      }
 
-    // Tạm thời dùng Mock Data để hiển thị
-    const mockTeams = [
-      {
-        id: "01",
-        name: "TechWizards",
-        track: "Business Analysis App",
-        status: "Đã khóa điểm",
-        score: "85.0đ",
-      },
-      {
-        id: "02",
-        name: "Syntax Errors",
-        track: "Code Generation & Review",
-        status: "Đang chấm",
-        score: "—",
-      },
-      {
-        id: "03",
-        name: "Alpha Coders",
-        track: "AI / Machine Learning",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "04",
-        name: "Logic Legion",
-        track: "Requirements Engineering",
-        status: "Đã khóa điểm",
-        score: "92.0đ",
-      },
-      {
-        id: "05",
-        name: "Ctrl Alt Defeat",
-        track: "Software Design App",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "06",
-        name: "Byte Me",
-        track: "Business Analysis App",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "07",
-        name: "Code Blooded",
-        track: "AI / Machine Learning",
-        status: "Đã khóa điểm",
-        score: "78.0đ",
-      },
-      {
-        id: "08",
-        name: "Data Pirates",
-        track: "Requirements Engineering",
-        status: "Đang chấm",
-        score: "—",
-      },
-      {
-        id: "09",
-        name: "Error 404",
-        track: "Software Design App",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "10",
-        name: "FrontEnd Fanatics",
-        track: "Code Generation & Review",
-        status: "Đã khóa điểm",
-        score: "88.0đ",
-      },
-      {
-        id: "11",
-        name: "Git Commit",
-        track: "Business Analysis App",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "12",
-        name: "Hello World",
-        track: "AI / Machine Learning",
-        status: "Đã khóa điểm",
-        score: "95.0đ",
-      },
-      {
-        id: "13",
-        name: "Infinite Loop",
-        track: "Requirements Engineering",
-        status: "Chưa chấm",
-        score: "—",
-      },
-      {
-        id: "14",
-        name: "Java Jugglers",
-        track: "Software Design App",
-        status: "Đang chấm",
-        score: "—",
-      },
-      {
-        id: "15",
-        name: "Null Pointers",
-        track: "Code Generation & Review",
-        status: "Chưa chấm",
-        score: "—",
-      },
-    ];
-    setTeams(mockTeams);
-  }, []);
+      try {
+        setIsLoading(true);
 
-  // --- HÀM MỞ KHÓA TRỰC TIẾP TỪ DASHBOARD ---
-  const handleUnlockTeam = (teamId: string, teamName: string) => {
-    Swal.fire({
-      title: "Mở khóa điểm?",
-      html: `Bạn có chắc muốn mở khóa cho đội <b>${teamName}</b>?<br/>Điểm số sẽ được chuyển về trạng thái Đang chấm.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#f59e0b",
-      cancelButtonColor: "#cbd5e1",
-      confirmButtonText: "Mở khóa ngay",
-      cancelButtonText: "Hủy",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // DÀNH CHO BACKEND:
-        // TODO: Gọi API PUT/PATCH /api/judge/teams/{teamId}/unlock để mở khóa điểm
-        console.log("API Mở khóa điểm cho đội ID:", teamId);
+        // 1. Fetch toàn bộ dữ liệu nền tảng
+        const [eventsRes, roundsRes, tracksRes, teamsRes, evalRes] = await Promise.all([
+          eventApi.getAllEvents().catch(() => []),
+          roundApi.getAllRounds().catch(() => []),
+          trackTopicApi.getAllTracks().catch(() => []),
+          apiClient.get("/api/Team").catch(() => ({ data: [] })), 
+          apiClient.get("/api/Evaluation").catch(() => ({ data: [] }))
+        ]);
 
-        // Cập nhật State cục bộ để giao diện đổi ngay lập tức
-        setTeams((prevTeams) =>
-          prevTeams.map((t) =>
-            t.id === teamId ? { ...t, status: "Đang chấm", score: "—" } : t,
-          ),
+        const allEvents = getList(eventsRes);
+        const allRounds = getList(roundsRes);
+        const allTracks = getList(tracksRes);
+        const allTeams = getList(teamsRes.data);
+        const allEvaluations = getList(evalRes.data);
+
+        // 2. TÌM XEM GIÁM KHẢO NÀY QUẢN LÝ TRACK NÀO
+        let myTrackIds: string[] = [];
+        try {
+          const judgesRes = await apiClient.get("/api/Judge");
+          myTrackIds = getList(judgesRes.data)
+            .filter((j: any) => String(j.teacherId || j.judgeId || j.Id || j.id) === String(currentTeacherId))
+            .map((j: any) => String(j.trackId || j.trackID));
+        } catch {
+          // Backup: Quét từng track nếu BE không có API lấy toàn bộ Judge
+          await Promise.all(
+            allTracks.map(async (track: any) => {
+              const tid = track.trackId || track.id;
+              try {
+                const judges = await apiClient.get(`/api/Judge/track/${tid}`);
+                const isMine = getList(judges.data).some((j: any) => 
+                  String(j.id || j.Id || j.judgeId || j.teacherId) === String(currentTeacherId)
+                );
+                if (isMine) myTrackIds.push(String(tid));
+              } catch (e) {}
+            })
+          );
+        }
+
+        // 3. Lọc ra Đội thi & Điểm số của riêng Giám khảo này
+        const myTeams = allTeams.filter((t: any) => myTrackIds.includes(String(t.trackId || t.trackID)));
+        const myEvaluations = allEvaluations.filter((ev: any) => 
+          String(ev.teacherId || ev.judgeId || ev.TeacherId) === String(currentTeacherId)
         );
 
-        Swal.fire({
-          icon: "success",
-          title: "Đã mở khóa!",
-          text: "Bạn có thể tiếp tục chấm điểm cho đội này.",
-          confirmButtonColor: "#0f172a",
-          timer: 1500,
-          showConfirmButton: false,
+        // 4. Trộn dữ liệu & Dò tìm criteriaSetId của Vòng thi
+        const enrichedTeams = myTeams.map((team: any) => {
+          const track = allTracks.find((t: any) => String(t.id || t.trackId) === String(team.trackId || team.trackID));
+          const event = allEvents.find((e: any) => String(e.id) === String(track?.eventId || track?.eventID));
+          
+          let criteriaSetId = null;
+          if (event && event.currentRound >= 0) {
+             const evRounds = allRounds.filter((r: any) => String(r.eventId || r.eventID) === String(event.id));
+             const curRound = evRounds.find((r: any) => r.roundIndex === event.currentRound);
+             criteriaSetId = curRound?.criteriaSetID || curRound?.criteriaSetId;
+          }
+
+          const teamEval = myEvaluations.find((ev: any) => String(ev.teamId || ev.teamID) === String(team.id));
+
+          return {
+            id: team.id,
+            name: team.teamName || team.name || "Đội chưa đặt tên",
+            track: track?.trackName || "Chưa rõ",
+            status: teamEval ? "Đã chấm" : "Chưa chấm",
+            score: teamEval ? `${teamEval.score ?? teamEval.totalScore ?? 0}đ` : "—",
+            evaluationId: teamEval ? (teamEval.id || teamEval.evaluationId) : null,
+            details: teamEval ? teamEval.details : null,
+            feedback: teamEval ? teamEval.feedback : "",
+            criteriaSetId: criteriaSetId
+          };
         });
+
+        setTeams(enrichedTeams);
+      } catch (error) {
+        console.error("Lỗi lấy dữ liệu chấm thi", error);
+      } finally {
+        setIsLoading(false);
       }
-    });
-  };
+    };
+
+    fetchTeamsAndEvaluations();
+  }, [currentTeacherId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
-  const [trackFilter, setTrackFilter] = useState("Tất cả hạng mục");
   const [currentPage, setCurrentPage] = useState(1);
-
-  const uniqueTracks = Array.from(new Set(teams.map((t) => t.track)));
 
   const filteredTeams = teams.filter((team) => {
     const matchSearch =
       team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.id.includes(searchTerm);
+      String(team.id).includes(searchTerm);
     const matchStatus =
       statusFilter === "Tất cả trạng thái" || team.status === statusFilter;
-    const matchTrack =
-      trackFilter === "Tất cả hạng mục" || team.track === trackFilter;
-    return matchSearch && matchStatus && matchTrack;
+    return matchSearch && matchStatus;
   });
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, trackFilter]);
+  }, [searchTerm, statusFilter]);
 
   const itemsPerPage = 5;
   const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
   const indexOfLastTeam = currentPage * itemsPerPage;
   const indexOfFirstTeam = indexOfLastTeam - itemsPerPage;
   const currentTeams = filteredTeams.slice(indexOfFirstTeam, indexOfLastTeam);
-
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const totalTeams = teams.length;
-  const completedTeams = teams.filter(
-    (t) => t.status === "Đã khóa điểm",
-  ).length;
-  const inProgressTeams = teams.filter((t) => t.status === "Đang chấm").length;
+  const completedTeams = teams.filter((t) => t.status === "Đã chấm").length;
   const pendingTeams = teams.filter((t) => t.status === "Chưa chấm").length;
-
   const completedPercent =
     totalTeams === 0 ? 0 : Math.round((completedTeams / totalTeams) * 100);
-  const inProgressPercent =
-    totalTeams === 0 ? 0 : Math.round((inProgressTeams / totalTeams) * 100);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-900 pb-12">
@@ -224,19 +175,19 @@ export function JudgeDashboard() {
         </div>
 
         <button
-          onClick={() => navigate("profile")}
+          onClick={() => navigate("/judge/profile")}
           className="flex items-center gap-3 cursor-pointer text-left group"
         >
           <div className="text-right">
             <h2 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-              GK. Nguyễn Văn A
+              {user?.fullName || user?.name || "Giám Khảo"}
             </h2>
             <p className="text-xs text-slate-500 font-medium">
-              Hội đồng chấm thi Vòng Bảng
+              Hội đồng chuyên môn
             </p>
           </div>
-          <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md group-hover:bg-blue-600 transition-colors">
-            A
+          <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md group-hover:bg-blue-600 transition-colors uppercase">
+            {(user?.fullName || user?.name || "G")[0]}
           </div>
         </button>
       </header>
@@ -246,24 +197,23 @@ export function JudgeDashboard() {
         <div className="bg-[#111111] rounded-2xl p-8 text-white shadow-xl flex justify-between items-center">
           <div className="space-y-1.5">
             <h2 className="text-xl font-bold flex items-center gap-2">
-              <span className="text-2xl">📊</span> TIẾN ĐỘ CHẤM THI CỦA BẠN
+              <span className="text-2xl">📊</span> TIẾN ĐỘ CHẤM THI
             </h2>
             <p className="text-slate-400 text-sm">
-              Hệ thống tự động ghi nhận và khóa điểm sau khi hoàn tất phiếu
-              chấm.
+              Hãy hoàn thành việc đánh giá tất cả các đội trước thời hạn đóng
+              cổng.
             </p>
           </div>
           <div className="flex items-center gap-8">
             <div className="flex gap-4">
               <div className="flex flex-col items-center bg-white/10 px-4 py-2 rounded-xl">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  Tổng số
+                  Đội của tôi
                 </span>
                 <span className="text-2xl font-bold">{totalTeams}</span>
               </div>
               <div className="flex flex-col items-center px-4 py-2">
                 <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>{" "}
                   Đã chấm
                 </span>
                 <span className="text-2xl font-bold text-emerald-500">
@@ -271,17 +221,7 @@ export function JudgeDashboard() {
                 </span>
               </div>
               <div className="flex flex-col items-center px-4 py-2">
-                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>{" "}
-                  Đang chấm
-                </span>
-                <span className="text-2xl font-bold text-amber-500">
-                  {inProgressTeams}
-                </span>
-              </div>
-              <div className="flex flex-col items-center px-4 py-2">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>{" "}
                   Chưa chấm
                 </span>
                 <span className="text-2xl font-bold text-slate-400">
@@ -294,29 +234,11 @@ export function JudgeDashboard() {
                 <span className="text-slate-300">Hoàn thành</span>
                 <span className="text-emerald-500">{completedPercent}%</span>
               </div>
-              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden flex">
+              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 transition-all duration-500"
                   style={{ width: `${completedPercent}%` }}
                 ></div>
-                <div
-                  className="h-full bg-amber-500 transition-all duration-500"
-                  style={{ width: `${inProgressPercent}%` }}
-                ></div>
-              </div>
-              <div className="flex gap-3 text-[9px] text-slate-400 pt-1 font-semibold uppercase tracking-wider">
-                <span className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>{" "}
-                  Đã chấm
-                </span>
-                <span className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>{" "}
-                  Đang chấm
-                </span>
-                <span className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>{" "}
-                  Chưa chấm
-                </span>
               </div>
             </div>
           </div>
@@ -334,40 +256,24 @@ export function JudgeDashboard() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm kiếm tên đội thi hoặc lượt thi..."
+                placeholder="Tìm kiếm tên đội thi..."
                 className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-400 transition-colors shadow-sm"
               />
             </div>
-            <div className="flex gap-3">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none shadow-sm cursor-pointer"
-              >
-                <option value="Tất cả trạng thái">Tất cả trạng thái</option>
-                <option value="Đã khóa điểm">Đã khóa điểm</option>
-                <option value="Đang chấm">Đang chấm</option>
-                <option value="Chưa chấm">Chưa chấm</option>
-              </select>
-              <select
-                value={trackFilter}
-                onChange={(e) => setTrackFilter(e.target.value)}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none shadow-sm cursor-pointer"
-              >
-                <option value="Tất cả hạng mục">Tất cả hạng mục</option>
-                {uniqueTracks.map((track) => (
-                  <option key={track as string} value={track as string}>
-                    {track as string}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none shadow-sm cursor-pointer"
+            >
+              <option value="Tất cả trạng thái">Tất cả trạng thái</option>
+              <option value="Đã chấm">Đã chấm</option>
+              <option value="Chưa chấm">Chưa chấm</option>
+            </select>
           </div>
 
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 text-center w-24">Lượt thi</th>
                 <th className="px-6 py-4 w-1/4">Tên đội thi</th>
                 <th className="px-6 py-4">Hạng mục thi đấu</th>
                 <th className="px-6 py-4 text-center">Trạng thái</th>
@@ -376,26 +282,35 @@ export function JudgeDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {currentTeams.length === 0 ? (
+              {isLoading ? (
                 <tr>
                   <td
-                    colSpan={6}
-                    className="px-6 py-12 text-center text-slate-500"
+                    colSpan={5}
+                    className="px-6 py-12 text-center text-slate-500 font-medium"
                   >
-                    <p className="font-semibold">
-                      Không tìm thấy đội thi nào phù hợp với bộ lọc.
-                    </p>
+                    <Activity
+                      className="animate-spin inline mr-2 mb-1"
+                      size={18}
+                    />
+                    Đang tải dữ liệu từ Server...
+                  </td>
+                </tr>
+              ) : currentTeams.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-12 text-center text-slate-500 font-medium"
+                  >
+                    Bạn chưa được phân công đội thi nào, hoặc chưa có đội nào
+                    nộp bài.
                   </td>
                 </tr>
               ) : (
                 currentTeams.map((team, idx) => (
                   <tr
                     key={idx}
-                    className="hover:bg-slate-50/50 transition-colors group bg-white"
+                    className="hover:bg-slate-50/50 transition-colors bg-white"
                   >
-                    <td className="px-6 py-5 text-center font-bold text-slate-400 text-xs">
-                      {team.id}
-                    </td>
                     <td className="px-6 py-5 font-bold text-slate-900 text-sm">
                       {team.name}
                     </td>
@@ -403,22 +318,13 @@ export function JudgeDashboard() {
                       {team.track}
                     </td>
                     <td className="px-6 py-5 text-center">
-                      {team.status === "Đã khóa điểm" && (
+                      {team.status === "Đã chấm" ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-100">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-600"></div>{" "}
-                          Đã khóa điểm
+                          <CheckCircle2 size={12} /> Đã chấm
                         </span>
-                      )}
-                      {team.status === "Đang chấm" && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-100">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600"></div>{" "}
-                          Đang chấm
-                        </span>
-                      )}
-                      {team.status === "Chưa chấm" && (
+                      ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-500 rounded-full text-[11px] font-bold border border-slate-200">
-                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>{" "}
-                          Chưa chấm
+                          <ListTodo size={12} /> Chưa chấm
                         </span>
                       )}
                     </td>
@@ -426,85 +332,28 @@ export function JudgeDashboard() {
                       {team.score}
                     </td>
                     <td className="px-6 py-5 flex justify-end gap-2">
-                      {team.status === "Đã khóa điểm" && (
-                        <>
-                          <button
-                            onClick={() => handleUnlockTeam(team.id, team.name)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50/50 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg hover:bg-amber-100 transition-colors shadow-sm"
-                          >
-                            <Unlock size={14} /> Mở khóa
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              navigate("score", { state: { team } })
-                            }
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                          >
-                            Xem lại
-                          </button>
-                        </>
-                      )}
-                      {team.status === "Đang chấm" && (
-                        <button
-                          onClick={() => navigate("score", { state: { team } })}
-                          className="flex items-center gap-1.5 px-4 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
-                        >
-                          Tiếp tục <ArrowRight size={14} />
-                        </button>
-                      )}
-                      {team.status === "Chưa chấm" && (
-                        <button
-                          onClick={() => navigate("score", { state: { team } })}
-                          className="flex items-center gap-1.5 px-4 py-1.5 bg-white border border-slate-200 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm"
-                        >
-                          <PlayCircle size={14} className="text-blue-500" />{" "}
-                          Chấm ngay
-                        </button>
-                      )}
+                      <button
+                        onClick={() =>
+                          navigate(`/judge/score/${team.id}`, {
+                            state: { team },
+                          })
+                        }
+                        className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-colors shadow-sm ${team.status === "Đã chấm" ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-black text-white hover:bg-slate-800"}`}
+                      >
+                        {team.status === "Đã chấm" ? (
+                          "Xem / Sửa điểm"
+                        ) : (
+                          <>
+                            <PlayCircle size={14} /> Chấm ngay
+                          </>
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-
-          {filteredTeams.length > 0 && (
-            <div className="p-4 border-t border-slate-100 flex justify-between items-center text-sm bg-white">
-              <span className="text-slate-500 font-medium">
-                Đang hiển thị {indexOfFirstTeam + 1} -{" "}
-                {Math.min(indexOfLastTeam, filteredTeams.length)} trong tổng số{" "}
-                {filteredTeams.length} kết quả
-              </span>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${currentPage === 1 ? "text-slate-300 cursor-not-allowed" : "text-slate-600 hover:bg-slate-50"}`}
-                >
-                  Trước
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (number) => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold transition-colors ${currentPage === number ? "bg-black text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}
-                    >
-                      {number}
-                    </button>
-                  ),
-                )}
-                <button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${currentPage === totalPages || totalPages === 0 ? "text-slate-300 cursor-not-allowed" : "text-slate-600 hover:bg-slate-50"}`}
-                >
-                  Sau
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>
