@@ -18,7 +18,7 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPost("track/{trackId}/mentor/{mentorId}")]
+        [HttpPost("track/{trackId}/teacher/{teacherId}")]
         public async Task<IActionResult> AddMentor(string mentorId, string trackId)
         {
             if (string.IsNullOrEmpty(mentorId) || string.IsNullOrEmpty(trackId))
@@ -58,7 +58,7 @@ namespace SEAL_Hackathon.Controllers
 
 
         [Authorize(Roles = "Admin")]
-        [HttpDelete("track/{trackId}/mentor/{mentorId}")]
+        [HttpDelete("track/{trackId}/teacher/{teacherId}")]
         public async Task<IActionResult> RemoveMentor(string mentorId, string trackId)
         {
             if (string.IsNullOrEmpty(mentorId) || string.IsNullOrEmpty(trackId))

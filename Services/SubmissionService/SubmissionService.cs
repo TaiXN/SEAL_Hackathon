@@ -26,6 +26,12 @@ namespace Services.SubmissionService
             var teamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
             if (teamInRound == null) throw new Exception("Your team must register for a Track and Topic before submitting URLs.");
 
+            if (!teamInRound.IsCheck)
+                throw new Exception("Your team has not been approved by the Admin yet. Please wait for approval before submitting.");
+
+            if (teamInRound.IsBanned)
+                throw new Exception("Your team has been banned from this round. Submission is locked.");
+
             var currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == teamInRound.RoundId);
             if (currentRound == null) throw new Exception("Cannot find this round");
 

@@ -1,10 +1,6 @@
 using APIViewModels.Team;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Services.TeamService
 {
