@@ -159,13 +159,7 @@ export function Dashboard() {
       color: "text-emerald-600",
       bg: "bg-emerald-50",
     },
-    {
-      label: "Sắp diễn ra",
-      value: upcoming.length,
-      icon: <CalendarClock size={22} />,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
-    },
+
     {
       label: "Đã kết thúc",
       value: ended.length,

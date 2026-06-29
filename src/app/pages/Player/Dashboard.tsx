@@ -250,19 +250,12 @@ export function Dashboard() {
 
       const currentUserIsLeader = isLeaderTeam(activeTeam);
 
-      const [
-        dashboardResponse,
-        countdownResponse,
-        eventsResponse,
-        tracksResponse,
-        topicsResponse,
-      ] = await Promise.allSettled([
-        teamApi.getTeamDashboard(activeTeamId),
-        teamApi.getCountdown(activeTeamId),
-        teamApi.getAllEvents(),
-        teamApi.getAllTracks(),
-        teamApi.getAllTopics(),
-      ]);
+      const [dashboardResponse, countdownResponse, eventsResponse] =
+        await Promise.allSettled([
+          teamApi.getTeamDashboard(activeTeamId),
+          teamApi.getCountdown(activeTeamId),
+          teamApi.getActiveEvents(),
+        ]);
 
       const dashboardData =
         dashboardResponse.status === "fulfilled"
@@ -279,15 +272,19 @@ export function Dashboard() {
           ? normalizeList(eventsResponse.value)
           : [];
 
-      const trackList =
-        tracksResponse.status === "fulfilled"
-          ? normalizeList(tracksResponse.value)
-          : [];
+      setEvents(eventList);
+      setTracks([]);
+      setTopics([]);
 
-      const topicList =
-        topicsResponse.status === "fulfilled"
-          ? normalizeList(topicsResponse.value)
-          : [];
+      // const trackList =
+      //   tracksResponse.status === "fulfilled"
+      //     ? normalizeList(tracksResponse.value)
+      //     : [];
+
+      // const topicList =
+      //   topicsResponse.status === "fulfilled"
+      //     ? normalizeList(topicsResponse.value)
+      //     : [];
 
       setDashboard({
         ...dashboardData,
@@ -296,8 +293,8 @@ export function Dashboard() {
 
       setCountdown(countdownData);
       setEvents(eventList);
-      setTracks(trackList);
-      setTopics(topicList);
+      setTracks([]);
+      setTopics([]);
 
       const currentSelectedTrackId = getSelectedTrackId(dashboardData);
       const currentSelectedTopicId = getSelectedTopicId(dashboardData);
@@ -372,15 +369,48 @@ export function Dashboard() {
   const statusLabel = getStatusLabel(dashboard);
   const targetDate = deadlineValue ? new Date(deadlineValue) : null;
 
-  const handleEventChange = (eventId: string) => {
+  const handleEventChange = async (eventId: string) => {
     setSelectedEvent(eventId);
     setSelectedTrack("");
     setSelectedTopic("");
+    setTracks([]);
+    setTopics([]);
+
+    if (!eventId) return;
+
+    try {
+      const response = await teamApi.getTracksByEvent(eventId);
+      setTracks(normalizeList(response));
+    } catch (error) {
+      console.error("Load tracks by event failed:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Không tải được Track",
+        text: "Không thể lấy danh sách track của event này.",
+      });
+    }
   };
 
-  const handleTrackChange = (trackId: string) => {
+  const handleTrackChange = async (trackId: string) => {
     setSelectedTrack(trackId);
     setSelectedTopic("");
+    setTopics([]);
+
+    if (!trackId) return;
+
+    try {
+      const response = await teamApi.getTopicsByTrack(trackId);
+      setTopics(normalizeList(response));
+    } catch (error) {
+      console.error("Load topics by track failed:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Không tải được Topic",
+        text: "Không thể lấy danh sách topic của track này.",
+      });
+    }
   };
 
   const executeSubmitRegistration = async () => {
@@ -399,6 +429,7 @@ export function Dashboard() {
       setIsSubmittingRegistration(true);
 
       await teamApi.submitRegistration(teamId, {
+        eventId: selectedEvent,
         trackId: selectedTrack,
         topicId: selectedTopic,
       });

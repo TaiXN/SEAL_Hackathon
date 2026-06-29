@@ -10,12 +10,26 @@ export interface RegisterPlayerPayload {
   universityId: string;
 }
 
+export interface University {
+  universityId?: string;
+  universityID?: string;
+  UniversityId?: string;
+  UniversityID?: string;
+  id?: string;
+
+  universityName?: string;
+  UniversityName?: string;
+  name?: string;
+}
+
 export const playerApi = {
-  // API: POST /api/Player/register
-  // Swagger yêu cầu:
-  // email, password, fullName, address, phone, studentId, universityId
   async register(payload: RegisterPlayerPayload) {
     const res = await apiClient.post("/api/Player/register", payload);
+    return res.data;
+  },
+
+  async getUniversities() {
+    const res = await apiClient.get("/api/University");
     return res.data;
   },
 };

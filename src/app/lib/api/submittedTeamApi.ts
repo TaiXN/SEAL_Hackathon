@@ -8,14 +8,11 @@ export interface SubmitProjectPayload {
 
 export const submittedTeamApi = {
   async submitProject(teamId: string, payload: SubmitProjectPayload) {
-    const res = await apiClient.post(
-      `/api/SubmittedTeam/${teamId}/submit-urls`,
-      {
-        githubUrl: payload.githubUrl,
-        demoUrl: payload.demoUrl,
-        slideUrl: payload.slideUrl,
-      },
-    );
+    const res = await apiClient.post(`/api/Submission/${teamId}/submit-urls`, {
+      urlGithub: payload.githubUrl,
+      urlDemo: payload.demoUrl,
+      urlSlide: payload.slideUrl,
+    });
 
     return res.data;
   },

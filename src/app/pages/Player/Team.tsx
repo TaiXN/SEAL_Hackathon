@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { teamApi } from "../../lib/api/teamApi";
+import { jwtDecode } from "jwt-decode";
+import { useAuthStore } from "../../stores/auth.store";
 
 const unwrapData = (value: any) => value?.data ?? value;
 
@@ -42,6 +44,16 @@ const getMemberPlayerId = (member: any) => {
   );
 };
 
+const getMemberEmail = (member: any) => {
+  return (
+    member?.email ||
+    member?.Email ||
+    member?.player?.email ||
+    member?.player?.Email ||
+    ""
+  );
+};
+
 const getMemberName = (member: any) => {
   return (
     member?.fullName ||
@@ -58,7 +70,7 @@ const getMemberName = (member: any) => {
     member?.player?.Name ||
     member?.player?.email ||
     member?.player?.Email ||
-    "Không có tên"
+    ""
   );
 };
 
@@ -133,14 +145,139 @@ const extractTeamIdFromJoinInput = (value: string) => {
   return lastPart || trimmed;
 };
 
+const getCurrentUserFromToken = (accessToken?: string | null) => {
+  if (!accessToken) {
+    return {
+      displayName: "Bạn",
+      email: "",
+      playerId: "",
+    };
+  }
+
+  try {
+    const decoded: any = jwtDecode(accessToken);
+
+    const displayName =
+      decoded?.fullName ||
+      decoded?.FullName ||
+      decoded?.name ||
+      decoded?.Name ||
+      decoded?.email ||
+      decoded?.Email ||
+      "Bạn";
+
+    const playerId =
+      decoded?.playerId ||
+      decoded?.PlayerId ||
+      decoded?.playerID ||
+      decoded?.PlayerID ||
+      decoded?.sub ||
+      "";
+
+    return {
+      displayName,
+      email: decoded?.email || decoded?.Email || "",
+      playerId,
+    };
+  } catch {
+    return {
+      displayName: "Bạn",
+      email: "",
+      playerId: "",
+    };
+  }
+};
+
+const sameValue = (a?: any, b?: any) => {
+  if (!a || !b) return false;
+  return String(a).toLowerCase() === String(b).toLowerCase();
+};
+
+const isSelfMember = (
+  member: any,
+  index: number,
+  currentUserInfo: {
+    displayName: string;
+    email: string;
+    playerId: string;
+  },
+  currentUserIsLeader: boolean,
+) => {
+  // Nếu account hiện tại là leader, tạm coi dòng đầu tiên là chính leader.
+  // Vì backend hiện đang trả members thiếu fullName/playerId/isCurrentUser.
+  if (currentUserIsLeader && index === 0) return true;
+
+  return (
+    isCurrentUserMember(member) ||
+    sameValue(getMemberPlayerId(member), currentUserInfo.playerId) ||
+    sameValue(getMemberEmail(member), currentUserInfo.email)
+  );
+};
+
+const resolveMemberName = (
+  member: any,
+  index: number,
+  isSelf: boolean,
+  currentUserInfo: {
+    displayName: string;
+    email: string;
+    playerId: string;
+  },
+) => {
+  const rawName = String(getMemberName(member) || "").trim();
+
+  const isMissingName =
+    !rawName ||
+    rawName === "Không có tên" ||
+    rawName.toLowerCase() === "unknown" ||
+    rawName.toLowerCase() === "null" ||
+    rawName.toLowerCase() === "undefined";
+
+  if (!isMissingName) return rawName;
+
+  if (isSelf) {
+    return currentUserInfo.displayName || currentUserInfo.email || "Bạn";
+  }
+
+  return `Member ${index + 1}`;
+};
+
+const resolveMemberRole = (
+  member: any,
+  index: number,
+  currentUserIsLeader: boolean,
+  isSelf: boolean,
+) => {
+  const rawRole = String(getMemberRole(member)).toLowerCase();
+
+  if (
+    rawRole === "leader" ||
+    rawRole === "team leader" ||
+    rawRole === "teamleader"
+  ) {
+    return "Team Leader";
+  }
+
+  if (currentUserIsLeader && index === 0) return "Team Leader";
+
+  if (isSelf && currentUserIsLeader) return "Team Leader";
+
+  return "Member";
+};
+
 export function Team() {
   const [team, setTeam] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
+
   const [teamName, setTeamName] = useState("");
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+
   const [joinInput, setJoinInput] = useState("");
   const [isJoiningTeam, setIsJoiningTeam] = useState(false);
+
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const currentUserInfo = getCurrentUserFromToken(accessToken);
 
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
     isOpen: boolean;
@@ -169,16 +306,19 @@ export function Team() {
         return;
       }
 
-      const teamId = getTeamId(currentTeam);
+      const currentTeamId = getTeamId(currentTeam);
 
-      if (!teamId) {
+      if (!currentTeamId) {
         setTeam(currentTeam);
         return;
       }
 
       try {
-        const membersResponse = await teamApi.getTeamMembers(teamId);
+        const membersResponse = await teamApi.getTeamMembers(currentTeamId);
         const members = normalizeList(membersResponse);
+
+        console.log("TEAM HISTORY:", teamHistory);
+        console.log("CURRENT TEAM:", currentTeam);
         console.log("TEAM MEMBERS RAW:", membersResponse);
         console.log("TEAM MEMBERS NORMALIZED:", members);
 
@@ -268,10 +408,9 @@ export function Team() {
         text: "Bạn hiện là Team Leader. Hãy qua Dashboard để chọn Event / Track / Topic.",
       });
 
+      setTeamName("");
       await fetchMyTeam();
 
-      // Báo cho Sidebar cập nhật lại.
-      // Vì create team xong là leader nên Sidebar sẽ hiện Submit Project.
       window.dispatchEvent(new Event("player-team-updated"));
     } catch (error: any) {
       console.error("Create team failed full error:", error);
@@ -320,10 +459,9 @@ export function Team() {
         text: "Bạn đã tham gia team với vai trò Team Member.",
       });
 
+      setJoinInput("");
       await fetchMyTeam();
 
-      // Báo cho Sidebar cập nhật lại.
-      // Vì join team chỉ là member nên Sidebar vẫn không hiện Submit Project.
       window.dispatchEvent(new Event("player-team-updated"));
     } catch (error: any) {
       console.error("Join team failed:", error);
@@ -368,7 +506,7 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Đã xóa member",
+        title: "Đã kick member",
         text: "Member đã được xóa khỏi team.",
       });
     } catch (error: any) {
@@ -376,7 +514,7 @@ export function Team() {
 
       Swal.fire({
         icon: "error",
-        title: "Không thể xóa member",
+        title: "Không thể kick member",
         text:
           error.response?.data?.message ||
           error.response?.data ||
@@ -388,11 +526,60 @@ export function Team() {
   const handleRemoveMember = (memberPlayerId: string, memberName: string) => {
     setConfirmModalConfig({
       isOpen: true,
-      title: "Remove Team Member",
-      description: `Bạn có chắc muốn xóa ${memberName} khỏi team không?`,
-      confirmText: "Remove Member",
+      title: "Kick Team Member",
+      description: `Bạn có chắc muốn kick ${memberName} khỏi team không?`,
+      confirmText: "Kick Member",
       onConfirm: () => {
         void confirmRemoveMember(memberPlayerId);
+      },
+    });
+  };
+
+  const confirmLeaveTeam = async () => {
+    try {
+      if (!teamId) {
+        Swal.fire(
+          "Thiếu teamId",
+          "Không xác định được team hiện tại.",
+          "error",
+        );
+        return;
+      }
+
+      await teamApi.leaveTeam(teamId);
+
+      setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
+      setTeam(null);
+
+      window.dispatchEvent(new Event("player-team-updated"));
+
+      Swal.fire({
+        icon: "success",
+        title: "Đã rời team",
+        text: "Bạn đã rời khỏi team hiện tại.",
+      });
+    } catch (error: any) {
+      console.error("Leave team failed:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Không thể rời team",
+        text:
+          error.response?.data?.message ||
+          error.response?.data ||
+          "Backend từ chối thao tác rời team.",
+      });
+    }
+  };
+
+  const handleLeaveTeam = () => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: "Leave Team",
+      description: "Bạn có chắc muốn rời khỏi team này không?",
+      confirmText: "Leave Team",
+      onConfirm: () => {
+        void confirmLeaveTeam();
       },
     });
   };
@@ -564,6 +751,28 @@ export function Team() {
           </div>
         </section>
 
+        {!currentUserIsLeader && (
+          <section className="bg-white border border-border rounded-radius-lg p-6 shadow-sm flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-lg text-foreground">
+                Team Member Mode
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Bạn đang là member của team này. Bạn không thể kick thành viên
+                khác, nhưng có thể tự rời team.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLeaveTeam}
+              className="px-4 py-3 text-sm font-bold text-red-600 border border-red-200 rounded-radius-md hover:bg-red-50 transition-colors whitespace-nowrap"
+            >
+              Leave Team
+            </button>
+          </section>
+        )}
+
         <section className="bg-card border border-border rounded-radius-lg overflow-hidden shadow-sm">
           <div className="p-6 border-b border-border flex items-center justify-between bg-muted/20">
             <div>
@@ -584,15 +793,36 @@ export function Team() {
                 Backend chưa trả danh sách member.
               </div>
             ) : (
-              teamMembers.map((member: any) => {
-                const memberPlayerId = String(getMemberPlayerId(member));
-                const memberName = getMemberName(member);
-                const memberRole = getMemberRole(member);
-                const currentUser = isCurrentUserMember(member);
+              teamMembers.map((member: any, index: number) => {
+                const self = isSelfMember(
+                  member,
+                  index,
+                  currentUserInfo,
+                  currentUserIsLeader,
+                );
+
+                const memberPlayerId = String(getMemberPlayerId(member) || "");
+
+                const memberName = resolveMemberName(
+                  member,
+                  index,
+                  self,
+                  currentUserInfo,
+                );
+
+                const memberRole = resolveMemberRole(
+                  member,
+                  index,
+                  currentUserIsLeader,
+                  self,
+                );
+
+                const canKickThisMember =
+                  currentUserIsLeader && !self && Boolean(memberPlayerId);
 
                 return (
                   <div
-                    key={memberPlayerId || memberName}
+                    key={memberPlayerId || `${memberName}-${index}`}
                     className="p-4 sm:p-6 flex items-center justify-between hover:bg-muted/10 transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -606,35 +836,52 @@ export function Team() {
                             {memberName}
                           </span>
 
-                          {currentUser && (
+                          {self && (
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sidebar-accent text-sidebar-accent-foreground border border-border">
                               You
                             </span>
                           )}
                         </div>
 
-                        <span className="text-sm text-muted-foreground font-medium">
+                        <span
+                          className={`text-sm font-medium ${
+                            memberRole === "Team Leader"
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {memberRole}
                         </span>
                       </div>
                     </div>
 
-                    {currentUser ? (
-                      <span className="text-sm font-medium text-muted-foreground px-3 py-2">
-                        Current User
-                      </span>
-                    ) : currentUserIsLeader && memberPlayerId ? (
+                    {self ? (
+                      currentUserIsLeader ? (
+                        <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                          Leader
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleLeaveTeam}
+                          className="text-sm font-medium text-red-600 hover:bg-red-50 transition-colors px-3 py-2 rounded-radius-md"
+                        >
+                          Leave Team
+                        </button>
+                      )
+                    ) : canKickThisMember ? (
                       <button
+                        type="button"
                         onClick={() =>
                           handleRemoveMember(memberPlayerId, memberName)
                         }
                         className="text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors px-3 py-2 rounded-radius-md"
                       >
-                        Remove
+                        Kick
                       </button>
                     ) : currentUserIsLeader && !memberPlayerId ? (
-                      <span className="text-sm font-medium text-red-500 px-3 py-2">
-                        Missing playerId
+                      <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                        Cannot kick
                       </span>
                     ) : (
                       <span className="text-sm font-medium text-muted-foreground px-3 py-2">
@@ -666,13 +913,19 @@ export function Team() {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleCopy}
-                  className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Invite
-                </button>
+                {currentUserIsLeader ? (
+                  <button
+                    onClick={handleCopy}
+                    className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Invite
+                  </button>
+                ) : (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Waiting
+                  </span>
+                )}
               </div>
             ))}
           </div>

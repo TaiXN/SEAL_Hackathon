@@ -9,6 +9,7 @@ export interface UpdateTeamInfoPayload {
 }
 
 export interface SubmitRegistrationPayload {
+  eventId: string;
   trackId: string;
   topicId: string;
 }
@@ -66,23 +67,24 @@ export const teamApi = {
     return res.data;
   },
 
-  async getAllEvents() {
-    const res = await apiClient.get("/api/Event");
+  async getActiveEvents() {
+    const res = await apiClient.get("/api/Dropdown/active-events");
     return res.data;
   },
 
-  async getAllTracks() {
-    const res = await apiClient.get("/api/Track");
+  async getTracksByEvent(eventId: string) {
+    const res = await apiClient.get(`/api/Dropdown/tracks-by-event/${eventId}`);
     return res.data;
   },
 
-  async getAllTopics() {
-    const res = await apiClient.get("/api/Topic/topic");
+  async getTopicsByTrack(trackId: string) {
+    const res = await apiClient.get(`/api/Dropdown/topics-by-track/${trackId}`);
     return res.data;
   },
 
   async submitRegistration(teamId: string, payload: SubmitRegistrationPayload) {
-    const res = await apiClient.post(`/api/SubmittedTeam/${teamId}/submit`, {
+    const res = await apiClient.post(`/api/TeamInRound/${teamId}/create`, {
+      eventId: payload.eventId,
       trackId: payload.trackId,
       topicId: payload.topicId,
     });

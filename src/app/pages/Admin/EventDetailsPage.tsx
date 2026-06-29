@@ -172,7 +172,6 @@ export function EventDetailsPage() {
     }
   };
 
-  // ===== #3: Tải bộ tiêu chí của sự kiện (qua các round -> criteriaSetId) =====
   // ===== #3: helper đọc criteriaList của 1 set (backend đặt nhiều tên khác nhau) =====
   const extractSetList = (setData: any): any[] => {
     const s = setData?.data || setData || {};
