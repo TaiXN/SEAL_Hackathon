@@ -74,7 +74,7 @@ namespace Services.TeacherService
 
         }
 
-        public async Task<List<TeacherAPIViewModel>> GetAllAsync()
+        public async Task<List<TeacherAPIViewModel>> GetAllTeacherListAsync()
         {
             try
             {
@@ -114,6 +114,41 @@ namespace Services.TeacherService
             catch (Exception ex)
             {
                 return new List<TeacherAPIViewModel>();
+            }
+        }
+
+        public async Task<List<TeacherInfoAPIVIewModel>> GetAllAvailableTeachersAsync()
+        {
+            try
+            {
+
+                IEnumerable<Teacher> teachers = await _uow.Teacher.GetAllAsync();
+
+                List<TeacherInfoAPIVIewModel> result = new List<TeacherInfoAPIVIewModel>();
+
+                foreach (Teacher t in teachers)
+                {
+                    Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == t.Id && a.IsActive);
+
+                    if (accountDb != null)
+                    {
+                        TeacherInfoAPIVIewModel model = new TeacherInfoAPIVIewModel()
+                        {
+                            TeacherId = t.Id,
+                            TeacherName = accountDb.FullName,
+                            Email = accountDb.Email,
+                            IsGuest = t.IsGuest
+                        };
+
+                        result.Add(model);
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<TeacherInfoAPIVIewModel>();
             }
         }
 
