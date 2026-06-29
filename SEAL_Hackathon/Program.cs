@@ -11,6 +11,7 @@ using Services.DropdownService;
 using Services.EvaluationService;
 using Services.EventService;
 using Services.JudgeService;
+using Services.LeaderBoardService;
 using Services.MentorService;
 using Services.PlayerService;
 using Services.RefreshTokenService;
@@ -93,8 +94,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<EvaluationService>().As<IEvaluationService>();
                 builder.RegisterType<DropdownService>().As<IDropdownService>();
                 builder.RegisterType<SubmissionService>().As<ISubmissionService>();
-
-
+                builder.RegisterType<LeaderBoardService>().As<ILeaderBoardService>();
             });
 
             var app = builder.Build();

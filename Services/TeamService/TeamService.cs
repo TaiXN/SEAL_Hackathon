@@ -1,10 +1,6 @@
 using APIViewModels.Team;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Services.TeamService
 {
@@ -294,7 +290,7 @@ namespace Services.TeamService
         public async Task<List<TeamMemberAPIViewModel>> GetTeamMembersAsync(string teamId, string accountId)
         {
             var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.StudentId == accountId);
-            if (isMember == null) throw new Exception("you are not allow to watch this team");
+            if (isMember == null) throw new Exception("You are not allowed to view this team's members.");
 
             var teamMembers = await _uow.Student.GetAllAsync(
                 p => p.TeamMembers.Any(ut => ut.TeamId == teamId),
@@ -306,7 +302,7 @@ namespace Services.TeamService
                 result.Add(new TeamMemberAPIViewModel
                 {
                     StudentId = member.StudentId,
-
+                    StudentName = member.StudentNavigation?.FullName ?? "Unknown",
                     IsLeader = member.TeamMembers.FirstOrDefault(ut => ut.TeamId == teamId)?.IsLeader ?? false
                 });
             }

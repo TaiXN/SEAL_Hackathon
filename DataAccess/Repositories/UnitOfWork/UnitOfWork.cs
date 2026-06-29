@@ -4,6 +4,8 @@ using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EvaluationRepository;
 using DataAccess.Repositories.EventRepository;
+using DataAccess.Repositories.LeaderBoardDetailRepository;
+using DataAccess.Repositories.LeaderBoardRepository;
 using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
@@ -33,20 +35,18 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITeamRepository Team { get; private set; }
         public IStudentRepository Student { get; private set; }
         public ITeamMemberRepository TeamMember { get; private set; }
-
         public ITrackRepository Track { get; private set; }
         public ITopicRepository Topic { get; private set; }
         public ISubmissionRepository Submission { get; private set; }
-
         public IUniversityRepository University { get; private set; }
-
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
         public ICriteriaSetRepository CriteriaSet { get; private set; }
         public ITeacherListRepository TeacherList { get; private set; }
         public IEvaluationRepository Evaluation { get; private set; }
-
         public ITeamInRoundRepository TeamInRound { get; private set; }
+        public ILeaderBoardRepository LeaderBoard { get; private set; }
+        public ILeaderBoardDetailRepository LeaderBoardDetail { get; private set; }
 
 
 
@@ -64,22 +64,18 @@ namespace DataAccess.Repositories.UnitOfWork
             Team = new TeamRepository.TeamRepository(context);
             Student = new StudentRepository.StudentRepository(context);
             TeamMember = new TeamMemberRepository.TeamMemberRepository(context);
-
             Submission = new SubmissionRepository.SubmissionRepository(context);
             Track = new TrackRepository.TrackRepository(context);
-            Topic = new TopicRepository.TopicRepository(context);
-       
+            Topic = new TopicRepository.TopicRepository(context);   
             University = new UniversityRepository.UniversityRepository(context);
-
-
             Criteria = new CriteriaRepository.CriteriaRepository(context);
             Mapping = new MappingRepository.MappingRepository(context);
             CriteriaSet = new CriteriaSetRepository.CriteriaSetRepository(context);
-
             TeacherList = new TeacherListRepository.TeacherListRepository(context);
             Evaluation = new EvaluationRepository.EvaluationRepository(context);
-
             TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
+            LeaderBoard = new LeaderBoardRepository.LeaderBoardRepository(context);
+            LeaderBoardDetail = new LeaderBoardDetailRepository.LeaderBoardDetailRepository(context);
         }
 
         public async Task SaveAsync()

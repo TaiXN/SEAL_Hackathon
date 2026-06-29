@@ -3,6 +3,8 @@ using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
 using DataAccess.Repositories.EvaluationRepository;
 using DataAccess.Repositories.EventRepository;
+using DataAccess.Repositories.LeaderBoardDetailRepository;
+using DataAccess.Repositories.LeaderBoardRepository;
 using DataAccess.Repositories.MappingRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
@@ -40,15 +42,11 @@ namespace DataAccess.Repositories.UnitOfWork
         ITopicRepository Topic { get; }
         ITeacherListRepository TeacherList { get; }
         IEvaluationRepository Evaluation { get; }
-
-        IStudentRepository Student { get; }
-
-
         IUniversityRepository University { get; }
         ISubmissionRepository Submission { get; }
-
         ITeamInRoundRepository TeamInRound { get; }
-
+        ILeaderBoardRepository LeaderBoard { get; }
+        ILeaderBoardDetailRepository LeaderBoardDetail { get; }
         Task SaveAsync();
     }
 }

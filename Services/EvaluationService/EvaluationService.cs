@@ -1,22 +1,27 @@
 ﻿using APIViewModels.Evaluation;
 using APIViewModels.Event;
+using Azure.Messaging;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Services.LeaderBoardService;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Services.EvaluationService
 {
     public class EvaluationService : IEvaluationService
     {
         private readonly IUnitOfWork _uow;
-        public EvaluationService(IUnitOfWork uow)
+        private readonly ILeaderBoardService _leaderBoardService;
+        public EvaluationService(IUnitOfWork uow, ILeaderBoardService leaderBoardService)
         {
             _uow = uow;
+            _leaderBoardService = leaderBoardService;
         }
 
-        public async Task<bool> EvaluateSubmissionAsync(string teacherId, EvaluationAPIViewModel info)
+        public async Task<bool> CreateEvaluateAsync(string teacherId, EvaluationAPIViewModel info)
         {
             try
             {
@@ -37,6 +42,14 @@ namespace Services.EvaluationService
 
                 await _uow.Evaluation.AddAsync(newEval);
                 await _uow.SaveAsync();
+
+                await CalculateAndUpdateAverageScoreAsync(
+                      info.SubmissionID,
+                      submission.TeamInRound.TrackId,
+                      submission.TeamInRound.RoundId,
+                      submission.TeamInRound.Id
+                     );
+
                 return true;
 
             }
@@ -92,6 +105,14 @@ namespace Services.EvaluationService
                 evalDb.Reason = info.Reason;
                 _uow.Evaluation.Update(evalDb);
                 await _uow.SaveAsync();
+
+                await CalculateAndUpdateAverageScoreAsync(
+                    evalDb.SubmissionId,
+                    submission.TeamInRound.TrackId,
+                    submission.TeamInRound.RoundId,
+                    submission.TeamInRound.Id
+                );
+
                 return true;
             }
             catch (Exception ex)
@@ -105,11 +126,22 @@ namespace Services.EvaluationService
             try
             {
                 Evaluation result = await _uow.Evaluation.GetFirstOrDefaultAsync(q => q.Id.Equals(evaluationID));
-
                 if (result == null) return false;
+
+                Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == result.SubmissionId, "TeamInRound");
 
                 _uow.Evaluation.Remove(result);
                 await _uow.SaveAsync();
+
+                if (submission != null && submission.TeamInRound != null)
+                {
+                    await CalculateAndUpdateAverageScoreAsync(
+                        submission.Id,
+                        submission.TeamInRound.TrackId,
+                        submission.TeamInRound.RoundId,
+                        submission.TeamInRound.Id
+                    );
+                }
 
                 return true;
             }
@@ -118,5 +150,50 @@ namespace Services.EvaluationService
                 return false;
             }
         }
+
+        private async Task<bool> CalculateAndUpdateAverageScoreAsync(string submissionId, string trackId, string roundId, string teamInRoundId)
+        {
+            try
+            {
+
+                List<TeacherList> trackJudges = await _uow.TeacherList.GetAllAsync(q => q.TrackId == trackId && !q.IsMentor);
+                int totalJudges = trackJudges.Count();
+
+                List<Evaluation> evals = await _uow.Evaluation.GetAllAsync(q => q.SubmissionId == submissionId);
+                double sumScore = evals.Sum(q => q.Score);
+
+                double aveScore = 0;
+
+                if (totalJudges > 0)
+                {    
+                    double calculate = sumScore / totalJudges;
+              
+                    aveScore = Math.Round(calculate, 2);
+                }
+                else
+                {             
+                    aveScore = 0;
+                }
+
+
+                Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == submissionId);
+                if (submission != null)
+                {
+                    submission.AverageScore = aveScore;
+                    _uow.Submission.Update(submission);
+                    await _uow.SaveAsync();
+                }
+
+
+                await _leaderBoardService.UpdateRankRealTimeAsync(roundId, trackId, teamInRoundId, aveScore);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
     }
+
 }
+

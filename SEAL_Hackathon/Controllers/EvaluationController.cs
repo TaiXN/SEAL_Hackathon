@@ -1,8 +1,10 @@
 ﻿using APIViewModels.Evaluation;
+using APIViewModels.LeaderBoard;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.EvaluationService;
+using Services.LeaderBoardService;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -11,19 +13,21 @@ namespace SEAL_Hackathon.Controllers
     public class EvaluationController : ControllerBase
     {
         private readonly IEvaluationService _evaluation;
+        private readonly ILeaderBoardService _leaderboard;
 
-        public EvaluationController(IEvaluationService evaluations)
+        public EvaluationController(IEvaluationService evaluations, ILeaderBoardService leaderboards)
         {
             _evaluation = evaluations;
+            _leaderboard = leaderboards;
         }
 
         [HttpPost("{teacherId}")]
         [Authorize(Roles = "Judge, Teacher, Admin")]
-        public async Task<IActionResult> Evaluate(string teacherId, EvaluationAPIViewModel info)
+        public async Task<IActionResult> CreateEvaluation(string teacherId, EvaluationAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
-                bool isSuccess = await _evaluation.EvaluateSubmissionAsync(teacherId, info);
+                bool isSuccess = await _evaluation.CreateEvaluateAsync(teacherId, info);
 
                 if (isSuccess)
                 {
@@ -40,14 +44,14 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-         
+
             List<Evaluation> result = await _evaluation.GetAllEventsAsync();
             return Ok(result);
         }
 
-        
+
         [HttpGet("{id}")]
-        
+
         public async Task<IActionResult> GetById(string id)
         {
             Evaluation result = await _evaluation.GetEvaluationByIdAsync(id);
@@ -60,7 +64,7 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-     
+
         [HttpPut("{teacherId}")]
         [Authorize(Roles = "Judge, Teacher, Admin")]
         public async Task<IActionResult> Update(string teacherId, UpdateEvaluationAPIViewModel info)
