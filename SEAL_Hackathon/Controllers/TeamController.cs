@@ -61,44 +61,44 @@ namespace SEAL_Hackathon.Controllers
             }
         }
 
-        //[HttpGet("{teamId}/dashboard")]
-        //public async Task<IActionResult> GetTeamDashboard(string teamId)
-        //{
-        //    try
-        //    {
-        //        string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        //        if (string.IsNullOrEmpty(accountId)) return Unauthorized();
+        [HttpGet("{teamId}/info")]
+        public async Task<IActionResult> GetTeamInfo(string teamId)
+        {
+            try
+            {
+                string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
-        //        var dashboardInfo = await _team.GetMyTeamDashboardAsync(accountId, teamId);
+                var teamInfo = await _team.GetMyTeamDashboardAsync(accountId, teamId);
 
-        //        if (dashboardInfo == null)
-        //            return NotFound(new { message = "Team not found or you are not authorized to view it." });
+                if (teamInfo == null)
+                    return NotFound(new { message = "Team not found or you are not authorized to view it." });
 
-        //        return Ok(dashboardInfo);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { message = ex.Message });
-        //    }
-        //}
+                return Ok(teamInfo);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
-        //[HttpGet("{teamId}/countdown")]
-        //public async Task<IActionResult> GetCountdown(string teamId)
-        //{
-        //    try
-        //    {
-        //        var deadline = await _team.GetCountdownDeadlineAsync(teamId);
+        [HttpGet("{teamId}/countdown")]
+        public async Task<IActionResult> GetCountdown(string teamId)
+        {
+            try
+            {
+                var deadline = await _team.GetCountdownDeadlineAsync(teamId);
 
-        //        if (deadline == null)
-        //            return Ok(new { message = "No active rounds at the moment.", deadline = (DateTime?)null });
+                if (deadline == null)
+                    return Ok(new { message = "No active rounds at the moment.", deadline = (DateTime?)null });
 
-        //        return Ok(new { deadline = deadline });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
-        //    }
-        //}
+                return Ok(new { deadline = deadline });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"SERVER ERROR: {ex.InnerException?.Message ?? ex.Message}" });
+            }
+        }
 
         [HttpDelete("{teamId}/kick/{memberPlayerId}")]
         public async Task<IActionResult> KickMember(string teamId, string memberPlayerId)
