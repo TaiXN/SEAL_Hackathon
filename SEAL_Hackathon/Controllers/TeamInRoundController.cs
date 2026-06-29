@@ -1,4 +1,5 @@
-﻿using APIViewModels.TeamProject;
+﻿using APIViewModels.TeamInRound;
+using APIViewModels.TeamProject;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -72,6 +73,20 @@ namespace SEAL_Hackathon.Controllers
                 return Ok("Team has been successfully unbanned.");
 
             return BadRequest("Failed to unban team. Team ID not found.");
+        }
+
+        [HttpGet("details/round/{roundId}")]
+        public async Task<IActionResult> GetTeamDetailsInRound(string roundId)
+        {
+            
+            if (string.IsNullOrEmpty(roundId))
+            {
+                return BadRequest("RoundId cannot be left blank.");
+            }
+          
+            List<TeamInRoundDetailAPIViewModel> result = await _teamInRoundService.GetTeamsDetailsByRoundIdAsync(roundId);
+
+            return Ok(result);
         }
     }
 }

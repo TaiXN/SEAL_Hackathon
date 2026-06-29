@@ -1,6 +1,7 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.RepositoryBase;
 using DataAccess.Repositories.SubmissionRepository;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,6 +18,12 @@ namespace DataAccess.Repositories.TeamInRoundRepository
         public void Update(TeamInRound teaminround)
         {
             _db.TeamInRounds.Update(teaminround);
+        }
+
+        public IQueryable<TeamInRound> GetAllQueryable()
+        {
+           
+            return _db.TeamInRounds.AsQueryable();
         }
     }
 }

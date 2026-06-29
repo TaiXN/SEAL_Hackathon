@@ -1,8 +1,5 @@
 ﻿using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Services.JudgeService
 {
@@ -14,18 +11,18 @@ namespace Services.JudgeService
             _uow = uow;
         }
 
-        public async Task<bool> AddJudge(string mentorID, string trackID)
+        public async Task<bool> AddJudge(string judgeID, string trackID)
         {
             try
             {
-                TeacherList newMentor = new TeacherList()
+                TeacherList newJudge = new TeacherList()
                 {
-                    TeacherId = mentorID,
+                    TeacherId = judgeID,
                     TrackId = trackID,
                     IsMentor = false
                 };
 
-                await _uow.TeacherList.AddAsync(newMentor);
+                await _uow.TeacherList.AddAsync(newJudge);
 
                 await _uow.SaveAsync();
 
@@ -84,5 +81,8 @@ namespace Services.JudgeService
                 return false;
             }
         }
+
+
     }
 }
+

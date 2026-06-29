@@ -9,7 +9,8 @@ namespace Services.TeacherService
     public interface ITeacherService
     {
         Task<bool> CreateAsync(Account account, bool isGuest);
-        Task<List<TeacherAPIViewModel>> GetAllAsync();
+        Task<List<TeacherAPIViewModel>> GetAllTeacherListAsync();
+        Task<List<TeacherInfoAPIVIewModel>> GetAllAvailableTeachersAsync();
         Task<Teacher> GetByIdAsync(string id);
         Task<bool> UpdateAsync(string id, Account updatedAccount, bool isGuest);
         Task<bool> DeleteAsync(string id);

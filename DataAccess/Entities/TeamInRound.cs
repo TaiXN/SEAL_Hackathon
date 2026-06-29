@@ -19,6 +19,7 @@ public partial class TeamInRound
 
     public string TopicId { get; set; } = null!;
 
+
     public virtual ICollection<LeaderBoardDetail> LeaderBoardDetails { get; set; } = new List<LeaderBoardDetail>();
 
     public virtual Round Round { get; set; } = null!;

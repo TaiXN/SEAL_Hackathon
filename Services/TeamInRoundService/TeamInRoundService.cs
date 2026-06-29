@@ -1,6 +1,8 @@
-﻿using APIViewModels.TeamProject;
+﻿using APIViewModels.TeamInRound;
+using APIViewModels.TeamProject;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -94,6 +96,40 @@ namespace Services.TeamInRoundService
             return true;
         }
 
+        public async Task<List<TeamInRoundDetailAPIViewModel>> GetTeamsDetailsByRoundIdAsync(string roundId)
+        {
+            if (string.IsNullOrEmpty(roundId))
+                throw new ArgumentException("\r\nRoundID cannot be left blank.");
+
+            List<TeamInRound> teamInRounds = await _uow.TeamInRound.GetAllQueryable()
+                .Include(tir => tir.Team)
+                .Include(tir => tir.Track)
+                .Include(tir => tir.Round)
+                .Where(tir => tir.RoundId == roundId)
+                .AsNoTracking()
+                .ToListAsync();
+
+            List<TeamInRoundDetailAPIViewModel> result = teamInRounds.Select(tir => new TeamInRoundDetailAPIViewModel
+            {
+                TeamId = tir.TeamId,
+                TeamName = tir.Team?.TeamName ?? "N/A",
+
+                TrackId = tir.TrackId,
+                TrackName = tir.Track?.TrackName ?? "N/A",
+
+                RoundId = tir.RoundId,
+                RoundName = tir.Round?.RoundName ?? "N/A",
+
+                TopicId = tir.TopicId,
+           
+
+                IsBanned = tir.IsBanned,
+                IsCheck = tir.IsCheck
+            }).ToList();
+
+            return result;
+        }
+
         public async Task<bool> CheckTeamInRoundAsync(string teamInRoundId)
         {
             try
@@ -101,10 +137,10 @@ namespace Services.TeamInRoundService
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
 
-              
+
                 if (teamDb.IsCheck == true) return true;
 
-                teamDb.IsCheck = true; 
+                teamDb.IsCheck = true;
 
                 _uow.TeamInRound.Update(teamDb);
                 await _uow.SaveAsync();
@@ -117,7 +153,7 @@ namespace Services.TeamInRoundService
             }
         }
 
-       
+
         public async Task<bool> BanTeamInRoundAsync(string teamInRoundId)
         {
             try
@@ -125,10 +161,10 @@ namespace Services.TeamInRoundService
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
 
-           
+
                 if (teamDb.IsBanned == true) return true;
 
-                teamDb.IsBanned = true; 
+                teamDb.IsBanned = true;
 
                 _uow.TeamInRound.Update(teamDb);
                 await _uow.SaveAsync();
@@ -141,7 +177,7 @@ namespace Services.TeamInRoundService
             }
         }
 
-     
+
         public async Task<bool> UnbanTeamInRoundAsync(string teamInRoundId)
         {
             try
@@ -149,7 +185,7 @@ namespace Services.TeamInRoundService
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
 
-           
+
                 if (teamDb.IsBanned == false) return true;
 
                 teamDb.IsBanned = false;

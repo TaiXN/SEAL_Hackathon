@@ -44,8 +44,8 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            List<EvaluationDetailAPIViewModel> result = await _evaluation.GetAllEvaluationsDetailedAsync();
 
-            List<Evaluation> result = await _evaluation.GetAllEventsAsync();
             return Ok(result);
         }
 
@@ -61,6 +61,16 @@ namespace SEAL_Hackathon.Controllers
                 return NotFound("Evaluation not found");
             }
 
+            return Ok(result);
+        }
+
+        [HttpGet("submission/{submissionId}")]
+        public async Task<IActionResult> GetBySubmissionId(string submissionId)
+        {
+            
+            List<EvaluationDetailAPIViewModel> result = await _evaluation.GetEvaluationsBySubmissionIdAsync(submissionId);
+
+          
             return Ok(result);
         }
 

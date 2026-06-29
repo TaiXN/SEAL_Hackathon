@@ -59,12 +59,20 @@ namespace SEAL_Hackathon.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAllTeacherList()
         {
             
-            List<TeacherAPIViewModel> result = await _teacher.GetAllAsync();
+            List<TeacherAPIViewModel> result = await _teacher.GetAllTeacherListAsync();
 
            
+            return Ok(result);
+        }
+
+        [HttpGet("available")]
+        [Authorize(Roles = "Admin")] 
+        public async Task<IActionResult> GetAllAvailableTeachers()
+        {
+            List<TeacherInfoAPIVIewModel> result = await _teacher.GetAllAvailableTeachersAsync();
             return Ok(result);
         }
 
