@@ -30,6 +30,8 @@ namespace DataAccess.Repositories.UnitOfWork
 
         ITeamRepository Team { get; }
 
+        IStudentRepository Student { get; }
+
         ITeamMemberRepository TeamMember { get; }
         IEventRepository Event { get; }
 
