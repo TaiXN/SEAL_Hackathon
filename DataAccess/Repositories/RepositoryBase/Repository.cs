@@ -93,5 +93,10 @@ namespace DataAccess.Repositories.RepositoryBase
         {
             await dbSet.AddRangeAsync(entities);
         }
+
+        public IQueryable<T> GetAllQueryable()
+        {
+            return dbSet.AsQueryable();
+        }
     }
 }
