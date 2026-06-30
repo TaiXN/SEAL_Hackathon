@@ -1,4 +1,6 @@
-﻿using APIViewModels.TeamProject;
+﻿using APIViewModels.Submission;
+using APIViewModels.TeamProject;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services.SubmissionService;
@@ -37,6 +39,15 @@ namespace SEAL_Hackathon.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin, Judge, Teacher")] 
+        public async Task<IActionResult> GetAll()
+        {
+            List<SubmissionAPIViewModel> result = await _submission.GetAllSubmissionsAsync();
+
+            return Ok(result);
         }
     }
 }

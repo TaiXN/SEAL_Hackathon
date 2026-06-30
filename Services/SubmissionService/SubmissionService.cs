@@ -1,4 +1,5 @@
-﻿using APIViewModels.TeamProject;
+﻿using APIViewModels.Submission;
+using APIViewModels.TeamProject;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System;
@@ -67,5 +68,37 @@ namespace Services.SubmissionService
             await _uow.SaveAsync();
             return true;
         }
+
+        public async Task<List<SubmissionAPIViewModel>> GetAllSubmissionsAsync()
+        {
+            try
+            {
+                List<Submission> submissions = await _uow.Submission.GetAllAsync();
+
+                List<SubmissionAPIViewModel> result = new List<SubmissionAPIViewModel>();
+                foreach (Submission sub in submissions)
+                {
+                    SubmissionAPIViewModel viewModel = new SubmissionAPIViewModel()
+                    {
+                        SubmissionId = sub.Id,
+                        TeamInRoundId = sub.TeamInRoundId,
+                        UrlGithub = sub.Urlgithub,
+                        UrlDemo = sub.Urldemo,
+                        UrlSlide = sub.Urlslide,
+                        AverageScore = sub.AverageScore
+                    };
+
+                    result.Add(viewModel);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<SubmissionAPIViewModel>();
+            }
+
+        }
     }
 }
+

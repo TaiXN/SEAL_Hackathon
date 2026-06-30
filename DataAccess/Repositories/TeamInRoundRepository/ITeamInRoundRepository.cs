@@ -9,5 +9,7 @@ namespace DataAccess.Repositories.TeamInRoundRepository
     public interface ITeamInRoundRepository : IRepository<TeamInRound>
     {
         void Update(TeamInRound teaminround);
+
+        IQueryable<TeamInRound> GetAllQueryable();
     }
 }
