@@ -11,13 +11,13 @@ namespace Services.JudgeService
             _uow = uow;
         }
 
-        public async Task<bool> AddJudge(string judgeID, string trackID)
+        public async Task<bool> AddJudge(string judgeId, string trackID)
         {
             try
             {
                 TeacherList newJudge = new TeacherList()
                 {
-                    TeacherId = judgeID,
+                    TeacherId = judgeId,
                     TrackId = trackID,
                     IsMentor = false
                 };
