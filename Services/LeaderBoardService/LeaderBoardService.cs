@@ -64,6 +64,52 @@ namespace Services.LeaderBoardService
             }
         }
 
+        public async Task<List<LeaderBoardDisplayAPIViewModel>> GetLeaderBoardAsync(string roundId, string trackId)
+        {
+            try
+            {
+                LeaderBoard leaderboard = await _uow.LeaderBoard.GetFirstOrDefaultAsync(q => q.RoundId == roundId && q.TrackId == trackId);
+
+              
+                if (leaderboard == null) return new List<LeaderBoardDisplayAPIViewModel>();
+
+                
+                List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllAsync(
+                    q => q.LeaderBoardId == leaderboard.Id,
+                    includeProperties: "TeamInRound,TeamInRound.Team"
+                );
+
+              
+                List<LeaderBoardDisplayAPIViewModel> result = details
+                    .OrderByDescending(d => d.Score)
+                    .Select(d => new LeaderBoardDisplayAPIViewModel
+                    {
+                        TeamInRoundId = d.TeamInRoundId,
+                        TeamName = d.TeamInRound?.Team?.TeamName ?? "N/A",
+                        Score = d.Score
+                    }).ToList();
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<LeaderBoardDisplayAPIViewModel>();
+            }
+        }
+
+        public async Task<List<LeaderBoard>> GetAllLeaderBoardAsync()
+        {
+            try
+            {
+                List<LeaderBoard> result = await _uow.LeaderBoard.GetAllAsync();
+                return result.ToList();
+            }
+            catch
+            {
+                return new List<LeaderBoard>();
+            }
+        }
+
 
     }
 }

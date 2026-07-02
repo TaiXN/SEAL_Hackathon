@@ -111,6 +111,8 @@ namespace Services.TeamInRoundService
 
             List<TeamInRoundDetailAPIViewModel> result = teamInRounds.Select(tir => new TeamInRoundDetailAPIViewModel
             {
+                TeamInRoundID = tir.Id,
+
                 TeamId = tir.TeamId,
                 TeamName = tir.Team?.TeamName ?? "N/A",
 
