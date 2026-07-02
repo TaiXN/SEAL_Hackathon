@@ -6,6 +6,7 @@ namespace APIViewModels.TeamInRound
 {
     public class TeamInRoundDetailAPIViewModel
     {
+        public string TeamInRoundID { get; set; }
         public string TeamId { get; set; } = string.Empty;
         public string TeamName { get; set; } = string.Empty;
 

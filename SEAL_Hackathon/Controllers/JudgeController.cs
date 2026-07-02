@@ -1,7 +1,9 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Judge;
+using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Services.EvaluationService;
 using Services.JudgeService;
 using Services.MentorService;
 
@@ -12,10 +14,12 @@ namespace SEAL_Hackathon.Controllers
     public class JudgeController : ControllerBase
     {
         private readonly IJudgeService _judge;
+        private readonly IEvaluationService _evaluate;
 
-        public JudgeController(IJudgeService judges)
+        public JudgeController(IJudgeService judges, IEvaluationService evaluate)
         {
             _judge = judges;
+            _evaluate = evaluate;
         }
 
         [Authorize(Roles = "Admin")]
@@ -75,6 +79,15 @@ namespace SEAL_Hackathon.Controllers
             }
 
             return BadRequest("Error while deleting judge.");
+        }
+
+        [HttpGet("dashboard-assignments/{teacherId}")]
+        [Authorize(Roles = "Judge, Teacher, Admin")] 
+        public async Task<IActionResult> GetDashboardAssignments(string teacherId)
+        {
+            List<JudgeDashboardAssignmentAPIViewModel> result = await _evaluate.GetDashboardAssignmentsAsync(teacherId);
+
+            return Ok(result);
         }
     }
 }
