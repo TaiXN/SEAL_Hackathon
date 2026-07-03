@@ -25,9 +25,9 @@ import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 // import { AdminViolationsPage as AdminViolations } from "./pages/Admin/AdminViolationsPage";
 
 // 4. IMPORT CỤM TRANG JUDGE
-import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
+import JudgeDashboard from "./pages/Judge/JudgeDashboard";
 
 export const router = createBrowserRouter([
   // =========================================================
@@ -68,6 +68,7 @@ export const router = createBrowserRouter([
           { path: "profile", element: <ProfilePage /> },
           // Thêm :teamId vào URL để trang Scoring biết đang chấm cho đội nào
           { path: "score/:teamId", element: <ScoringPage /> },
+          { path: "score/:submissionId", element: <ScoringPage /> },
         ],
       },
 

@@ -9,6 +9,13 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Link as LinkIcon,
+  FileText,
+  CheckSquare,
+  Activity,
+  Globe,
+  Ban,
+  Unlock,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -139,22 +146,20 @@ export function ManageUsersAndAssign() {
   const [ongoingEvents, setOngoingEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
 
-  // Nắm giữ dữ liệu gốc từ API
   const [rawTeachers, setRawTeachers] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [assignForm, setAssignForm] = useState({
-    teacherID: "",
+    teacherId: "",
     isMentor: true,
   });
 
-  // NẠP DỮ LIỆU CHUẨN TỪ BE (Tránh lặp code)
   const loadAllTeachers = async () => {
     setIsRefreshing(true);
     try {
-      const res = await apiClient.get(`/api/Teacher?t=${Date.now()}`);
-      setRawTeachers(getList(res.data)); // Lưu lại đúng y xì cấu trúc JSON của Backend
+      const res = await apiClient.get(`/api/Teacher/available?t=${Date.now()}`);
+      setRawTeachers(getList(res.data));
     } catch (e: any) {
-      console.error("Lỗi GET /api/Teacher:", e);
+      console.error("Lỗi GET /api/Teacher/available:", e);
     } finally {
       setIsRefreshing(false);
     }
@@ -196,27 +201,71 @@ export function ManageUsersAndAssign() {
     })();
   }, [selectedEventId]);
 
-  // HÀM XỬ LÝ PHÂN CÔNG (GÁN / XÓA)
+  const [assignedTeachers, setAssignedTeachers] = useState<any[]>([]);
+
+  const loadAssignedTeachers = async (trackId: string) => {
+    if (!trackId) {
+      setAssignedTeachers([]);
+      return;
+    }
+    try {
+      const [judgesRes, mentorsRes] = await Promise.all([
+        apiClient
+          .get(`/api/Judge/track/${trackId}`)
+          .catch(() => ({ data: [] })),
+        apiClient
+          .get(`/api/Mentor/track/${trackId}`)
+          .catch(() => ({ data: [] })),
+      ]);
+
+      const judges = getList(judgesRes.data).map((j: any) => ({
+        id: j.teacherId || j.judgeId || j.id,
+        name: j.teacherName || j.name || "Giám khảo",
+        isMentor: false,
+      }));
+
+      const mentors = getList(mentorsRes.data).map((m: any) => ({
+        id: m.teacherId || m.mentorId || m.id,
+        name: m.teacherName || m.name || "Mentor",
+        isMentor: true,
+      }));
+
+      setAssignedTeachers([...judges, ...mentors]);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách đã phân công:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadAssignedTeachers(trackIdToManage);
+  }, [trackIdToManage]);
+
   const handleAssignTeacher = async () => {
-    if (!assignForm.teacherID || !trackIdToManage)
+    if (!assignForm.teacherId || !trackIdToManage)
       return Swal.fire(
         "Lỗi",
         "Vui lòng chọn Track và chọn Nhân sự!",
         "warning",
       );
+
     try {
       Swal.fire({
         title: "Đang phân công...",
         didOpen: () => Swal.showLoading(),
       });
+
+      const cleanId = String(assignForm.teacherId).trim();
+
       const endpoint = assignForm.isMentor
-        ? `/api/Mentor/track/${trackIdToManage}/mentor/${assignForm.teacherID}`
-        : `/api/Judge/track/${trackIdToManage}/judge/${assignForm.teacherID}`;
+        ? `/api/Mentor/track/${trackIdToManage}/teacher/${cleanId}`
+        : `/api/Judge/track/${trackIdToManage}/teacher/${cleanId}`;
 
       await apiClient.post(endpoint);
       Swal.fire("Thành công!", "Đã gán nhân sự.", "success");
-      setAssignForm({ ...assignForm, teacherID: "" });
+      setAssignForm({ ...assignForm, teacherId: "" });
+
       loadAllTeachers();
+      loadAssignedTeachers(trackIdToManage);
     } catch (error: any) {
       Swal.fire("Thất bại", error.response?.data || "Lỗi phân công!", "error");
     }
@@ -233,8 +282,8 @@ export function ManageUsersAndAssign() {
       try {
         Swal.fire({ title: "Đang xóa...", didOpen: () => Swal.showLoading() });
         const endpoint = isMentor
-          ? `/api/Mentor/track/${trackIdToManage}/mentor/${teacherId}`
-          : `/api/Judge/track/${trackIdToManage}/judge/${teacherId}`;
+          ? `/api/Mentor/track/${trackIdToManage}/teacher/${teacherId}`
+          : `/api/Judge/track/${trackIdToManage}/teacher/${teacherId}`;
 
         await apiClient.delete(endpoint);
         Swal.fire({
@@ -243,18 +292,15 @@ export function ManageUsersAndAssign() {
           showConfirmButton: false,
           timer: 1000,
         });
+
         loadAllTeachers();
+        loadAssignedTeachers(trackIdToManage);
       } catch (error) {
         Swal.fire("Lỗi", "Không thể xóa!", "error");
       }
     }
   };
 
-  // ==========================================
-  // XỬ LÝ LOGIC DỮ LIỆU ĐỂ HIỂN THỊ (DROPDOWN & BẢNG)
-  // ==========================================
-
-  // 1. Tên hiển thị của bảng
   const activeEventName =
     ongoingEvents.find(
       (e: any) => String(e.id || e.eventId) === String(selectedEventId),
@@ -264,7 +310,6 @@ export function ManageUsersAndAssign() {
       (t: any) => String(t.id || t.trackId) === String(trackIdToManage),
     )?.trackName || "—";
 
-  // 2. KHỬ TRÙNG LẶP CHO DROPDOWN (Bóp chết lỗi màu đỏ của React)
   const uniqueTeachersForDropdown = Array.from(
     new Map(
       rawTeachers.map((t) => [
@@ -277,24 +322,97 @@ export function ManageUsersAndAssign() {
     ).values(),
   );
 
-  // 3. LỌC ĐIỀU KIỆN MENTOR/JUDGE: Hễ có mặt trong Track này rồi là bị xóa khỏi Dropdown
   const availableTeachers = uniqueTeachersForDropdown.filter((t) => {
-    const hasAnyRoleInThisTrack = rawTeachers.some(
-      (r) =>
-        String(r.teacherId) === String(t.id) &&
-        String(r.trackId) === String(trackIdToManage),
+    const isAlreadyAssigned = assignedTeachers.some(
+      (a) => String(a.id) === String(t.id),
     );
-    return !hasAnyRoleInThisTrack;
+    return !isAlreadyAssigned;
   });
 
-  // 4. DANH SÁCH CHO BẢNG: Chỉ lấy những record có `trackId` khớp với Track đang chọn
-  const assignedList = rawTeachers
-    .filter((r) => String(r.trackId) === String(trackIdToManage))
-    .map((r) => ({
-      id: r.teacherId,
-      name: r.teacherName || r.fullName || "Tài khoản mới",
-      isMentor: r.isMentor,
-    }));
+  const assignedList = assignedTeachers;
+
+  // ==========================================
+  // TAB 4: DUYỆT BÀI NỘP CỦA TEAM (REFACTORED)
+  // ==========================================
+  const [rounds, setRounds] = useState<any[]>([]);
+  const [selectedRoundId, setSelectedRoundId] = useState("");
+  const [teamInRounds, setTeamInRounds] = useState<any[]>([]);
+  const [isLoadingSubs, setIsLoadingSubs] = useState(false);
+
+  // Lấy danh sách Vòng thi (Rounds) khi vào tab
+  useEffect(() => {
+    if (activeTab === "submissions") {
+      apiClient
+        .get("/api/Round")
+        .then((res) => setRounds(getList(res.data)))
+        .catch((err) => console.error("Lỗi lấy danh sách Vòng thi", err));
+    }
+  }, [activeTab]);
+
+  // Lấy danh sách đội trong vòng thi khi chọn Round
+  const fetchTeamsInRound = async (roundId: string) => {
+    if (!roundId) {
+      setTeamInRounds([]);
+      return;
+    }
+    try {
+      setIsLoadingSubs(true);
+      // Gọi đúng API Backend đã chuẩn bị
+      const res = await apiClient.get(
+        `/api/TeamInRound/details/round/${roundId}`,
+      );
+      setTeamInRounds(getList(res.data));
+    } catch (error) {
+      console.error("Lỗi lấy chi tiết đội trong vòng thi:", error);
+      setTeamInRounds([]);
+    } finally {
+      setIsLoadingSubs(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeamsInRound(selectedRoundId);
+  }, [selectedRoundId]);
+
+  // Hàm xử lý hành động (Approve, Ban, Unban)
+  const handleTeamAction = async (
+    teamInRoundId: string,
+    action: "approve" | "ban" | "unban",
+  ) => {
+    const actionMap = {
+      approve: { text: "Duyệt bài", icon: "success" },
+      ban: { text: "Cấm đội", icon: "warning" },
+      unban: { text: "Gỡ cấm", icon: "success" },
+    };
+    const currentAction = actionMap[action];
+
+    try {
+      Swal.fire({
+        title: `Đang ${currentAction.text}...`,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // Gọi API tương ứng với hành động
+      await apiClient.put(`/api/TeamInRound/${action}/${teamInRoundId}`);
+
+      Swal.fire({
+        icon: currentAction.icon as any,
+        title: `Đã ${currentAction.text}!`,
+        showConfirmButton: false,
+        timer: 1500,
+      });
+      // Tải lại danh sách
+      fetchTeamsInRound(selectedRoundId);
+    } catch (error: any) {
+      Swal.fire(
+        "Lỗi",
+        error?.response?.data?.title ||
+          error?.response?.data ||
+          `Không thể thực hiện hành động này!`,
+        "error",
+      );
+    }
+  };
 
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
@@ -305,24 +423,30 @@ export function ManageUsersAndAssign() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-6">
-        <div className="flex border-b border-slate-100 px-2">
+        <div className="flex border-b border-slate-100 px-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab("approve")}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "approve" ? "border-black text-black" : "border-transparent text-slate-400"}`}
+            className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "approve" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
             Phê duyệt sinh viên
           </button>
           <button
             onClick={() => setActiveTab("provide")}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "provide" ? "border-black text-black" : "border-transparent text-slate-400"}`}
+            className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "provide" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
             Cấp tài khoản Teacher
           </button>
           <button
             onClick={() => setActiveTab("assign")}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "assign" ? "border-black text-black" : "border-transparent text-slate-400"}`}
+            className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "assign" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
             Phân công Mentor/Judge
+          </button>
+          <button
+            onClick={() => setActiveTab("submissions")}
+            className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "submissions" ? "border-black text-black" : "border-transparent text-slate-400"}`}
+          >
+            Duyệt bài nộp
           </button>
         </div>
 
@@ -334,8 +458,10 @@ export function ManageUsersAndAssign() {
                 <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold">
                   <tr>
                     <th className="px-6 py-4">Họ tên</th>
-                    <th className="px-6 py-4">MSSV</th>
+                    <th className="px-6 py-4">Số điện thoại</th>
                     <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Trường</th>
+
                     <th className="px-6 py-4 text-right">Hành động</th>
                   </tr>
                 </thead>
@@ -346,10 +472,13 @@ export function ManageUsersAndAssign() {
                         {s.fullName || s.name || s.studentName || "—"}
                       </td>
                       <td className="px-6 py-4 font-mono">
-                        {s.studentCode || s.studentId || s.code || "—"}
+                        {s.phone || s.phone || s.phone || "—"}
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {s.email || "—"}
+                      </td>
+                      <td className="px-6 py-4 font-mono">
+                        {s.address || s.address || s.address || "—"}
                       </td>
                       <td className="px-6 py-4 flex justify-end gap-2">
                         <button
@@ -588,11 +717,11 @@ export function ManageUsersAndAssign() {
                         </button>
                       </div>
                       <select
-                        value={assignForm.teacherID}
+                        value={assignForm.teacherId}
                         onChange={(e) =>
                           setAssignForm({
                             ...assignForm,
-                            teacherID: e.target.value,
+                            teacherId: e.target.value,
                           })
                         }
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
@@ -708,6 +837,224 @@ export function ManageUsersAndAssign() {
                             Chưa có ai được phân công.
                           </td>
                         </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: DUYỆT BÀI NỘP - NEW LOGIC */}
+          {activeTab === "submissions" && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    CHỌN VÒNG THI ĐỂ XEM DANH SÁCH ĐỘI
+                  </h3>
+                  <button
+                    onClick={() => fetchTeamsInRound(selectedRoundId)}
+                    disabled={isLoadingSubs}
+                    className="text-xs text-blue-600 font-bold flex items-center gap-1.5 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1.5 rounded-lg"
+                  >
+                    <RefreshCw
+                      size={14}
+                      className={isLoadingSubs ? "animate-spin" : ""}
+                    />{" "}
+                    Làm mới
+                  </button>
+                </div>
+                <select
+                  value={selectedRoundId}
+                  onChange={(e) => setSelectedRoundId(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
+                >
+                  <option value="">
+                    {rounds.length === 0
+                      ? "-- Chưa có Vòng thi nào --"
+                      : "-- Chọn Vòng thi --"}
+                  </option>
+                  {rounds.map((r: any) => (
+                    <option
+                      key={r.id || r.roundId || r.roundID}
+                      value={r.id || r.roundId || r.roundID}
+                    >
+                      {r.roundName || r.name || `Vòng thi ${r.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div
+                className={`transition-all duration-300 ${!selectedRoundId ? "opacity-50 pointer-events-none" : ""}`}
+              >
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-4">Tên Đội / Trạng thái</th>
+                        <th className="px-6 py-4">Hạng mục (Track)</th>
+                        <th className="px-6 py-4">Tài liệu dự án</th>
+                        <th className="px-6 py-4 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {isLoadingSubs ? (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="text-center py-12 text-slate-500 font-medium"
+                          >
+                            <Activity
+                              className="animate-spin inline mr-2 mb-1"
+                              size={18}
+                            />{" "}
+                            Đang tải danh sách đội thi...
+                          </td>
+                        </tr>
+                      ) : !selectedRoundId ? (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="text-center py-12 text-slate-400 font-medium"
+                          >
+                            Vui lòng chọn Vòng thi ở trên để xem danh sách.
+                          </td>
+                        </tr>
+                      ) : teamInRounds.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="text-center py-12 text-slate-500 font-medium"
+                          >
+                            Không có đội nào tham gia trong Vòng thi này.
+                          </td>
+                        </tr>
+                      ) : (
+                        teamInRounds.map((team, idx) => (
+                          <tr
+                            key={`tir-${team.id || team.teamInRoundId || idx}`}
+                            className="hover:bg-slate-50 transition-colors"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-900 text-base">
+                                {team.teamName || team.name || "Đội ẩn danh"}
+                              </div>
+                              <div className="mt-1.5">
+                                {/* Hiển thị trạng thái tuỳ biến */}
+                                {team.status === "Approved" ||
+                                team.isApproved ? (
+                                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[10px] font-bold border border-emerald-100">
+                                    Đã duyệt
+                                  </span>
+                                ) : team.status === "Banned" ||
+                                  team.isBanned ? (
+                                  <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-bold border border-red-100">
+                                    Bị cấm
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-bold border border-amber-100">
+                                    Chờ duyệt
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 font-semibold text-slate-700 text-sm">
+                              {team.trackName || "Chưa rõ hạng mục"}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1.5">
+                                {team.urlGithub && (
+                                  <a
+                                    href={team.urlGithub}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                                  >
+                                    <LinkIcon size={12} /> GitHub Repository
+                                  </a>
+                                )}
+                                {team.urlDemo && (
+                                  <a
+                                    href={team.urlDemo}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                                  >
+                                    <Globe size={12} /> Link Demo Live
+                                  </a>
+                                )}
+                                {team.urlSlide && (
+                                  <a
+                                    href={team.urlSlide}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-bold text-amber-600 hover:underline flex items-center gap-1"
+                                  >
+                                    <FileText size={12} /> Tài liệu Slide
+                                  </a>
+                                )}
+                                {!team.urlGithub &&
+                                  !team.urlDemo &&
+                                  !team.urlSlide && (
+                                    <span className="text-xs text-slate-400 italic">
+                                      Chưa đính kèm link
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-end gap-2">
+                                {/* Nếu chưa duyệt thì hiện nút Duyệt */}
+                                {team.status !== "Approved" &&
+                                  !team.isApproved && (
+                                    <button
+                                      onClick={() =>
+                                        handleTeamAction(
+                                          team.id || team.teamInRoundId,
+                                          "approve",
+                                        )
+                                      }
+                                      title="Duyệt cho phép chấm"
+                                      className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                    >
+                                      <CheckSquare size={18} />
+                                    </button>
+                                  )}
+
+                                {/* Nếu đang cấm thì hiện nút Unban, ngược lại hiện nút Ban */}
+                                {team.status === "Banned" || team.isBanned ? (
+                                  <button
+                                    onClick={() =>
+                                      handleTeamAction(
+                                        team.id || team.teamInRoundId,
+                                        "unban",
+                                      )
+                                    }
+                                    title="Gỡ cấm đội này"
+                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    <Unlock size={18} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      handleTeamAction(
+                                        team.id || team.teamInRoundId,
+                                        "ban",
+                                      )
+                                    }
+                                    title="Cấm đội này"
+                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                  >
+                                    <Ban size={18} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
                     </tbody>
                   </table>
