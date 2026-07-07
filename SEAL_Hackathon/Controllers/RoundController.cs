@@ -79,7 +79,13 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("The round was not found, or an error occurred while deleting.");
         }
 
-
+        [HttpGet("active-menus")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActiveMenus()
+        {
+            List<RoundMenuAPIViewModel> result = await _round.GetActiveMenuAsync();
+            return Ok(result);
+        }
 
     }
 }

@@ -13,5 +13,6 @@ namespace Services.RoundService
         Task<Round> GetRoundByIdAsync(string roundID);
         Task<bool> UpdateRoundAsync(UpdateRoundAPIViewModel info);
         Task<bool> DeleteRoundAsync(string roundID);
+        Task<List<RoundMenuAPIViewModel>> GetActiveMenuAsync();
     }
 }

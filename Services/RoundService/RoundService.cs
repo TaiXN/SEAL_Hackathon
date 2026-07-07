@@ -1,6 +1,7 @@
 ﻿using APIViewModels.Round;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.RoundService
 {
@@ -26,13 +27,13 @@ namespace Services.RoundService
                 {
                     return false;
                 }
-  
+
                 Event targetEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.IsActive);
                 if (targetEvent == null) return false;
-         
+
                 CriteriaSet targetSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == info.CriteriaSetID && e.IsActive);
                 if (targetSet == null) return false;
-           
+
                 Round duplicateName = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.RoundName.ToLower() == info.RoundName.ToLower() && e.IsActive);
                 if (duplicateName != null) return false;
 
@@ -66,7 +67,7 @@ namespace Services.RoundService
         {
             try
             {
-               List<Round> result = await _uow.Round.GetAllAsync();
+                List<Round> result = await _uow.Round.GetAllAsync();
                 return result.ToList();
             }
             catch
@@ -141,6 +142,39 @@ namespace Services.RoundService
             catch (Exception ex)
             {
                 return false;
+            }
+        }
+
+        public async Task<List<RoundMenuAPIViewModel>> GetActiveMenuAsync()
+        {
+            try
+            {
+             
+                List<Round> rounds = await _uow.Round.GetAllAsync(q => q.IsActive == true);
+
+               
+                List<Track> tracks = await _uow.Track.GetAllAsync(q => q.IsActive == true);
+
+                
+                List<RoundMenuAPIViewModel> result = rounds.Select(r => new RoundMenuAPIViewModel
+                {
+                   
+                    RoundId = r.RoundId,
+                    RoundName = r.RoundName,
+
+           
+                    Tracks = tracks.Select(t => new TrackMenuAPIViewModel
+                    {
+                        TrackId = t.TrackId, 
+                        TrackName = t.TrackName 
+                    }).ToList()
+                }).ToList();
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<RoundMenuAPIViewModel>();
             }
         }
 
