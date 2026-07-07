@@ -96,4 +96,9 @@ export const teamApi = {
     const res = await apiClient.delete(`/api/Team/${teamId}/leave`);
     return res.data;
   },
+
+  async getLeaderboard(roundId: string, trackId: string) {
+    const res = await apiClient.get(`/api/LeaderBoard/${roundId}/${trackId}`);
+    return res.data;
+  },
 };

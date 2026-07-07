@@ -3,10 +3,12 @@ import {
   Search,
   AlertTriangle,
   X,
-  HelpCircle,
   Ban,
   Unlock,
   Activity,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -18,6 +20,34 @@ const getList = (res: any): any[] => {
   if (Array.isArray(res?.items)) return res.items;
   if (Array.isArray(res?.result)) return res.result;
   return [];
+};
+
+// Trạng thái đội trong vòng: banned | approved | pending
+// - pending  = chưa duyệt (isCheck=false) -> admin cần DUYỆT để đội được nộp bài
+// - approved = đã duyệt (isCheck=true)     -> đội được phép nộp bài
+// - banned   = bị loại (isBanned=true)
+const deriveStatus = (t: any): "banned" | "approved" | "pending" => {
+  const raw = String(
+    t.status || t.state || t.approvalStatus || t.teamStatus || "",
+  ).toLowerCase();
+
+  const isBanned =
+    t.isBanned === true ||
+    raw.includes("ban") ||
+    raw.includes("loại") ||
+    raw.includes("disqualif");
+
+  const isApproved =
+    t.isCheck === true || // field THẬT của backend: đội đã được duyệt
+    t.isApproved === true ||
+    t.approved === true ||
+    raw.includes("approve") ||
+    raw.includes("accept") ||
+    raw.includes("duyệt");
+
+  if (isBanned) return "banned";
+  if (isApproved) return "approved";
+  return "pending";
 };
 
 export function AdminViolationsPage() {
@@ -36,7 +66,7 @@ export function AdminViolationsPage() {
   } | null>(null);
   const [violationReason, setViolationReason] = useState("");
 
-  // 1. Lấy danh sách vòng thi
+  // 1. Lấy danh sách vòng thi (đổ vào dropdown)
   useEffect(() => {
     apiClient
       .get("/api/Round")
@@ -44,7 +74,7 @@ export function AdminViolationsPage() {
       .catch((err) => console.error("Lỗi lấy danh sách Vòng thi", err));
   }, []);
 
-  // 2. Khi chọn vòng thi, lấy danh sách đội
+  // 2. Khi chọn vòng thi -> lấy danh sách đội trong vòng
   const fetchTeams = async (roundId: string) => {
     if (!roundId) {
       setTeams([]);
@@ -56,11 +86,15 @@ export function AdminViolationsPage() {
         `/api/TeamInRound/details/round/${roundId}`,
       );
 
-      const mappedTeams = getList(res.data).map((t: any) => ({
-        id: t.id || t.teamInRoundId,
-        name: t.teamName || t.name || `Đội ${t.teamId}`,
-        isBanned: t.isBanned || t.status === "Banned",
-        reason: "-", // API có thể chưa support gửi kèm lý do lúc fetch về
+      const list = getList(res.data);
+      console.log("🟦 TeamInRound detail (mẫu 1 dòng):", list[0]);
+
+      const mappedTeams = list.map((t: any) => ({
+        // id này là teamInRoundID -> dùng cho approve/ban/unban
+        id: t.teamInRoundID || t.teamInRoundId || t.id,
+        name: t.teamName || t.name || `Đội ${t.teamId || ""}`,
+        status: deriveStatus(t),
+        reason: t.banReason || t.reason || t.note || "-",
       }));
 
       setTeams(mappedTeams);
@@ -74,6 +108,7 @@ export function AdminViolationsPage() {
 
   useEffect(() => {
     fetchTeams(selectedRoundId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoundId]);
 
   const filteredTeams = teams.filter((team) => {
@@ -82,10 +117,50 @@ export function AdminViolationsPage() {
       .includes(searchTerm.toLowerCase());
     const matchStatus =
       statusFilter === "Tất cả tình trạng" ||
-      (statusFilter === "Hợp lệ" && !team.isBanned) ||
-      (statusFilter === "Đã loại" && team.isBanned);
+      (statusFilter === "Chờ duyệt" && team.status === "pending") ||
+      (statusFilter === "Đã duyệt" && team.status === "approved") ||
+      (statusFilter === "Đã loại" && team.status === "banned");
     return matchSearch && matchStatus;
   });
+
+  const counts = {
+    pending: teams.filter((t) => t.status === "pending").length,
+    approved: teams.filter((t) => t.status === "approved").length,
+    banned: teams.filter((t) => t.status === "banned").length,
+  };
+
+  // 3. DUYỆT ĐỘI -> đội được phép nộp bài
+  const handleApprove = async (id: string, name: string) => {
+    const result = await Swal.fire({
+      title: "Duyệt đội này?",
+      text: `Sau khi duyệt, đội "${name}" mới được phép nộp bài.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Duyệt ngay",
+      confirmButtonColor: "#059669",
+      cancelButtonText: "Hủy",
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      Swal.fire({ title: "Đang duyệt...", didOpen: () => Swal.showLoading() });
+      await apiClient.put(`/api/TeamInRound/approve/${id}`);
+      Swal.fire({
+        icon: "success",
+        title: "Đã duyệt!",
+        text: `Đội "${name}" giờ đã có thể nộp bài.`,
+        timer: 1600,
+        showConfirmButton: false,
+      });
+      fetchTeams(selectedRoundId);
+    } catch (error: any) {
+      Swal.fire(
+        "Lỗi",
+        error?.response?.data || "Không thể duyệt đội lúc này!",
+        "error",
+      );
+    }
+  };
 
   const openDisqualifyModal = (id: string, name: string) => {
     setSelectedTeam({ id, name });
@@ -98,7 +173,7 @@ export function AdminViolationsPage() {
     setSelectedTeam(null);
   };
 
-  // 3. API BAN (CẤM)
+  // 4. LOẠI (BAN)
   const handleConfirmDisqualify = async () => {
     if (!violationReason.trim()) {
       return Swal.fire(
@@ -107,22 +182,19 @@ export function AdminViolationsPage() {
         "error",
       );
     }
-
     try {
-      // Vì API không yêu cầu Body cho BAN, nhưng ta vẫn truyền reason đề phòng BE lấy vào Logs
       await apiClient.put(`/api/TeamInRound/ban/${selectedTeam?.id}`, {
         reason: violationReason,
       });
-
       closeModal();
       Swal.fire({
         icon: "success",
         title: "Đã xử lý!",
-        text: `Đội ${selectedTeam?.name} đã bị loại khỏi hệ thống.`,
+        text: `Đội ${selectedTeam?.name} đã bị loại khỏi vòng thi.`,
         timer: 1500,
         showConfirmButton: false,
       });
-      fetchTeams(selectedRoundId); // Cập nhật lại list
+      fetchTeams(selectedRoundId);
     } catch (error: any) {
       Swal.fire(
         "Lỗi",
@@ -132,7 +204,7 @@ export function AdminViolationsPage() {
     }
   };
 
-  // 4. API UNBAN (GỠ CẤM)
+  // 5. GỠ CẤM (UNBAN)
   const handleUnbanTeam = async (id: string, name: string) => {
     const result = await Swal.fire({
       title: "Gỡ lệnh cấm?",
@@ -141,7 +213,6 @@ export function AdminViolationsPage() {
       showCancelButton: true,
       confirmButtonText: "Đồng ý Gỡ cấm",
     });
-
     if (result.isConfirmed) {
       try {
         await apiClient.put(`/api/TeamInRound/unban/${id}`);
@@ -158,14 +229,37 @@ export function AdminViolationsPage() {
     }
   };
 
+  const statusBadge = (status: string) => {
+    if (status === "banned")
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 rounded-full text-[11px] font-bold border border-red-100">
+          <Ban size={12} /> Đã loại
+        </span>
+      );
+    if (status === "approved")
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-100">
+          <CheckCircle2 size={12} /> Đã duyệt
+        </span>
+      );
+    if (status === "pending")
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
+          <Clock size={12} /> Chờ duyệt
+        </span>
+      );
+    return null;
+  };
+
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300 relative">
       <div className="mb-8">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          Vi phạm & Kỷ luật
+          Duyệt bài & Kỷ luật
         </h2>
         <p className="text-slate-500 text-sm mt-1">
-          Kiểm soát vi phạm quy chế và ghi nhận lý do vào nhật ký hệ thống.
+          Duyệt bài nộp của đội để mở cho Giám khảo chấm, và xử lý vi phạm quy
+          chế.
         </p>
       </div>
 
@@ -175,18 +269,34 @@ export function AdminViolationsPage() {
           <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
             Chọn Vòng thi để kiểm soát
           </label>
-          <select
-            value={selectedRoundId}
-            onChange={(e) => setSelectedRoundId(e.target.value)}
-            className="w-1/2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
-          >
-            <option value="">-- Chọn Vòng thi --</option>
-            {rounds.map((r: any) => (
-              <option key={r.id || r.roundId} value={r.id || r.roundId}>
-                {r.roundName || r.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-6 flex-wrap">
+            <select
+              value={selectedRoundId}
+              onChange={(e) => setSelectedRoundId(e.target.value)}
+              className="w-1/2 min-w-[260px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
+            >
+              <option value="">-- Chọn Vòng thi --</option>
+              {rounds.map((r: any) => (
+                <option key={r.id || r.roundId} value={r.id || r.roundId}>
+                  {r.roundName || r.name}
+                </option>
+              ))}
+            </select>
+
+            {selectedRoundId && (
+              <div className="flex items-center gap-4 text-sm">
+                <span className="flex items-center gap-1.5 font-bold text-amber-600">
+                  <Clock size={15} /> {counts.pending} chờ duyệt
+                </span>
+                <span className="flex items-center gap-1.5 font-bold text-emerald-600">
+                  <ShieldCheck size={15} /> {counts.approved} đã duyệt
+                </span>
+                <span className="flex items-center gap-1.5 font-bold text-red-500">
+                  <Ban size={15} /> {counts.banned} đã loại
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div
@@ -212,7 +322,8 @@ export function AdminViolationsPage() {
               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none"
             >
               <option value="Tất cả tình trạng">Tất cả tình trạng</option>
-              <option value="Hợp lệ">Hợp lệ</option>
+              <option value="Chờ duyệt">Chờ duyệt</option>
+              <option value="Đã duyệt">Đã duyệt</option>
               <option value="Đã loại">Đã loại</option>
             </select>
           </div>
@@ -262,15 +373,7 @@ export function AdminViolationsPage() {
                         {team.name}
                       </td>
                       <td className="px-6 py-5 text-center">
-                        {!team.isBanned ? (
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-100">
-                            Hợp lệ
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-[11px] font-bold border border-red-100">
-                            Đã loại
-                          </span>
-                        )}
+                        {statusBadge(team.status)}
                       </td>
                       <td
                         className={`px-6 py-5 font-medium text-xs ${!team.reason || team.reason === "-" ? "text-slate-400" : "text-slate-700"}`}
@@ -278,22 +381,38 @@ export function AdminViolationsPage() {
                         {team.reason || "-"}
                       </td>
                       <td className="px-6 py-5 text-right">
-                        {!team.isBanned ? (
-                          <button
-                            onClick={() =>
-                              openDisqualifyModal(team.id, team.name)
-                            }
-                            className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 flex items-center gap-1 ml-auto"
-                          >
-                            <Ban size={14} /> Loại đội thi
-                          </button>
-                        ) : (
+                        {team.status === "banned" ? (
                           <button
                             onClick={() => handleUnbanTeam(team.id, team.name)}
                             className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-black flex items-center gap-1 ml-auto"
                           >
                             <Unlock size={14} /> Gỡ cấm
                           </button>
+                        ) : (
+                          <div className="flex justify-end gap-2">
+                            {team.status === "pending" ? (
+                              <button
+                                onClick={() =>
+                                  handleApprove(team.id, team.name)
+                                }
+                                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1"
+                              >
+                                <CheckCircle2 size={14} /> Duyệt đội
+                              </button>
+                            ) : (
+                              <span className="px-3 py-2 text-emerald-600 text-xs font-bold flex items-center gap-1">
+                                <ShieldCheck size={14} /> Đã duyệt
+                              </span>
+                            )}
+                            <button
+                              onClick={() =>
+                                openDisqualifyModal(team.id, team.name)
+                              }
+                              className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 flex items-center gap-1"
+                            >
+                              <Ban size={14} /> Loại
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

@@ -6,47 +6,76 @@ import {
   PlayCircle,
   CheckCircle2,
   ListTodo,
-  Activity,
-  Clock,
+  FileX,
 } from "lucide-react";
-
-import apiClient from "../../lib/api/apiClient";
+import Swal from "sweetalert2";
+import { jwtDecode } from "jwt-decode";
+import { judgeApi } from "../../lib/api/judgeApi";
 import { useAuthStore } from "../../stores/auth.store";
 
-const decodeJwt = (token: string | null): any => {
-  if (!token) return {};
+// BE hiện chỉ trả accessToken/refreshToken lúc login, KHÔNG trả kèm user/teacherId.
+// => state.user trong store luôn rỗng. Phải tự giải mã token để lấy id giám khảo.
+function getUserFromToken(accessToken?: string | null): any {
+  if (!accessToken) return null;
   try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(decodeURIComponent(escape(atob(base64))));
-  } catch {
-    return {};
+    const decoded: any = jwtDecode(accessToken);
+    console.log("Payload JWT giải mã được:", decoded); // để soi tên claim thật, xoá sau khi confirm
+
+    const id =
+      decoded?.id ||
+      decoded?.Id ||
+      decoded?.sub ||
+      decoded?.nameid ||
+      decoded?.userId ||
+      decoded?.UserId ||
+      decoded?.teacherId ||
+      decoded?.teacherID ||
+      decoded?.TeacherId ||
+      decoded?.TeacherID ||
+      decoded?.[
+        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+      ] ||
+      "";
+
+    return {
+      id,
+      fullName:
+        decoded?.fullName ||
+        decoded?.FullName ||
+        decoded?.name ||
+        decoded?.unique_name ||
+        decoded?.email,
+      email: decoded?.email,
+    };
+  } catch (err) {
+    console.error("Không decode được accessToken:", err);
+    return null;
   }
-};
+}
 
-export default function JudgeDashboard() {
+export function JudgeDashboard() {
   const navigate = useNavigate();
-
   const [teams, setTeams] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const accessToken = useAuthStore((state: any) => state.accessToken);
-  const user = decodeJwt(accessToken);
-  const currentTeacherId =
-    user?.teacherId ||
-    user?.TeacherId ||
-    user?.teacherID ||
-    user?.nameid ||
-    user?.sub ||
-    user?.id ||
-    user?.Id ||
-    user?.[
-      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-    ] ||
-    "";
+  const storeUser = useAuthStore(
+    (state: any) => state.user || state.profile || null,
+  );
 
-  // FETCH DATA TỪ API "CHÂN ÁI" CỦA BACKEND
+  // Ưu tiên user có sẵn trong store (nếu sau này BE/store có bổ sung),
+  // fallback về decode token để không bị rỗng như hiện tại.
+  const user = storeUser || getUserFromToken(accessToken);
+
+  const currentTeacherId =
+    user?.id || user?.Id || user?.teacherId || user?.teacherID || "";
+
   useEffect(() => {
-    const fetchAssignments = async () => {
+    const fetchTeams = async () => {
+      // In ra để check nếu cần, xóa cũng được
+      console.log("ID Giám khảo đang dùng để gọi API:", currentTeacherId);
+
       if (!currentTeacherId) {
         setIsLoading(false);
         return;
@@ -54,87 +83,38 @@ export default function JudgeDashboard() {
 
       try {
         setIsLoading(true);
-        const res = await apiClient.get(
-          `/api/Judge/dashboard-assignments/${currentTeacherId}`,
-        );
-
-        // Map data trả về từ Backend để khớp với UI của Frontend
-        const mappedTeams = (res.data || []).map((item: any) => {
-          // Xác định trạng thái dựa trên ID trả về
-          let statusLabel = "Chưa nộp bài";
-          if (item.evaluationId) {
-            statusLabel = "Đã chấm";
-          } else if (item.submissionId) {
-            statusLabel = "Chưa chấm";
-          }
-
-          return {
-            id: item.teamId,
-            name: item.teamName,
-            track: item.trackName,
-            eventName: item.eventName,
-            criteriaSetId: item.criteriaSetId,
-            submissionId: item.submissionId,
-            evaluationId: item.evaluationId,
-            score: item.score ?? "—",
-            status: statusLabel,
-            isEmpty: false,
-          };
+        // Gọi API thật
+        const res = await judgeApi.getAssignedTeams(currentTeacherId);
+        setTeams(res);
+      } catch (error: any) {
+        console.error("Lỗi lấy danh sách đội thi:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Lỗi tải dữ liệu",
+          text:
+            error.response?.data?.message ||
+            "Không thể tải danh sách chấm thi.",
         });
-
-        setTeams(mappedTeams);
-      } catch (error) {
-        console.error("Lỗi lấy danh sách phân công:", error);
         setTeams([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAssignments();
+    fetchTeams();
   }, [currentTeacherId]);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Tất cả trạng thái");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const filteredTeams = teams.filter((team) => {
-    const matchSearch =
-      team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.track.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus =
-      statusFilter === "Tất cả trạng thái" || team.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
-
-  const itemsPerPage = 6;
-  const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
-  const indexOfLastTeam = currentPage * itemsPerPage;
-  const indexOfFirstTeam = indexOfLastTeam - itemsPerPage;
-  const currentTeams = filteredTeams.slice(indexOfFirstTeam, indexOfLastTeam);
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  // Thống kê
-  const completedTeams = teams.filter((t) => t.status === "Đã chấm").length;
-  const pendingTeams = teams.filter((t) => t.status === "Chưa chấm").length;
-  const totalTeams = completedTeams + pendingTeams;
-  const completedPercent =
-    totalTeams === 0 ? 0 : Math.round((completedTeams / totalTeams) * 100);
-
-  // Đếm số hạng mục duy nhất
-  const uniqueTracks = new Set(teams.map((t) => t.track)).size;
+  const filteredTeams = teams.filter((team) =>
+    (team.teamName || "").toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] font-sans text-slate-900 pb-12">
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
+      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <Hexagon size={32} className="text-black" strokeWidth={2.5} />
+          <Hexagon size={32} className="text-blue-600" strokeWidth={2.5} />
           <div>
-            <h1 className="font-bold text-lg tracking-tight leading-tight">
+            <h1 className="font-extrabold text-lg tracking-tight leading-tight">
               SEAL Hackathon
             </h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
@@ -155,195 +135,172 @@ export default function JudgeDashboard() {
               Hội đồng chuyên môn
             </p>
           </div>
-          <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md group-hover:bg-blue-600 transition-colors uppercase">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md group-hover:shadow-lg transition-all uppercase">
             {(user?.fullName || user?.name || "G")[0]}
           </div>
         </button>
       </header>
 
-      <main className="max-w-6xl mx-auto mt-8 space-y-6 px-4">
-        <div className="bg-[#111111] rounded-2xl p-8 text-white shadow-xl flex justify-between items-center">
-          <div className="space-y-1.5">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <span className="text-2xl">📊</span> TIẾN ĐỘ CHẤM THI
-            </h2>
-            <p className="text-slate-400 text-sm">
-              Hãy hoàn thành việc đánh giá tất cả các đội trước thời hạn đóng
-              cổng.
-            </p>
-          </div>
-          <div className="flex items-center gap-8">
-            <div className="flex gap-4">
-              <div className="flex flex-col items-center bg-white/10 px-4 py-2 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  Hạng mục phụ trách
-                </span>
-                <span className="text-2xl font-bold text-blue-400">
-                  {uniqueTracks}
-                </span>
-              </div>
-              <div className="flex flex-col items-center px-4 py-2">
-                <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  Đã chấm
-                </span>
-                <span className="text-2xl font-bold text-emerald-500">
-                  {completedTeams}
-                </span>
-              </div>
-              <div className="flex flex-col items-center px-4 py-2">
-                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                  Chờ chấm điểm
-                </span>
-                <span className="text-2xl font-bold text-amber-500">
-                  {pendingTeams}
-                </span>
-              </div>
-            </div>
-            <div className="w-48 space-y-2 border-l border-white/10 pl-8">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-slate-300">Hoàn thành</span>
-                <span className="text-emerald-500">{completedPercent}%</span>
-              </div>
-              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${completedPercent}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto mt-10 space-y-6 px-4">
+        <header className="mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            <ListTodo className="w-8 h-8 text-blue-600" />
+            Danh sách Chấm thi
+          </h1>
+          <p className="text-slate-500 mt-2 text-sm font-medium">
+            Quản lý và đánh giá các đội thi được phân công trong kỳ Hackathon.
+          </p>
+        </header>
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-            <div className="relative w-80">
-              <Search
-                size={16}
-                className="absolute left-3 top-2.5 text-slate-400"
-              />
+          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50">
+            <h2 className="text-lg font-bold text-slate-800">
+              Đội thi được phân công ({teams.length})
+            </h2>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 type="text"
+                placeholder="Tìm kiếm đội thi..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tên đội hoặc Hạng mục..."
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-slate-400 transition-colors shadow-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none shadow-sm cursor-pointer"
-            >
-              <option value="Tất cả trạng thái">Tất cả trạng thái</option>
-              <option value="Đã chấm">Đã chấm</option>
-              <option value="Chưa chấm">Chưa chấm</option>
-              <option value="Chưa nộp bài">Chưa nộp bài</option>
-            </select>
           </div>
 
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-4 w-1/4">Tên đội thi</th>
-                <th className="px-6 py-4">Hạng mục thi đấu</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
+                <th className="px-6 py-4">Thông tin Đội</th>
+                <th className="px-6 py-4">Hạng mục & Sự kiện</th>
                 <th className="px-6 py-4 text-center">Trạng thái</th>
-                <th className="px-6 py-4 text-center w-24">Điểm số</th>
-                <th className="px-6 py-4 text-right w-56">Hành động</th>
+                <th className="px-6 py-4 text-center">Điểm số</th>
+                <th className="px-6 py-4 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-12 text-center text-slate-500 font-medium"
+                    className="px-6 py-12 text-center text-slate-400 font-medium animate-pulse"
                   >
-                    <Activity
-                      className="animate-spin inline mr-2 mb-1"
-                      size={18}
-                    />{" "}
-                    Đang tải dữ liệu phân công...
+                    Đang tải danh sách đội thi...
                   </td>
                 </tr>
-              ) : currentTeams.length === 0 ? (
+              ) : !currentTeacherId ? (
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-12 text-center text-slate-500 font-medium"
+                    className="px-6 py-12 text-center text-amber-500 font-bold bg-amber-50"
                   >
-                    Không tìm thấy bài thi nào phù hợp.
+                    Vui lòng đăng nhập lại để hệ thống nhận diện tài khoản Giám
+                    khảo.
+                  </td>
+                </tr>
+              ) : filteredTeams.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-12 text-center text-slate-400 font-medium"
+                  >
+                    Bạn chưa được phân công hoặc các Track chưa có đội thi nào
+                    nộp bài.
                   </td>
                 </tr>
               ) : (
-                currentTeams.map((team, idx) => (
-                  <tr
-                    key={idx}
-                    className="transition-colors bg-white hover:bg-slate-50"
-                  >
-                    <td className="px-6 py-5">
-                      <span className="font-bold text-slate-900 text-sm">
-                        {team.name}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="font-semibold text-slate-700 text-xs">
-                        {team.track}
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1 font-medium">
-                        {team.eventName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      {team.status === "Đã chấm" ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-100">
+                filteredTeams.map((team, index) => {
+                  const isSubmitted = Boolean(
+                    team.submissionId || team.submissionID,
+                  );
+                  const hasEvaluated = Boolean(
+                    team.evaluationId ||
+                    team.evaluationID ||
+                    (team.score !== null && team.score !== undefined),
+                  );
+
+                  let statusNode = (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[11px] font-bold border border-slate-200">
+                      <FileX size={12} /> Chưa nộp
+                    </span>
+                  );
+
+                  if (isSubmitted) {
+                    if (hasEvaluated) {
+                      statusNode = (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-200">
                           <CheckCircle2 size={12} /> Đã chấm
                         </span>
-                      ) : team.status === "Chưa chấm" ? (
+                      );
+                    } else {
+                      statusNode = (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
                           <ListTodo size={12} /> Chưa chấm
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-slate-500 rounded-full text-[11px] font-bold border border-slate-200">
-                          <Clock size={12} /> Chưa nộp bài
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 text-center font-bold text-slate-900 text-base">
-                      {team.score}
-                    </td>
-                    <td className="px-6 py-5 flex justify-end gap-2">
-                      {team.status === "Chưa nộp bài" ? (
+                      );
+                    }
+                  }
+
+                  return (
+                    <tr
+                      key={team.teamId || index}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-slate-900 text-sm">
+                          {team.teamName || "Chưa có tên"}
+                        </p>
+                        <p className="text-[11px] text-slate-400 font-mono uppercase mt-0.5">
+                          ID: {(team.teamId || "N/A").substring(0, 8)}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-slate-700 text-xs">
+                          {team.trackName || "N/A"}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {team.eventName || "N/A"}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 text-center">{statusNode}</td>
+                      <td className="px-6 py-4 text-center font-bold text-slate-900 text-base">
+                        {hasEvaluated ? team.score || "0" : "-"}
+                      </td>
+                      <td className="px-6 py-4 flex justify-end gap-2">
                         <button
-                          disabled
-                          className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-sm"
-                        >
-                          <Clock size={14} /> Chờ nộp bài
-                        </button>
-                      ) : (
-                        <button
+                          disabled={!isSubmitted}
                           onClick={() =>
-                            navigate(`/judge/score/${team.submissionId}`, {
-                              state: { team },
-                            })
+                            navigate(
+                              `/judge/score/${team.submissionId || team.submissionID || team.teamId}`,
+                              { state: { team } },
+                            )
                           }
-                          className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-colors shadow-sm ${team.status === "Đã chấm" ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-black text-white hover:bg-slate-800"}`}
+                          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors shadow-sm ${
+                            !isSubmitted
+                              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              : hasEvaluated
+                                ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
                         >
-                          {team.status === "Đã chấm" ? (
-                            "Xem / Sửa điểm"
+                          {!isSubmitted ? (
+                            "Chưa có bài"
+                          ) : hasEvaluated ? (
+                            "Sửa điểm"
                           ) : (
                             <>
                               <PlayCircle size={14} /> Chấm ngay
                             </>
                           )}
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
-          {/* Phân trang (Giữ nguyên) */}
         </div>
       </main>
     </div>

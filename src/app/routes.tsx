@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // 1. IMPORT CÁC TRANG ĐƠN
 import { Landing } from "./pages/Landing";
@@ -25,9 +25,9 @@ import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 // import { AdminViolationsPage as AdminViolations } from "./pages/Admin/AdminViolationsPage";
 
 // 4. IMPORT CỤM TRANG JUDGE
-import { ProfilePage } from "./pages/Judge/ProfilePage";
+import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
+import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
-import JudgeDashboard from "./pages/Judge/JudgeDashboard";
 
 export const router = createBrowserRouter([
   // =========================================================
@@ -61,14 +61,22 @@ export const router = createBrowserRouter([
         ],
       },
       // --- Khu vực của Judge (Cũng được bảo mật) ---
+      // Judge routes
       {
         path: "/judge",
         children: [
-          { index: true, element: <JudgeDashboard /> },
-          { path: "profile", element: <ProfilePage /> },
-          // Thêm :teamId vào URL để trang Scoring biết đang chấm cho đội nào
-          { path: "score/:teamId", element: <ScoringPage /> },
-          { path: "score/:submissionId", element: <ScoringPage /> },
+          {
+            index: true,
+            element: <JudgeDashboard />,
+          },
+          {
+            path: "profile",
+            element: <JudgeProfile />,
+          },
+          {
+            path: "score/:teamId", // <--- THÊM "/:teamId" VÀO ĐÂY LÀ XONG!
+            element: <ScoringPage />,
+          },
         ],
       },
 
@@ -91,6 +99,10 @@ export const router = createBrowserRouter([
             element: <PlayerSubmit />,
           },
         ],
+      },
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
       },
 
       // --- Khu vực của Leader (Cũng được bảo mật) ---

@@ -1,4 +1,4 @@
-import { Link, UserPlus, User, CheckCircle2, Copy } from "lucide-react";
+import { Link, UserPlus, User, CheckCircle2, Copy, Edit2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
@@ -18,26 +18,22 @@ const getMembers = (team: any): any[] => {
 
 const getMemberPlayerId = (member: any) => {
   return (
+    member?.student?.studentId ||
+    member?.student?.StudentID ||
+    member?.student?.id ||
+    member?.account?.accountId ||
+    member?.account?.id ||
+    member?.studentId ||
+    member?.studentID ||
+    member?.StudentID ||
     member?.playerId ||
     member?.PlayerId ||
     member?.playerID ||
     member?.PlayerID ||
     member?.memberPlayerId ||
     member?.MemberPlayerId ||
-    member?.memberPlayerID ||
-    member?.MemberPlayerID ||
     member?.memberId ||
     member?.MemberId ||
-    member?.memberID ||
-    member?.MemberID ||
-    member?.userId ||
-    member?.UserId ||
-    member?.userID ||
-    member?.UserID ||
-    member?.player?.playerId ||
-    member?.player?.PlayerId ||
-    member?.player?.playerID ||
-    member?.player?.PlayerID ||
     member?.id ||
     member?.ID ||
     ""
@@ -46,6 +42,8 @@ const getMemberPlayerId = (member: any) => {
 
 const getMemberEmail = (member: any) => {
   return (
+    member?.studentEmail || // Thêm cái này
+    member?.account?.email || // Dự phòng
     member?.email ||
     member?.Email ||
     member?.player?.email ||
@@ -55,23 +53,36 @@ const getMemberEmail = (member: any) => {
 };
 
 const getMemberName = (member: any) => {
+  if (member?.student?.account?.fullName)
+    return member.student.account.fullName;
+  if (member?.student?.fullName) return member.student.fullName;
+  if (member?.account?.fullName) return member.account.fullName;
   return (
+    member?.studentName ||
     member?.fullName ||
     member?.FullName ||
     member?.name ||
     member?.Name ||
-    member?.playerName ||
-    member?.PlayerName ||
-    member?.email ||
-    member?.Email ||
-    member?.player?.fullName ||
-    member?.player?.FullName ||
-    member?.player?.name ||
-    member?.player?.Name ||
-    member?.player?.email ||
-    member?.player?.Email ||
     ""
   );
+};
+
+const isLeaderMember = (member: any) => {
+  if (
+    member?.isLeader === true ||
+    member?.IsLeader === true ||
+    member?.isLeader === 1 ||
+    member?.IsLeader === 1
+  ) {
+    return true;
+  }
+
+  // Đề phòng Backend trả về role dạng chuỗi
+  const role = String(
+    member?.role || member?.teamRole || member?.memberRole || "",
+  ).toLowerCase();
+
+  return role === "leader" || role === "team leader" || role === "teamleader";
 };
 
 const getMemberRole = (member: any) => {
@@ -146,31 +157,21 @@ const extractTeamIdFromJoinInput = (value: string) => {
 };
 
 const getCurrentUserFromToken = (accessToken?: string | null) => {
-  if (!accessToken) {
-    return {
-      displayName: "Bạn",
-      email: "",
-      playerId: "",
-    };
-  }
+  if (!accessToken) return { displayName: "Bạn", email: "", playerId: "" };
 
   try {
     const decoded: any = jwtDecode(accessToken);
-
     const displayName =
-      decoded?.fullName ||
-      decoded?.FullName ||
-      decoded?.name ||
-      decoded?.Name ||
-      decoded?.email ||
-      decoded?.Email ||
-      "Bạn";
+      decoded?.fullName || decoded?.name || decoded?.email || "Bạn";
 
+    // Phải thêm cái "sớ" nameidentifier của C# này vào thì mới moi được ID ra
     const playerId =
+      decoded?.[
+        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+      ] ||
+      decoded?.studentId ||
+      decoded?.StudentId ||
       decoded?.playerId ||
-      decoded?.PlayerId ||
-      decoded?.playerID ||
-      decoded?.PlayerID ||
       decoded?.sub ||
       "";
 
@@ -180,11 +181,7 @@ const getCurrentUserFromToken = (accessToken?: string | null) => {
       playerId,
     };
   } catch {
-    return {
-      displayName: "Bạn",
-      email: "",
-      playerId: "",
-    };
+    return { displayName: "Bạn", email: "", playerId: "" };
   }
 };
 
@@ -196,22 +193,15 @@ const sameValue = (a?: any, b?: any) => {
 const isSelfMember = (
   member: any,
   index: number,
-  currentUserInfo: {
-    displayName: string;
-    email: string;
-    playerId: string;
-  },
+  currentUserInfo: { displayName: string; email: string; playerId: string },
   currentUserIsLeader: boolean,
 ) => {
-  // Nếu account hiện tại là leader, tạm coi dòng đầu tiên là chính leader.
-  // Vì backend hiện đang trả members thiếu fullName/playerId/isCurrentUser.
-  if (currentUserIsLeader && index === 0) return true;
+  // ĐÃ XÓA DÒNG NHẬN VƠ INDEX 0. Giờ so sánh bằng thực lực ID!
+  const memberId = String(getMemberPlayerId(member) || "");
+  const myId = String(currentUserInfo.playerId || "");
 
-  return (
-    isCurrentUserMember(member) ||
-    sameValue(getMemberPlayerId(member), currentUserInfo.playerId) ||
-    sameValue(getMemberEmail(member), currentUserInfo.email)
-  );
+  // Nếu ID quét được khớp với ID trong Token thì người đó 100% là You
+  return memberId && myId && memberId.toLowerCase() === myId.toLowerCase();
 };
 
 const resolveMemberName = (
@@ -224,7 +214,10 @@ const resolveMemberName = (
     playerId: string;
   },
 ) => {
-  const rawName = String(getMemberName(member) || "").trim();
+  // THÊM ƯU TIÊN LẤY EMAIL VÀO ĐÂY ĐỂ HIỆN LÊN BẢNG THÔNG BÁO CHO ĐẸP
+  const rawName = String(
+    getMemberName(member) || getMemberEmail(member) || "",
+  ).trim();
 
   const isMissingName =
     !rawName ||
@@ -239,7 +232,8 @@ const resolveMemberName = (
     return currentUserInfo.displayName || currentUserInfo.email || "Bạn";
   }
 
-  return `Member ${index + 1}`;
+  // Đổi thành "Thành viên" cho đồng bộ với tiếng Việt ở ngoài
+  return `Thành viên ${index + 1}`;
 };
 
 const resolveMemberRole = (
@@ -248,19 +242,10 @@ const resolveMemberRole = (
   currentUserIsLeader: boolean,
   isSelf: boolean,
 ) => {
-  const rawRole = String(getMemberRole(member)).toLowerCase();
-
-  if (
-    rawRole === "leader" ||
-    rawRole === "team leader" ||
-    rawRole === "teamleader"
-  ) {
+  // Dùng chung 1 logic duy nhất với cái Vương miện, không đoán bừa vị trí index === 0 nữa!
+  if (isLeaderMember(member)) {
     return "Team Leader";
   }
-
-  if (currentUserIsLeader && index === 0) return "Team Leader";
-
-  if (isSelf && currentUserIsLeader) return "Team Leader";
 
   return "Member";
 };
@@ -479,6 +464,46 @@ export function Team() {
     }
   };
 
+  const handleRenameTeam = async () => {
+    const currentName = team?.teamName || team?.name || "";
+
+    const { value: newName } = await Swal.fire({
+      title: "Đổi tên Team",
+      input: "text",
+      inputLabel: "Nhập tên mới cho team của bạn",
+      inputValue: currentName,
+      showCancelButton: true,
+      confirmButtonText: "Lưu thay đổi",
+      cancelButtonText: "Hủy",
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return "Tên team không được để trống!";
+        }
+      },
+    });
+
+    if (newName && newName.trim() !== currentName) {
+      try {
+        await teamApi.updateTeamInfo(teamId, { teamName: newName.trim() });
+        Swal.fire({
+          icon: "success",
+          title: "Thành công",
+          text: "Tên team đã được cập nhật!",
+        });
+        await fetchMyTeam(); // Load lại data
+        window.dispatchEvent(new Event("player-team-updated")); // Cập nhật luôn tên bên Sidebar
+      } catch (error: any) {
+        console.error("Rename failed:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Không thể đổi tên",
+          text:
+            error.response?.data?.message || "Backend từ chối thao tác này.",
+        });
+      }
+    }
+  };
+
   const confirmRemoveMember = async (memberPlayerId: string) => {
     try {
       if (!teamId) {
@@ -531,6 +556,42 @@ export function Team() {
       confirmText: "Kick Member",
       onConfirm: () => {
         void confirmRemoveMember(memberPlayerId);
+      },
+    });
+  };
+
+  const confirmTransferLeader = async (newLeaderPlayerId: string) => {
+    try {
+      if (!teamId) return;
+      await teamApi.transferLeader(teamId, newLeaderPlayerId);
+
+      setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
+      await fetchMyTeam();
+
+      Swal.fire({
+        icon: "success",
+        title: "Nhường chức thành công",
+        text: "Bạn đã chuyển quyền Team Leader cho người này. Hiện tại bạn là Team Member.",
+      });
+      window.dispatchEvent(new Event("player-team-updated"));
+    } catch (error: any) {
+      console.error("Transfer leader failed:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Không thể nhường chức",
+        text: error.response?.data?.message || "Backend từ chối thao tác này.",
+      });
+    }
+  };
+
+  const handleTransferClick = (memberPlayerId: string, memberName: string) => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: "Nhường chức Team Leader",
+      description: `Bạn có chắc muốn nhường chức Team Leader cho ${memberName} không? Bạn sẽ mất quyền quản lý Team.`,
+      confirmText: "Xác nhận nhường chức",
+      onConfirm: () => {
+        void confirmTransferLeader(memberPlayerId);
       },
     });
   };
@@ -702,7 +763,8 @@ export function Team() {
           My Team
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Quản lý team hiện tại của bạn.
+          Manage your team here. You can invite teammates, kick members, or
+          transfer leadership if you are the Team Leader.
         </p>
       </header>
 
@@ -744,10 +806,7 @@ export function Team() {
               </button>
             </div>
 
-            <p className="text-xs text-muted-foreground font-medium">
-              Note: link này dùng teamId để member join. Nếu backend trả
-              inviteLink riêng thì UI sẽ ưu tiên dùng link backend.
-            </p>
+            <p className="text-xs text-muted-foreground font-medium"></p>
           </div>
         </section>
 
@@ -777,9 +836,21 @@ export function Team() {
           <div className="p-6 border-b border-border flex items-center justify-between bg-muted/20">
             <div>
               <h2 className="font-bold text-lg">Team Roster</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {team?.teamName || team?.name || "Team hiện tại"}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-muted-foreground">
+                  {team?.teamName || team?.name || "Team hiện tại"}
+                </p>
+                {/* Nút sửa tên chỉ hiện cho Leader */}
+                {currentUserIsLeader && (
+                  <button
+                    onClick={handleRenameTeam}
+                    className="p-1 text-slate-400 hover:text-slate-800 transition-colors rounded-md hover:bg-slate-100"
+                    title="Đổi tên team"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <span className="text-sm font-medium bg-secondary text-secondary-foreground px-3 py-1 rounded-full">
@@ -806,7 +877,7 @@ export function Team() {
                 const memberName = resolveMemberName(
                   member,
                   index,
-                  self,
+                  !!self,
                   currentUserInfo,
                 );
 
@@ -814,7 +885,7 @@ export function Team() {
                   member,
                   index,
                   currentUserIsLeader,
-                  self,
+                  !!self,
                 );
 
                 const canKickThisMember =
@@ -833,8 +904,17 @@ export function Team() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-foreground text-lg">
-                            {memberName}
+                            {/* Ưu tiên 1: Tên | Ưu tiên 2: Email | Cuối cùng: Thành viên X */}
+                            {getMemberName(member) ||
+                              getMemberEmail(member) ||
+                              `Thành viên ${index + 1}`}
                           </span>
+
+                          {isLeaderMember(member) && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                              Leader
+                            </span>
+                          )}
 
                           {self && (
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sidebar-accent text-sidebar-accent-foreground border border-border">
@@ -855,39 +935,94 @@ export function Team() {
                       </div>
                     </div>
 
-                    {self ? (
-                      currentUserIsLeader ? (
-                        <span className="text-sm font-medium text-muted-foreground px-3 py-2">
-                          Leader
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleLeaveTeam}
-                          className="text-sm font-medium text-red-600 hover:bg-red-50 transition-colors px-3 py-2 rounded-radius-md"
-                        >
-                          Leave Team
-                        </button>
-                      )
-                    ) : canKickThisMember ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoveMember(memberPlayerId, memberName)
+                    {/* BẮT ĐẦU VÙNG NÚT BẤM (ĐÃ CHUẨN HÓA LOGIC 100%) */}
+                    {(() => {
+                      // 1. NẾU LÀ CHÍNH MÌNH (YOU) -> Tuyệt đối không có nút Kick hay Transfer
+                      if (self) {
+                        if (currentUserIsLeader) {
+                          // Mình là Leader -> Chỉ hiện chữ Leader
+                          return (
+                            <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                              Leader
+                            </span>
+                          );
+                        } else {
+                          // Mình là Member -> Hiện nút Leave Team
+                          return (
+                            <button
+                              type="button"
+                              onClick={handleLeaveTeam}
+                              className="text-sm font-medium text-red-600 hover:bg-red-50 transition-colors px-3 py-2 rounded-radius-md"
+                            >
+                              Leave Team
+                            </button>
+                          );
                         }
-                        className="text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors px-3 py-2 rounded-radius-md"
-                      >
-                        Kick
-                      </button>
-                    ) : currentUserIsLeader && !memberPlayerId ? (
-                      <span className="text-sm font-medium text-muted-foreground px-3 py-2">
-                        Cannot kick
-                      </span>
-                    ) : (
-                      <span className="text-sm font-medium text-muted-foreground px-3 py-2">
-                        Member
-                      </span>
-                    )}
+                      }
+
+                      // 2. NẾU KHÔNG PHẢI MÌNH & MÌNH LÀ LEADER ĐANG NHÌN MEMBER KHÁC
+                      if (currentUserIsLeader) {
+                        // Phòng hờ Backend bị ngáo trả về 2 thằng Leader trong 1 nhóm
+                        if (isLeaderMember(member)) {
+                          return (
+                            <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                              Leader
+                            </span>
+                          );
+                        }
+
+                        // Nếu member có ID thì cho phép tương tác (Transfer / Kick)
+                        if (memberPlayerId) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleTransferClick(
+                                    memberPlayerId,
+                                    memberName,
+                                  )
+                                }
+                                className="text-sm font-bold text-amber-600 hover:bg-amber-50 transition-colors px-3 py-2 rounded-radius-md border border-amber-200"
+                              >
+                                Transfer Leader
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveMember(memberPlayerId, memberName)
+                                }
+                                className="text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors px-3 py-2 rounded-radius-md"
+                              >
+                                Kick
+                              </button>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                              Cannot interact
+                            </span>
+                          );
+                        }
+                      }
+
+                      // 3. NẾU MÌNH CHỈ LÀ MEMBER VÀ ĐANG NHÌN NGƯỜI KHÁC
+                      if (isLeaderMember(member)) {
+                        return (
+                          <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                            Leader
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <span className="text-sm font-medium text-muted-foreground px-3 py-2">
+                          Member
+                        </span>
+                      );
+                    })()}
+                    {/* KẾT THÚC VÙNG NÚT BẤM */}
                   </div>
                 );
               })

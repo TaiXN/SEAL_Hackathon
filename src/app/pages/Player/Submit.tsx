@@ -283,7 +283,8 @@ export function Submit() {
           Submit Project
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Nộp bài bằng GitHub repository, link demo và link slide.
+          Submit your project by providing the GitHub repository link, demo
+          link, and presentation link.
         </p>
       </header>
 

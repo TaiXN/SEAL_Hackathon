@@ -34,11 +34,7 @@ const getCurrentTeamFromHistory = (history: any[]) => {
 
 const isLeaderTeam = (team: any) => {
   const rawRole = String(
-    team?.role ||
-      team?.teamRole ||
-      team?.memberRole ||
-      team?.position ||
-      "",
+    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
   ).toLowerCase();
 
   return (
