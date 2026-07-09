@@ -29,7 +29,7 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("Error while creating criteria");
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin , Judge, Teacher")]
         [HttpGet("criterion")]
         public async Task<IActionResult> GetAllCriteria()
         {
