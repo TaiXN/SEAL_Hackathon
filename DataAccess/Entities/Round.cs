@@ -17,7 +17,7 @@ public partial class Round
 
     public DateTime EndDate { get; set; }
 
-    public int TopNpromotion { get; set; }
+    public int? TopNpromotion { get; set; }
 
     public int MaxTeam { get; set; }
 

@@ -87,5 +87,23 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
+        [HttpPost("auto-transition/{roundId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AutoTransitionRound(string roundId)
+        {
+            if (string.IsNullOrEmpty(roundId))
+            {
+                return BadRequest(new { message = "Missing round information!" });
+            }
+
+            (bool IsSuccess, string Message) result = await _round.AutoTransitionRoundAsync(roundId);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = result.Message });
+        }
     }
 }
