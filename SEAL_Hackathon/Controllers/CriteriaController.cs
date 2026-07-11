@@ -103,7 +103,7 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("Error while creating set.");
         }
 
-        [Authorize(Roles ="Admin")]
+        [Authorize(Roles = "Admin , Judge, Teacher")]
         [HttpGet("set")]
         public async Task<IActionResult> GetAllSets()
         {
