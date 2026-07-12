@@ -111,7 +111,7 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin , Judge, Teacher")]
         [HttpGet("set/{id}")]
         public async Task<IActionResult> GetSetDetails(string id)
         {
