@@ -34,7 +34,7 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("Error while creating round");
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin , Judge, Teacher")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {

@@ -6,6 +6,7 @@ using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.LeaderBoardDetailRepository;
 using DataAccess.Repositories.LeaderBoardRepository;
 using DataAccess.Repositories.MappingRepository;
+using DataAccess.Repositories.PrizeRepository;
 using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
@@ -49,6 +50,7 @@ namespace DataAccess.Repositories.UnitOfWork
         ITeamInRoundRepository TeamInRound { get; }
         ILeaderBoardRepository LeaderBoard { get; }
         ILeaderBoardDetailRepository LeaderBoardDetail { get; }
+        IPrizeRepository Prize { get; }
         Task SaveAsync();
     }
 }

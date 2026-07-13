@@ -31,6 +31,8 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Mapping> Mappings { get; set; }
 
+    public virtual DbSet<Prize> Prizes { get; set; }
+
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
@@ -243,6 +245,36 @@ public partial class SealContext : DbContext
                 .HasConstraintName("FK_Mapping_CriteriaTemplate");
         });
 
+        modelBuilder.Entity<Prize>(entity =>
+        {
+            entity.ToTable("Prize");
+
+            entity.Property(e => e.PrizeId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("PrizeID");
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.EventId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("EventID");
+            entity.Property(e => e.PrizeName).HasMaxLength(255);
+            entity.Property(e => e.TeamId)
+                .HasMaxLength(400)
+                .IsUnicode(false)
+                .HasColumnName("TeamID");
+
+            entity.HasOne(d => d.Event).WithMany(p => p.Prizes)
+                .HasForeignKey(d => d.EventId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Prize_Event");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.Prizes)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Prize_Team");
+        });
+
         modelBuilder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(e => e.TokenId).HasName("PK__RefreshT__658FEE8A41AE5009");
@@ -351,8 +383,6 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("TeamInRoundID");
-            entity.Property(e => e.AverageScore)
-                .HasColumnName("AverageScore");
             entity.Property(e => e.Urldemo)
                 .HasMaxLength(400)
                 .HasColumnName("URLDemo");

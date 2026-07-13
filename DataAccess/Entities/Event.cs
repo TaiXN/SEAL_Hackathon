@@ -21,8 +21,9 @@ public partial class Event
 
     public virtual Account CreatorNavigation { get; set; } = null!;
 
-    public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
+    public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();
 
+    public virtual ICollection<Round> Rounds { get; set; } = new List<Round>();
 
     public virtual ICollection<Track> Tracks { get; set; } = new List<Track>();
 }
