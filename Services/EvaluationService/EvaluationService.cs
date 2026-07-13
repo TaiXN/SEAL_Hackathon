@@ -338,12 +338,12 @@ namespace Services.EvaluationService
                         TeamId = tir.TeamId,
                         TeamName = tir.Team?.TeamName ?? "N/A",
                         TrackName = tir.Track?.TrackName ?? "N/A",
-                        EventName = tir.Round?.RoundName ?? "N/A",
+                        RoundName = tir.Round?.RoundName ?? "N/A",
 
-                        
-                        CriteriaSetId = tir.TrackId,
 
-                   
+                        CriteriaSetId = tir.Round?.CriteriaSetId ?? "",
+
+
                         SubmissionId = submission?.Id,
                         EvaluationId = evaluation?.Id,
                         Score = evaluation?.Score
