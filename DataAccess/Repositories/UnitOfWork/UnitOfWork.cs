@@ -48,7 +48,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITeamInRoundRepository TeamInRound { get; private set; }
         public ILeaderBoardRepository LeaderBoard { get; private set; }
         public ILeaderBoardDetailRepository LeaderBoardDetail { get; private set; }
-        public IPrizeRepository Prize { get; private set; }
+        //public IPrizeRepository Prize { get; private set; }
 
 
 
@@ -82,7 +82,7 @@ namespace DataAccess.Repositories.UnitOfWork
             TeamInRound = new TeamInRoundRepository.TeamInRoundRepository(context);
             LeaderBoard = new LeaderBoardRepository.LeaderBoardRepository(context);
             LeaderBoardDetail = new LeaderBoardDetailRepository.LeaderBoardDetailRepository(context);
-            Prize = new PrizeRepository.PrizeRepository(context);
+            //Prize = new PrizeRepository.PrizeRepository(context);
         }
 
         public async Task SaveAsync()

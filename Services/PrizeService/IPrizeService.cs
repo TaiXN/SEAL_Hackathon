@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿//using System;
+//using System.Collections.Generic;
+//using System.Text;
 
-namespace Services.PrizeService
-{
-    public class IPrizeService
-    {
-    }
-}
+//namespace Services.PrizeService
+//{
+//    public class IPrizeService
+//    {
+//    }
+//}

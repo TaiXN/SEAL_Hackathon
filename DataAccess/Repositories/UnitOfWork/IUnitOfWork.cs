@@ -50,7 +50,7 @@ namespace DataAccess.Repositories.UnitOfWork
         ITeamInRoundRepository TeamInRound { get; }
         ILeaderBoardRepository LeaderBoard { get; }
         ILeaderBoardDetailRepository LeaderBoardDetail { get; }
-        IPrizeRepository Prize { get; }
+        //IPrizeRepository Prize { get; }
         Task SaveAsync();
     }
 }
