@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Save,
   Edit3,
-  Users,
   Lock,
   FastForward,
   Trash2,
@@ -14,12 +13,30 @@ import {
   Scale,
   Plus,
   X,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { eventApi } from "../../lib/api/eventApi";
-import { trackTopicApi, type Track } from "../../lib/api/trackTopicApi";
+import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { criteriaApi } from "../../lib/api/criteriaApi";
 import { roundApi } from "../../lib/api/roundApi";
+
+// HÀM DÙNG CHUNG (dùng chung với CreateEvents — xem lib/utils/criteriaHelpers.ts)
+import {
+  getList,
+  extractSetList,
+  itemCriteriaId,
+  itemScore,
+  toPayloadList,
+  getServerMsg,
+  grabSetId,
+  sumWeight,
+  buildCriteriaMap,
+  loadSetsWithItems,
+  DEFAULT_CRITERIA_DESCRIPTION,
+} from "../../lib/utils/criteriaHelpers";
 
 export function EventDetailsPage() {
   const navigate = useNavigate();
@@ -27,10 +44,13 @@ export function EventDetailsPage() {
   const [tracks, setTracks] = useState<any[]>([]); // Lưu track kèm topic bên trong
   const [event, setEvent] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   // ===== #3: Bộ tiêu chí của sự kiện =====
   const [criteriaSets, setCriteriaSets] = useState<any[]>([]);
   const [deletedCriteria, setDeletedCriteria] = useState<any[]>([]);
   const [loadingCriteria, setLoadingCriteria] = useState(false);
+  const [criteriaError, setCriteriaError] = useState<string | null>(null);
   // ===== #6: Round phụ =====
   const [eventRounds, setEventRounds] = useState<any[]>([]); // các round đã sort
   const [showAddRound, setShowAddRound] = useState(false);
@@ -44,13 +64,14 @@ export function EventDetailsPage() {
     topN: 1,
     critMode: "new", // 'new' | 'reuse'
     reuseSetId: "",
-    rows: [{ name: "", score: 100 }],
+    rows: [{ name: "", description: "", score: 100 }],
   });
 
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
         setIsLoading(true);
+        setLoadError(null);
         if (id) {
           // 1. Lấy thông tin Event
           const eventData = await eventApi.getEventById(id);
@@ -77,6 +98,7 @@ export function EventDetailsPage() {
         }
       } catch (error) {
         console.error("Lỗi khi tải chi tiết sự kiện:", error);
+        setLoadError("Không tải được thông tin từ máy chủ. Vui lòng thử lại.");
         Swal.fire("Lỗi", "Không tải được thông tin từ máy chủ.", "error");
       } finally {
         setIsLoading(false);
@@ -84,7 +106,7 @@ export function EventDetailsPage() {
     };
 
     fetchEventDetails();
-  }, [id]);
+  }, [id, reloadKey]);
   const handleSave = async () => {
     if (!id || !event) return;
     if (!event.semester) {
@@ -172,40 +194,11 @@ export function EventDetailsPage() {
     }
   };
 
-  // ===== #3: helper đọc criteriaList của 1 set (backend đặt nhiều tên khác nhau) =====
-  const extractSetList = (setData: any): any[] => {
-    const s = setData?.data || setData || {};
-    if (Array.isArray(s)) return s;
-    if (Array.isArray(s.criteriaList)) return s.criteriaList;
-    if (Array.isArray(s.CriteriaList)) return s.CriteriaList;
-    if (Array.isArray(s.criteriaMappingItemViewModels))
-      return s.criteriaMappingItemViewModels;
-    for (const k in s) if (Array.isArray(s[k])) return s[k];
-    return [];
-  };
-  const itemCriteriaId = (it: any) =>
-    it.criteriaId || it.criteriaID || it.CriteriaId || it.CriteriaID || it.id;
-  const itemScore = (it: any) =>
-    Number(it.score ?? it.Score ?? it.weight ?? it.Weight ?? 0);
-  // Chuẩn hóa list để gửi lên updateSet (gửi cả 2 cách viết cho chắc)
-  const toPayloadList = (items: any[]) =>
-    items.map((it: any) => ({
-      criteriaId: it.criteriaId ?? itemCriteriaId(it),
-      score: Number(it.score ?? itemScore(it)),
-    }));
-
-  // Lấy đúng câu báo lỗi backend trả về (thay vì câu chung chung)
-  const getServerMsg = (e: any): string =>
-    e?.response?.data?.message ||
-    e?.response?.data?.title ||
-    (typeof e?.response?.data === "string" ? e.response.data : "") ||
-    e?.message ||
-    "Không rõ nguyên nhân";
-
   const loadCriteria = async () => {
     if (!id) return;
     try {
       setLoadingCriteria(true);
+      setCriteriaError(null);
 
       // 1. Lấy các round của sự kiện -> gom các criteriaSetId
       const allRounds = await roundApi.getAllRounds();
@@ -282,6 +275,7 @@ export function EventDetailsPage() {
       setCriteriaSets(sets);
     } catch (e) {
       console.error("Lỗi tải bộ tiêu chí:", e);
+      setCriteriaError("Không tải được bộ tiêu chí. Vui lòng thử lại.");
     } finally {
       setLoadingCriteria(false);
     }
@@ -325,7 +319,7 @@ export function EventDetailsPage() {
         criteriaID: crit.criteriaId,
         criteriaId: crit.criteriaId,
         criteriaName: value.name,
-        description: value.description || "Tiêu chí Hackathon",
+        description: value.description || DEFAULT_CRITERIA_DESCRIPTION,
       } as any);
       Swal.fire({
         icon: "success",
@@ -336,7 +330,7 @@ export function EventDetailsPage() {
       await loadCriteria();
     } catch (e: any) {
       console.error(
-        "🟥 updateCriterion lỗi:",
+        "updateCriterion lỗi:",
         e?.response?.status,
         e?.response?.data,
       );
@@ -401,20 +395,14 @@ export function EventDetailsPage() {
         "warning",
       );
     }
-    const total = set.items.reduce(
-      (s: number, it: any) => s + Number(it.score || 0),
-      0,
-    );
+    // 🔒 ÉP BUỘC: tổng trọng số phải đúng 100% mới cho lưu — không cho bỏ qua
+    const total = sumWeight(set.items);
     if (total !== 100) {
-      const go = await Swal.fire({
-        title: "Tổng trọng số chưa = 100%",
-        text: `Hiện tại tổng là ${total}%. Vẫn lưu chứ?`,
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Vẫn lưu",
-        cancelButtonText: "Để tôi sửa lại",
-      });
-      if (!go.isConfirmed) return;
+      return Swal.fire(
+        "Chưa đủ 100%",
+        `Tổng trọng số hiện tại là ${total}%. Bạn phải chỉnh cho đủ 100% mới được lưu.`,
+        "error",
+      );
     }
     try {
       const list = toPayloadList(set.items);
@@ -432,7 +420,7 @@ export function EventDetailsPage() {
       await loadCriteria();
     } catch (e: any) {
       console.error(
-        "🟥 updateSet (trọng số) lỗi:",
+        "updateSet (trọng số) lỗi:",
         e?.response?.status,
         e?.response?.data,
       );
@@ -474,12 +462,6 @@ export function EventDetailsPage() {
         );
       }
 
-      console.log("🟦 updateSet (đổi tên) -> PUT /set/" + set.setId, {
-        setName: value.trim(),
-        isDefault,
-        criteriaList: list,
-      });
-
       await criteriaApi.updateSet(set.setId, {
         setName: value.trim(),
         isDefault,
@@ -494,7 +476,7 @@ export function EventDetailsPage() {
       await loadCriteria();
     } catch (e: any) {
       console.error(
-        "🟥 updateSet (đổi tên) lỗi:",
+        "updateSet (đổi tên) lỗi:",
         e?.response?.status,
         e?.response?.data,
       );
@@ -550,60 +532,50 @@ export function EventDetailsPage() {
   };
 
   // ===== #6: Round phụ =====
-  const asArr = (x: any): any[] =>
-    Array.isArray(x) ? x : x?.data || x?.items || [];
-  const grabSetId = (s: any): string | null =>
-    s?.setID ||
-    s?.setId ||
-    s?.criteriaSetId ||
-    s?.criteriaSetID ||
-    s?.id ||
-    null;
+  const [loadingExtraSets, setLoadingExtraSets] = useState(false);
+  const [extraSetsError, setExtraSetsError] = useState<string | null>(null);
 
   // Mở form thêm vòng phụ + nạp danh sách bộ tiêu chí có sẵn (để chọn lại nếu muốn)
   const openAddRound = async () => {
     setShowAddRound(true);
     try {
+      setLoadingExtraSets(true);
+      setExtraSetsError(null);
       const [setsRaw, critRaw] = await Promise.all([
         criteriaApi.getAllSet(),
         criteriaApi.getAllCriteria(),
       ]);
-      const cMap: Record<string, string> = {};
-      asArr(critRaw).forEach((c: any) => {
-        const cid = c.criteriaID || c.criteriaId || c.id;
-        if (cid) cMap[String(cid)] = c.criteriaName || c.name || "(?)";
-      });
-      const sets = asArr(setsRaw)
+      const critMap = buildCriteriaMap(critRaw);
+      const baseSets = getList(setsRaw)
         .map((s: any) => ({
           setId: grabSetId(s),
           setName: s.setName || s.SetName || "Bộ tiêu chí",
-          items: (
-            s.criteriaList ||
-            s.CriteriaList ||
-            s.criteriaMappingItemViewModels ||
-            []
-          ).map((it: any) => ({
-            name:
-              cMap[String(it.criteriaId || it.criteriaID || it.id)] || "(?)",
-            score: it.score ?? it.Score ?? 0,
-          })),
         }))
-        .filter((s: any) => !!s.setId);
+        .filter((s): s is { setId: string; setName: string } => !!s.setId);
+
+      // ⚠️ Cùng nguyên nhân với lỗi ở CreateEvents: getAllSet() không kèm chi
+      // tiết tiêu chí bên trong, phải gọi getSetById từng bộ mới ra đúng dữ liệu.
+      const sets = await loadSetsWithItems(baseSets, critMap, (setId) =>
+        criteriaApi.getSetById(setId),
+      );
       setExtraSets(sets);
     } catch (e) {
       console.warn("Không tải được bộ tiêu chí có sẵn:", e);
+      setExtraSetsError("Không tải được danh sách bộ tiêu chí có sẵn.");
+    } finally {
+      setLoadingExtraSets(false);
     }
   };
 
-  // Tạo 1 bộ tiêu chí mới từ các dòng nhập -> trả về setId
+  // Tạo 1 bộ tiêu chí mới từ các dòng nhập (tên + mô tả + trọng số) -> trả về setId
   const createSetFromRows = async (
-    rows: any[],
+    rows: { name: string; description?: string; score: number }[],
     setName: string,
   ): Promise<string | null> => {
     const valid = rows.filter((r) => r.name.trim());
     if (valid.length === 0) return null;
 
-    const allCrit = asArr(await criteriaApi.getAllCriteria());
+    const allCrit = getList(await criteriaApi.getAllCriteria());
     const findByName = (name: string) =>
       allCrit.find(
         (c: any) =>
@@ -614,18 +586,35 @@ export function EventDetailsPage() {
     const criteriaList: any[] = [];
     for (const r of valid) {
       let cid: any;
+      const description = (r.description || "").trim() || "Tiêu chí vòng phụ";
       const existed = findByName(r.name);
       if (existed) {
         cid = existed.criteriaID || existed.criteriaId || existed.id;
+        // ⚠️ Tiêu chí đã tồn tại (trùng tên) vẫn đang giữ mô tả CŨ — phải
+        // đồng bộ lại mô tả mới nhập, nếu không mô tả sẽ bị "nuốt mất".
+        try {
+          await criteriaApi.updateCriterion(cid, {
+            criteriaID: cid,
+            criteriaId: cid,
+            criteriaName: r.name.trim(),
+            description,
+          } as any);
+        } catch (e) {
+          console.warn(
+            "Không đồng bộ được mô tả cho tiêu chí trùng tên:",
+            r.name,
+            e,
+          );
+        }
       } else {
         try {
           const res: any = await criteriaApi.createCriterion({
             criteriaName: r.name.trim(),
-            description: "Tiêu chí vòng phụ",
+            description,
           } as any);
           cid = res?.criteriaID || res?.criteriaId || res?.id;
         } catch {
-          const again = asArr(await criteriaApi.getAllCriteria()).find(
+          const again = getList(await criteriaApi.getAllCriteria()).find(
             (c: any) =>
               (c.criteriaName || c.name || "").trim().toLowerCase() ===
               r.name.trim().toLowerCase(),
@@ -645,7 +634,7 @@ export function EventDetailsPage() {
     } as any);
     let sid = grabSetId(setRes);
     if (!sid) {
-      const found = [...asArr(await criteriaApi.getAllSet())]
+      const found = [...getList(await criteriaApi.getAllSet())]
         .reverse()
         .find((s: any) => (s.setName || s.SetName || "") === setName);
       sid = grabSetId(found);
@@ -685,26 +674,32 @@ export function EventDetailsPage() {
       }
     }
 
-    if (f.critMode === "reuse" && !f.reuseSetId)
-      return Swal.fire("Thiếu", "Hãy chọn bộ tiêu chí có sẵn.", "warning");
-    if (f.critMode === "new") {
-      const total = f.rows.reduce(
-        (s: number, r: any) => s + Number(r.score || 0),
-        0,
+    if (f.critMode === "reuse") {
+      if (!f.reuseSetId)
+        return Swal.fire("Thiếu", "Hãy chọn bộ tiêu chí có sẵn.", "warning");
+      // 🔒 ÉP BUỘC: bộ có sẵn cũng phải đủ 100% mới cho dùng
+      const reuseTotal = sumWeight(
+        extraSets.find((s) => String(s.setId) === String(f.reuseSetId))
+          ?.items || [],
       );
+      if (reuseTotal !== 100)
+        return Swal.fire(
+          "Chưa đủ 100%",
+          `Bộ tiêu chí này đang có tổng trọng số ${reuseTotal}%. Hãy chọn bộ khác hoặc chỉnh lại cho đủ 100% trước.`,
+          "error",
+        );
+    }
+    if (f.critMode === "new") {
       if (!f.rows.some((r: any) => r.name.trim()))
         return Swal.fire("Thiếu", "Nhập ít nhất 1 tiêu chí.", "warning");
-      if (total !== 100) {
-        const go = await Swal.fire({
-          title: "Tổng trọng số chưa = 100%",
-          text: `Hiện là ${total}%. Vẫn tạo chứ?`,
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonText: "Vẫn tạo",
-          cancelButtonText: "Sửa lại",
-        });
-        if (!go.isConfirmed) return;
-      }
+      // 🔒 ÉP BUỘC: tổng trọng số phải đúng 100% mới cho tạo — không cho bỏ qua
+      const total = sumWeight(f.rows.map((r: any) => ({ weight: r.score })));
+      if (total !== 100)
+        return Swal.fire(
+          "Chưa đủ 100%",
+          `Tổng trọng số hiện tại là ${total}%. Hãy chỉnh cho đủ 100% trước khi tạo vòng phụ.`,
+          "error",
+        );
     }
 
     try {
@@ -762,12 +757,12 @@ export function EventDetailsPage() {
         topN: 1,
         critMode: "new",
         reuseSetId: "",
-        rows: [{ name: "", score: 100 }],
+        rows: [{ name: "", description: "", score: 100 }],
       });
       await loadCriteria();
     } catch (e: any) {
       console.error(
-        "🟥 Tạo vòng phụ lỗi:",
+        "Tạo vòng phụ lỗi:",
         e?.response?.status,
         e?.response?.data,
       );
@@ -783,15 +778,30 @@ export function EventDetailsPage() {
     }
   };
 
+  // ===== TRẠNG THÁI LOADING / LỖI / KHÔNG TÌM THẤY =====
   if (isLoading)
     return (
-      <div className="p-10 text-center font-medium text-slate-500">
-        Đang tải thông tin...
+      <div className="flex items-center justify-center gap-2 p-16 text-sm font-medium text-slate-500">
+        <Loader2 size={18} className="animate-spin" />
+        Đang tải thông tin sự kiện...
+      </div>
+    );
+  if (loadError)
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-16 text-center">
+        <AlertCircle size={28} className="text-red-500" />
+        <p className="text-sm font-medium text-red-500">{loadError}</p>
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
+        >
+          <RefreshCw size={13} /> Thử lại
+        </button>
       </div>
     );
   if (!event)
     return (
-      <div className="p-10 text-center font-medium text-red-500">
+      <div className="p-16 text-center font-medium text-slate-500">
         Không tìm thấy sự kiện!
       </div>
     );
@@ -1004,79 +1014,194 @@ export function EventDetailsPage() {
               </div>
 
               {extraForm.critMode === "reuse" ? (
-                <select
-                  value={extraForm.reuseSetId}
-                  onChange={(e) =>
-                    setExtraForm((p: any) => ({
-                      ...p,
-                      reuseSetId: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-blue-500"
-                >
-                  <option value="">-- Chọn bộ tiêu chí có sẵn --</option>
-                  {extraSets.map((s: any) => (
-                    <option key={s.setId} value={s.setId}>
-                      {s.setName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="space-y-2">
-                  {extraForm.rows.map((r: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Tên tiêu chí"
-                        value={r.name}
-                        onChange={(e) =>
-                          setExtraForm((p: any) => ({
-                            ...p,
-                            rows: p.rows.map((x: any, xi: number) =>
-                              xi === i ? { ...x, name: e.target.value } : x,
-                            ),
-                          }))
-                        }
-                        className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm font-semibold focus:border-blue-500"
-                      />
-                      <input
-                        type="number"
-                        value={r.score}
-                        onChange={(e) =>
-                          setExtraForm((p: any) => ({
-                            ...p,
-                            rows: p.rows.map((x: any, xi: number) =>
-                              xi === i
-                                ? { ...x, score: Number(e.target.value) }
-                                : x,
-                            ),
-                          }))
-                        }
-                        className="w-20 px-2 py-2 text-right bg-white border border-slate-200 rounded-lg outline-none text-sm font-bold focus:border-blue-500"
-                      />
-                      <span className="text-xs text-slate-400 font-bold">
-                        %
+                <>
+                  {loadingExtraSets && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                      <Loader2 size={14} className="animate-spin" /> Đang tải
+                      danh sách bộ tiêu chí...
+                    </div>
+                  )}
+                  {!loadingExtraSets && extraSetsError && (
+                    <div className="flex items-center justify-between gap-2 text-xs text-red-500 py-2">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle size={14} /> {extraSetsError}
                       </span>
                       <button
-                        onClick={() =>
-                          setExtraForm((p: any) => ({
-                            ...p,
-                            rows: p.rows.filter(
-                              (_: any, xi: number) => xi !== i,
-                            ),
-                          }))
-                        }
-                        className="text-slate-400 hover:text-red-500 p-1.5"
+                        onClick={openAddRound}
+                        className="flex items-center gap-1 font-bold hover:underline"
                       >
-                        <Trash2 size={14} />
+                        <RefreshCw size={12} /> Thử lại
                       </button>
                     </div>
-                  ))}
+                  )}
+                  {!loadingExtraSets && !extraSetsError && (
+                    <>
+                      <select
+                        value={extraForm.reuseSetId}
+                        onChange={(e) =>
+                          setExtraForm((p: any) => ({
+                            ...p,
+                            reuseSetId: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-blue-500"
+                      >
+                        <option value="">-- Chọn bộ tiêu chí có sẵn --</option>
+                        {extraSets.map((s: any) => (
+                          <option key={s.setId} value={s.setId}>
+                            {s.setName}
+                          </option>
+                        ))}
+                      </select>
+                      {extraForm.reuseSetId &&
+                        (() => {
+                          const picked = extraSets.find(
+                            (s: any) =>
+                              String(s.setId) === String(extraForm.reuseSetId),
+                          );
+                          if (!picked) return null;
+                          const total = sumWeight(picked.items);
+                          return (
+                            <div className="mt-3 space-y-1.5">
+                              {picked.items.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic">
+                                  Bộ này chưa có tiêu chí.
+                                </p>
+                              ) : (
+                                picked.items.map((it: any, i: number) => (
+                                  <div
+                                    key={it.criteriaId || i}
+                                    className="flex justify-between items-center text-xs px-3 py-1.5 bg-slate-50 rounded-md"
+                                  >
+                                    <span className="font-semibold text-slate-600">
+                                      {it.name}
+                                    </span>
+                                    <span className="font-bold text-slate-400">
+                                      {it.score}%
+                                    </span>
+                                  </div>
+                                ))
+                              )}
+                              {picked.items.length > 0 && (
+                                <div
+                                  className={`text-xs font-bold text-right ${
+                                    total === 100
+                                      ? "text-emerald-600"
+                                      : "text-red-500"
+                                  }`}
+                                >
+                                  Tổng: {total}%
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-2">
+                  {(() => {
+                    const rowsTotal = sumWeight(
+                      extraForm.rows.map((r: any) => ({ weight: r.score })),
+                    );
+                    return (
+                      <>
+                        {extraForm.rows.map((r: any, i: number) => (
+                          <div
+                            key={i}
+                            className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                placeholder="Tên tiêu chí"
+                                value={r.name}
+                                onChange={(e) =>
+                                  setExtraForm((p: any) => ({
+                                    ...p,
+                                    rows: p.rows.map((x: any, xi: number) =>
+                                      xi === i
+                                        ? { ...x, name: e.target.value }
+                                        : x,
+                                    ),
+                                  }))
+                                }
+                                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm font-semibold focus:border-blue-500"
+                              />
+                              <input
+                                type="number"
+                                value={r.score}
+                                onChange={(e) =>
+                                  setExtraForm((p: any) => ({
+                                    ...p,
+                                    rows: p.rows.map((x: any, xi: number) =>
+                                      xi === i
+                                        ? {
+                                            ...x,
+                                            score: Number(e.target.value),
+                                          }
+                                        : x,
+                                    ),
+                                  }))
+                                }
+                                className="w-20 px-2 py-2 text-right bg-white border border-slate-200 rounded-lg outline-none text-sm font-bold focus:border-blue-500"
+                              />
+                              <span className="text-xs text-slate-400 font-bold">
+                                %
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setExtraForm((p: any) => ({
+                                    ...p,
+                                    rows: p.rows.filter(
+                                      (_: any, xi: number) => xi !== i,
+                                    ),
+                                  }))
+                                }
+                                className="text-slate-400 hover:text-red-500 p-1.5"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Mô tả tiêu chí (không bắt buộc)"
+                              value={r.description || ""}
+                              onChange={(e) =>
+                                setExtraForm((p: any) => ({
+                                  ...p,
+                                  rows: p.rows.map((x: any, xi: number) =>
+                                    xi === i
+                                      ? { ...x, description: e.target.value }
+                                      : x,
+                                  ),
+                                }))
+                              }
+                              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg outline-none text-xs text-slate-600 focus:border-blue-500"
+                            />
+                          </div>
+                        ))}
+                        <div
+                          className={`text-xs font-bold text-right ${
+                            rowsTotal === 100
+                              ? "text-emerald-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          Tổng trọng số: {rowsTotal}%
+                        </div>
+                      </>
+                    );
+                  })()}
                   <button
                     onClick={() =>
                       setExtraForm((p: any) => ({
                         ...p,
-                        rows: [...p.rows, { name: "", score: 0 }],
+                        rows: [
+                          ...p.rows,
+                          { name: "", description: "", score: 0 },
+                        ],
                       }))
                     }
                     className="text-xs font-bold text-blue-600 hover:text-blue-700"
@@ -1097,8 +1222,9 @@ export function EventDetailsPage() {
               <button
                 onClick={handleAddExtraRound}
                 disabled={savingRound}
-                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60"
               >
+                {savingRound && <Loader2 size={14} className="animate-spin" />}
                 {savingRound ? "Đang tạo..." : "Tạo vòng phụ"}
               </button>
             </div>
@@ -1251,9 +1377,22 @@ export function EventDetailsPage() {
             </h3>
 
             {loadingCriteria ? (
-              <p className="text-sm text-slate-400 italic py-3">
+              <div className="flex items-center gap-2 text-sm text-slate-400 py-3">
+                <Loader2 size={15} className="animate-spin" />
                 Đang tải bộ tiêu chí...
-              </p>
+              </div>
+            ) : criteriaError ? (
+              <div className="flex items-center justify-between gap-3 py-3">
+                <span className="flex items-center gap-1.5 text-sm text-red-500 font-medium">
+                  <AlertCircle size={15} /> {criteriaError}
+                </span>
+                <button
+                  onClick={loadCriteria}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 shrink-0"
+                >
+                  <RefreshCw size={12} /> Thử lại
+                </button>
+              </div>
             ) : criteriaSets.length === 0 ? (
               <p className="text-sm text-slate-400 italic py-3">
                 Sự kiện này chưa có bộ tiêu chí nào.
@@ -1261,10 +1400,7 @@ export function EventDetailsPage() {
             ) : (
               <div className="space-y-5">
                 {criteriaSets.map((set: any, setIdx: number) => {
-                  const total = set.items.reduce(
-                    (s: number, it: any) => s + Number(it.score || 0),
-                    0,
-                  );
+                  const total = sumWeight(set.items);
                   return (
                     <div
                       key={set.setId}
@@ -1372,18 +1508,23 @@ export function EventDetailsPage() {
                       <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 border-t border-slate-100">
                         <span
                           className={`text-xs font-bold ${
-                            total === 100
-                              ? "text-emerald-600"
-                              : "text-amber-600"
+                            total === 100 ? "text-emerald-600" : "text-red-500"
                           }`}
                         >
                           <Scale size={12} className="inline mr-1" />
                           Tổng trọng số: {total}%
+                          {total !== 100 && " (phải đúng 100% mới lưu được)"}
                         </span>
                         {!isEnded && (
                           <button
                             onClick={() => handleSaveSetScores(set)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors"
+                            disabled={total !== 100}
+                            title={
+                              total !== 100
+                                ? "Tổng trọng số phải đúng 100%"
+                                : undefined
+                            }
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900"
                           >
                             <Save size={13} /> Lưu trọng số
                           </button>
