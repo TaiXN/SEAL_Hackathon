@@ -13,14 +13,20 @@ import { jwtDecode } from "jwt-decode";
 import { judgeApi } from "../../lib/api/judgeApi";
 import { useAuthStore } from "../../stores/auth.store";
 
+<<<<<<< HEAD
 // BE hiện chỉ trả accessToken/refreshToken lúc login, KHÔNG trả kèm user/teacherId.
 // => state.user trong store luôn rỗng. Phải tự giải mã token để lấy id giám khảo.
+=======
+>>>>>>> Tri-dev-pr
 function getUserFromToken(accessToken?: string | null): any {
   if (!accessToken) return null;
   try {
     const decoded: any = jwtDecode(accessToken);
+<<<<<<< HEAD
     console.log("Payload JWT giải mã được:", decoded); // để soi tên claim thật, xoá sau khi confirm
 
+=======
+>>>>>>> Tri-dev-pr
     const id =
       decoded?.id ||
       decoded?.Id ||
@@ -64,18 +70,25 @@ export function JudgeDashboard() {
     (state: any) => state.user || state.profile || null,
   );
 
+<<<<<<< HEAD
   // Ưu tiên user có sẵn trong store (nếu sau này BE/store có bổ sung),
   // fallback về decode token để không bị rỗng như hiện tại.
   const user = storeUser || getUserFromToken(accessToken);
 
+=======
+  const user = storeUser || getUserFromToken(accessToken);
+>>>>>>> Tri-dev-pr
   const currentTeacherId =
     user?.id || user?.Id || user?.teacherId || user?.teacherID || "";
 
   useEffect(() => {
     const fetchTeams = async () => {
+<<<<<<< HEAD
       // In ra để check nếu cần, xóa cũng được
       console.log("ID Giám khảo đang dùng để gọi API:", currentTeacherId);
 
+=======
+>>>>>>> Tri-dev-pr
       if (!currentTeacherId) {
         setIsLoading(false);
         return;
@@ -83,7 +96,10 @@ export function JudgeDashboard() {
 
       try {
         setIsLoading(true);
+<<<<<<< HEAD
         // Gọi API thật
+=======
+>>>>>>> Tri-dev-pr
         const res = await judgeApi.getAssignedTeams(currentTeacherId);
         setTeams(res);
       } catch (error: any) {
@@ -173,7 +189,11 @@ export function JudgeDashboard() {
             <thead>
               <tr className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
                 <th className="px-6 py-4">Thông tin Đội</th>
+<<<<<<< HEAD
                 <th className="px-6 py-4">Hạng mục & Sự kiện</th>
+=======
+                <th className="px-6 py-4">Hạng mục & Vòng thi</th>
+>>>>>>> Tri-dev-pr
                 <th className="px-6 py-4 text-center">Trạng thái</th>
                 <th className="px-6 py-4 text-center">Điểm số</th>
                 <th className="px-6 py-4 text-right">Thao tác</th>
@@ -211,8 +231,15 @@ export function JudgeDashboard() {
                 </tr>
               ) : (
                 filteredTeams.map((team, index) => {
+<<<<<<< HEAD
                   const isSubmitted = Boolean(
                     team.submissionId || team.submissionID,
+=======
+                  // Đón đầu API chuẩn từ BE
+                  const uniqueId = team.teamInRoundId || team.teamInRoundID || team.teamId;
+                  const isSubmitted = Boolean(
+                    team.submissionId || team.submissionID || team.urlGithub || team.urlDemo,
+>>>>>>> Tri-dev-pr
                   );
                   const hasEvaluated = Boolean(
                     team.evaluationId ||
@@ -244,7 +271,11 @@ export function JudgeDashboard() {
 
                   return (
                     <tr
+<<<<<<< HEAD
                       key={team.teamId || index}
+=======
+                      key={uniqueId || index}
+>>>>>>> Tri-dev-pr
                       className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4">
@@ -252,7 +283,11 @@ export function JudgeDashboard() {
                           {team.teamName || "Chưa có tên"}
                         </p>
                         <p className="text-[11px] text-slate-400 font-mono uppercase mt-0.5">
+<<<<<<< HEAD
                           ID: {(team.teamId || "N/A").substring(0, 8)}
+=======
+                          ID: {(uniqueId || "N/A").substring(0, 8)}
+>>>>>>> Tri-dev-pr
                         </p>
                       </td>
                       <td className="px-6 py-4">
@@ -260,7 +295,11 @@ export function JudgeDashboard() {
                           {team.trackName || "N/A"}
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
+<<<<<<< HEAD
                           {team.eventName || "N/A"}
+=======
+                          {team.roundName || team.eventName || "N/A"}
+>>>>>>> Tri-dev-pr
                         </p>
                       </td>
                       <td className="px-6 py-4 text-center">{statusNode}</td>
@@ -272,7 +311,11 @@ export function JudgeDashboard() {
                           disabled={!isSubmitted}
                           onClick={() =>
                             navigate(
+<<<<<<< HEAD
                               `/judge/score/${team.submissionId || team.submissionID || team.teamId}`,
+=======
+                              `/judge/score/${team.submissionId || team.submissionID || uniqueId}`,
+>>>>>>> Tri-dev-pr
                               { state: { team } },
                             )
                           }
@@ -305,4 +348,8 @@ export function JudgeDashboard() {
       </main>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> Tri-dev-pr

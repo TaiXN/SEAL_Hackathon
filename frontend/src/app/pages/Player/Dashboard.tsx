@@ -267,6 +267,11 @@ export function Dashboard() {
           dashData?.trackID ||
           dashData?.trackId;
 
+<<<<<<< HEAD
+=======
+        // Nếu team đã đăng ký và có roundId, trackId thì lấy leaderbard chi tiết.
+        // Còn không thì lấy cái general
+>>>>>>> Tri-dev-pr
         if (rId && tId) {
           const res = await apiClient.get(`/api/LeaderBoard/${rId}/${tId}`);
           lbData = normalizeList(res);
@@ -287,7 +292,12 @@ export function Dashboard() {
           return scoreB - scoreA;
         });
 
+<<<<<<< HEAD
         setLeaderboard(sortedData.slice(0, 5));
+=======
+        // Bỏ .slice(0,5) để lấy toàn bộ danh sách đội thi
+        setLeaderboard(sortedData);
+>>>>>>> Tri-dev-pr
       } catch (e) {
         console.warn("Lỗi load Leaderboard:", e);
         setLeaderboard([]);
@@ -531,11 +541,20 @@ export function Dashboard() {
                     dashboardData?.name ||
                     "Chưa có team"}
                 </p>
+<<<<<<< HEAD
                 {dashboardData?.score && (
                   <p className="text-sm font-medium text-emerald-600 mt-2 bg-emerald-50 inline-block px-2 py-1 rounded-md border border-emerald-200">
                     Điểm hiện tại: {dashboardData.score}
                   </p>
                 )}
+=======
+                {dashboardData?.score !== undefined &&
+                  dashboardData?.score !== null && (
+                    <p className="text-sm font-medium text-emerald-600 mt-2 bg-emerald-50 inline-block px-2 py-1 rounded-md border border-emerald-200">
+                      Điểm hiện tại: {dashboardData.score}
+                    </p>
+                  )}
+>>>>>>> Tri-dev-pr
               </div>
             </div>
 
@@ -564,16 +583,28 @@ export function Dashboard() {
             <div className="p-6 border-b border-border bg-slate-50 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+<<<<<<< HEAD
                   <TrendingUp className="w-5 h-5 text-primary" /> Global
                   Leaderboard
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
                   Top 5 đội mạnh nhất tính tới thời điểm hiện tại
+=======
+                  <TrendingUp className="w-5 h-5 text-primary" /> Bảng xếp hạng
+                  Vòng thi
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Vị trí của các đội trong cùng Track & Round hiện tại
+>>>>>>> Tri-dev-pr
                 </p>
               </div>
             </div>
 
+<<<<<<< HEAD
             <div className="p-0">
+=======
+            <div className="p-0 max-h-[400px] overflow-y-auto relative">
+>>>>>>> Tri-dev-pr
               {isLoadingLeaderboard ? (
                 <div className="p-8 text-center text-sm font-medium text-slate-500 animate-pulse">
                   Đang tải bảng xếp hạng...
@@ -584,26 +615,62 @@ export function Dashboard() {
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
+<<<<<<< HEAD
+=======
+                  <thead className="sticky top-0 bg-white shadow-sm z-10">
+                    <tr className="border-b border-slate-100">
+                      <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-16 text-center">
+                        Hạng
+                      </th>
+                      <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        Đội thi
+                      </th>
+                      <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">
+                        Tổng điểm
+                      </th>
+                    </tr>
+                  </thead>
+>>>>>>> Tri-dev-pr
                   <tbody className="divide-y divide-slate-100">
                     {leaderboard.map((team, index) => {
                       const isMyTeam =
                         team.teamId === teamId || team.id === teamId;
                       const rank = index + 1;
                       const score =
+<<<<<<< HEAD
                         team.score || team.Score || team.totalScore || 0;
 
                       let rankNode = (
                         <span className="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-sm font-bold">
+=======
+                        team.score ?? team.Score ?? team.totalScore ?? 0;
+
+                      let rankNode = (
+                        <span className="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-sm font-bold mx-auto">
+>>>>>>> Tri-dev-pr
                           {rank}
                         </span>
                       );
                       if (rank === 1)
+<<<<<<< HEAD
                         rankNode = <Crown className="w-6 h-6 text-amber-500" />;
                       if (rank === 2)
                         rankNode = <Medal className="w-6 h-6 text-slate-400" />;
                       if (rank === 3)
                         rankNode = (
                           <Medal className="w-6 h-6 text-orange-400" />
+=======
+                        rankNode = (
+                          <Crown className="w-6 h-6 text-amber-500 mx-auto" />
+                        );
+                      if (rank === 2)
+                        rankNode = (
+                          <Medal className="w-6 h-6 text-slate-400 mx-auto" />
+                        );
+                      if (rank === 3)
+                        rankNode = (
+                          <Medal className="w-6 h-6 text-orange-400 mx-auto" />
+>>>>>>> Tri-dev-pr
                         );
 
                       return (
@@ -611,6 +678,7 @@ export function Dashboard() {
                           key={index}
                           className={`transition-colors hover:bg-slate-50 ${isMyTeam ? "bg-blue-50/50" : ""}`}
                         >
+<<<<<<< HEAD
                           <td className="px-6 py-4 w-16 text-center">
                             {rankNode}
                           </td>
@@ -627,6 +695,27 @@ export function Dashboard() {
                             )}
                           </td>
                           <td className="px-6 py-4 text-right">
+=======
+                          <td className="px-6 py-4 text-center align-middle">
+                            {rankNode}
+                          </td>
+                          <td className="px-6 py-4 align-middle">
+                            <span
+                              className={`font-semibold ${isMyTeam ? "text-blue-700" : "text-slate-800"}`}
+                            >
+                              {team.teamName ||
+                                team.name ||
+                                team.TeamName ||
+                                "Ẩn danh"}
+                            </span>
+                            {isMyTeam && (
+                              <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-600 text-white border border-blue-700">
+                                Đội của bạn
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right align-middle">
+>>>>>>> Tri-dev-pr
                             <span
                               className={`inline-block px-3 py-1 font-mono font-bold text-sm rounded-md border ${
                                 rank === 1
@@ -635,7 +724,13 @@ export function Dashboard() {
                                     ? "bg-slate-100 text-slate-700 border-slate-200"
                                     : rank === 3
                                       ? "bg-orange-100 text-orange-700 border-orange-200"
+<<<<<<< HEAD
                                       : "bg-slate-50 text-slate-600 border-slate-200"
+=======
+                                      : isMyTeam
+                                        ? "bg-blue-100 text-blue-700 border-blue-200"
+                                        : "bg-slate-50 text-slate-600 border-slate-200"
+>>>>>>> Tri-dev-pr
                               }`}
                             >
                               {score} pts

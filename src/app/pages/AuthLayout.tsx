@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, Check, ArrowLeft, Mail } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // 1. Import thằng này vào
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 import { authApi } from "../lib/api/authApi";
@@ -27,16 +27,33 @@ export function AuthLayout() {
   const [role, setRole] = useState("player"); // mặc định là member
 
   // ================= STATE CHO REGISTER =================
-  const [studentType, setStudentType] = useState<"fpt" | "other" | null>("fpt");
   const [regEmail, setRegEmail] = useState("");
-  const [regUniversity, setRegUniversity] = useState("");
   const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regFullName, setRegFullName] = useState("");
   const [regAddress, setRegAddress] = useState("");
   const [regPhone, setRegPhone] = useState("");
-  const [regUniversityId, setRegUniversityId] = useState("UNI_FPT");
+  const [regUniversityId, setRegUniversityId] = useState("");
+
+  // Danh sách trường Đại học (Lấy theo Database hiện tại)
+  const universitiesList = [
+    { id: "9cc4a00d-e012-4bda-ac97-482fbbaacc8d", name: "THU THEM UNIVERSITY" },
+    { id: "UNI_FPT", name: "FPT University HCM" },
+    { id: "UNI_HCMUS", name: "Đại học Khoa học Tự nhiên - ĐHQG TP.HCM" },
+    { id: "UNI_HCMUT", name: "Đại học Bách Khoa - ĐHQG TP.HCM" },
+    { id: "UNI_HCMUTE", name: "Đại học Sư phạm Kỹ thuật TP.HCM" },
+    { id: "UNI_IU", name: "Đại học Quốc tế - ĐHQG TP.HCM" },
+    {
+      id: "UNI_KHTN",
+      name: "Đại học Khoa học Xã hội và Nhân văn - ĐHQG TP.HCM",
+    },
+    { id: "UNI_OTHER", name: "Trường Đại học Khác" },
+    { id: "UNI_RMIT", name: "Đại học RMIT Nam Sài Gòn" },
+    { id: "UNI_TDTU", name: "Đại học Tôn Đức Thắng" },
+    { id: "UNI_UEH", name: "Đại học Kinh tế TP.HCM" },
+    { id: "UNI_UIT", name: "Đại học Công nghệ Thông tin - ĐHQG TP.HCM" },
+  ];
 
   // ================= STATE CHO FORGOT / RESET PASSWORD =================
   const [forgotEmail, setForgotEmail] = useState("");
@@ -62,30 +79,26 @@ export function AuthLayout() {
         navigateTo = "/judge";
       } else {
         data = await authApi.loginPlayer(credentials);
-        navigateTo = "/player"; //sửa lại url
+        navigateTo = "/player";
       }
 
       if (!data) {
         throw new Error("Không nhận được dữ liệu từ Server");
       }
 
-      console.log("Data API trả về nè: ", data); // ac & rf
+      console.log("Data API trả về nè: ", data);
 
-      // lấy token: axios ép thành json r
       const actualToken = data.accessToken;
-      setTokens(actualToken, role); // set vào kho zustand
+      setTokens(actualToken, role);
 
       toast.success("Đăng nhập thành công! Đang chuyển hướng...", {
         id: loadingToastId,
       });
 
       navigate(navigateTo);
-      //Axios: tự động xuống catch này, bắt lỗi BE trả về 400: sai mk, 404: k tìm thấy, 401: k có token,...
     } catch (error: any) {
-      // 1. log ra xem lỗi (lỗi API hay lỗi code JS)
       console.error("Chi tiết lỗi:", error);
 
-      // 2. Lấy thông báo từ Backend (nếu backend có gửi kèm message)
       const errorMsg =
         error.response?.data?.message ||
         "Có lỗi xảy ra trong quá trình đăng nhập!";
@@ -99,6 +112,11 @@ export function AuthLayout() {
 
     if (regPassword !== regConfirmPassword) {
       Swal.fire("Lỗi", "Mật khẩu xác nhận không khớp!", "error");
+      return;
+    }
+
+    if (!regUniversityId) {
+      Swal.fire("Lỗi", "Vui lòng chọn trường Đại học!", "warning");
       return;
     }
 
@@ -137,10 +155,11 @@ export function AuthLayout() {
       Swal.fire("Lỗi", errorMsg, "error");
     }
   };
+
   const handleForgotSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("[FORGOT PWD] Gửi yêu cầu reset cho email:", forgotEmail);
-    setView("link-sent"); // Chuyển sang màn hình thông báo đã gửi link
+    setView("link-sent");
   };
 
   const handleResetSubmit = (e: React.FormEvent) => {
@@ -189,7 +208,11 @@ export function AuthLayout() {
                 </p>
               </div>
 
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="mb-5 block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all cursor-pointer"
+              >
                 <option value="admin">Admin</option>
                 <option value="judge">Judge</option>
                 <option value="player">Participants</option>
@@ -277,6 +300,64 @@ export function AuthLayout() {
               </div>
 
               <form className="space-y-5" onSubmit={handleRegisterSubmit}>
+                {/* --- Full Name --- */}
+                <div className="space-y-2">
+                  <label
+                    className="text-sm font-medium text-slate-700"
+                    htmlFor="reg-fullname"
+                  >
+                    Full Name
+                  </label>
+                  <input
+                    id="reg-fullname"
+                    type="text"
+                    required
+                    placeholder="Nguyen Van A"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    value={regFullName}
+                    onChange={(e) => setRegFullName(e.target.value)}
+                  />
+                </div>
+
+                {/* --- Phone & Address --- */}
+                <div className="flex gap-4">
+                  <div className="space-y-2 flex-1">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="reg-phone"
+                    >
+                      Phone Number
+                    </label>
+                    <input
+                      id="reg-phone"
+                      type="tel"
+                      required
+                      placeholder="0901234567"
+                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <label
+                      className="text-sm font-medium text-slate-700"
+                      htmlFor="reg-address"
+                    >
+                      Address
+                    </label>
+                    <input
+                      id="reg-address"
+                      type="text"
+                      required
+                      placeholder="Ho Chi Minh City"
+                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      value={regAddress}
+                      onChange={(e) => setRegAddress(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* --- Email --- */}
                 <div className="space-y-2">
                   <label
                     className="text-sm font-medium text-slate-700"
@@ -295,49 +376,33 @@ export function AuthLayout() {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-slate-700">
-                    Are you an FPT student?
+                {/* --- University Dropdown --- */}
+                <div className="space-y-2">
+                  <label
+                    className="text-sm font-medium text-slate-700"
+                    htmlFor="reg-university"
+                  >
+                    University
                   </label>
-                  <div className="flex p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
-                    <button
-                      type="button"
-                      onClick={() => setStudentType("fpt")}
-                      className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${studentType === "fpt" ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700"}`}
-                    >
-                      {studentType === "fpt" && <Check size={16} />} FPT Student
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStudentType("other")}
-                      className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${studentType === "other" ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700"}`}
-                    >
-                      {studentType === "other" && <Check size={16} />} Other
-                      University
-                    </button>
-                  </div>
+                  <select
+                    id="reg-university"
+                    required
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all appearance-none cursor-pointer"
+                    value={regUniversityId}
+                    onChange={(e) => setRegUniversityId(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Select your university
+                    </option>
+                    {universitiesList.map((uni) => (
+                      <option key={uni.id} value={uni.id}>
+                        {uni.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {studentType === "other" && (
-                  <div className="space-y-2 animate-in fade-in zoom-in-95 duration-300">
-                    <label
-                      className="text-sm font-medium text-slate-700"
-                      htmlFor="university"
-                    >
-                      University Name
-                    </label>
-                    <input
-                      id="university"
-                      type="text"
-                      required
-                      placeholder="Enter your university name"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
-                      value={regUniversity}
-                      onChange={(e) => setRegUniversity(e.target.value)}
-                    />
-                  </div>
-                )}
-
+                {/* --- Student ID --- */}
                 <div className="space-y-2">
                   <label
                     className="text-sm font-medium text-slate-700"
@@ -356,6 +421,7 @@ export function AuthLayout() {
                   />
                 </div>
 
+                {/* --- Passwords --- */}
                 <div className="space-y-5 pt-2">
                   <div className="space-y-2">
                     <label

@@ -5,6 +5,19 @@ export interface Criterion {
   criteriaName: string;
   description: string;
 }
+
+export interface CriteriaMappingItem {
+  criteriaId: string;
+  score: number;
+}
+
+export interface CriteriaSet {
+  setID?: string; // Thêm id
+  setName: string;
+  isDefault: boolean;
+  criteriaList?: CriteriaMappingItem[];
+}
+
 export function pickId(obj: any): string {
   return (
     obj?.id ||
@@ -40,17 +53,16 @@ export function pickId(obj: any): string {
     ""
   );
 }
-export interface CriteriaSet {
-  setID?: string; // Thêm id
-  setName: string;
-  isDefault: boolean;
-  criteriaList: { criteriaId: string; score: number }[]; // Sửa lại đúng cấu trúc mapping}
-}
+
 export const criteriaApi = {
+  // ==========================================
+  // API TIÊU CHÍ (CRITERION)
+  // ==========================================
   async getAllCriteria(): Promise<Criterion[]> {
     const res = await apiClient.get("/api/Criteria/criterion");
     return res.data;
   },
+
   async getCriteriaById(id: string): Promise<Criterion> {
     const res = await apiClient.get(`/api/Criteria/criterion/${id}`);
     return res.data;
@@ -74,12 +86,15 @@ export const criteriaApi = {
     await apiClient.put(`/api/Criteria/criterion/${id}/restore`);
   },
 
+  // ==========================================
+  // API BỘ TIÊU CHÍ (CRITERIA SET)
+  // ==========================================
   async getAllSet(): Promise<CriteriaSet[]> {
     const res = await apiClient.get("/api/Criteria/set");
     return res.data;
   },
 
-  async getSetById(id: string): Promise<CriteriaSet> {
+  async getSetById(id: string): Promise<any> {
     const res = await apiClient.get(`/api/Criteria/set/${id}`);
     return res.data;
   },
@@ -89,11 +104,13 @@ export const criteriaApi = {
     return res.data;
   },
 
+  // API MỚI: Cập nhật bộ tiêu chí
   async updateSet(id: string, data: CriteriaSet): Promise<CriteriaSet> {
     const res = await apiClient.put(`/api/Criteria/set/${id}`, data);
     return res.data;
   },
 
+  // API MỚI: Xóa bộ tiêu chí
   async deleteSet(id: string): Promise<void> {
     await apiClient.delete(`/api/Criteria/set/${id}`);
   },

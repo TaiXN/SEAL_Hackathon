@@ -5,6 +5,22 @@ export interface Criterion {
   criteriaName: string;
   description: string;
 }
+<<<<<<< HEAD
+=======
+
+export interface CriteriaMappingItem {
+  criteriaId: string;
+  score: number;
+}
+
+export interface CriteriaSet {
+  setID?: string; // Thêm id
+  setName: string;
+  isDefault: boolean;
+  criteriaList?: CriteriaMappingItem[];
+}
+
+>>>>>>> Tri-dev-pr
 export function pickId(obj: any): string {
   return (
     obj?.id ||
@@ -40,6 +56,7 @@ export function pickId(obj: any): string {
     ""
   );
 }
+<<<<<<< HEAD
 export interface CriteriaSet {
   setID?: string; // Thêm id
   setName: string;
@@ -47,10 +64,21 @@ export interface CriteriaSet {
   criteriaList: { criteriaId: string; score: number }[]; // Sửa lại đúng cấu trúc mapping}
 }
 export const criteriaApi = {
+=======
+
+export const criteriaApi = {
+  // ==========================================
+  // API TIÊU CHÍ (CRITERION)
+  // ==========================================
+>>>>>>> Tri-dev-pr
   async getAllCriteria(): Promise<Criterion[]> {
     const res = await apiClient.get("/api/Criteria/criterion");
     return res.data;
   },
+<<<<<<< HEAD
+=======
+
+>>>>>>> Tri-dev-pr
   async getCriteriaById(id: string): Promise<Criterion> {
     const res = await apiClient.get(`/api/Criteria/criterion/${id}`);
     return res.data;
@@ -74,12 +102,22 @@ export const criteriaApi = {
     await apiClient.put(`/api/Criteria/criterion/${id}/restore`);
   },
 
+<<<<<<< HEAD
+=======
+  // ==========================================
+  // API BỘ TIÊU CHÍ (CRITERIA SET)
+  // ==========================================
+>>>>>>> Tri-dev-pr
   async getAllSet(): Promise<CriteriaSet[]> {
     const res = await apiClient.get("/api/Criteria/set");
     return res.data;
   },
 
+<<<<<<< HEAD
   async getSetById(id: string): Promise<CriteriaSet> {
+=======
+  async getSetById(id: string): Promise<any> {
+>>>>>>> Tri-dev-pr
     const res = await apiClient.get(`/api/Criteria/set/${id}`);
     return res.data;
   },
@@ -89,11 +127,19 @@ export const criteriaApi = {
     return res.data;
   },
 
+<<<<<<< HEAD
+=======
+  // API MỚI: Cập nhật bộ tiêu chí
+>>>>>>> Tri-dev-pr
   async updateSet(id: string, data: CriteriaSet): Promise<CriteriaSet> {
     const res = await apiClient.put(`/api/Criteria/set/${id}`, data);
     return res.data;
   },
 
+<<<<<<< HEAD
+=======
+  // API MỚI: Xóa bộ tiêu chí
+>>>>>>> Tri-dev-pr
   async deleteSet(id: string): Promise<void> {
     await apiClient.delete(`/api/Criteria/set/${id}`);
   },

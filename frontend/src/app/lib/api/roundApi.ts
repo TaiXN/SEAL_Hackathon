@@ -11,6 +11,10 @@ export interface RoundData {
   roundIndex: number;
   criteriaSetID: string;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> Tri-dev-pr
 export function pickId(obj: any): string {
   return (
     obj?.id ||
@@ -41,11 +45,20 @@ export function pickId(obj: any): string {
     obj?.data?.criteriaId ||
     obj?.data?.criteriaSetID ||
     obj?.data?.criteriaSetId ||
+<<<<<<< HEAD
+=======
+    obj?.data?.CriteriaSetId ||
+    obj?.data?.CriteriaSetID ||
+>>>>>>> Tri-dev-pr
     obj?.data?.teacherID ||
     obj?.data?.teacherId ||
     ""
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> Tri-dev-pr
 export const roundApi = {
   async getAllRounds(): Promise<RoundData[]> {
     const res = await apiClient.get("/api/Round");
@@ -70,4 +83,23 @@ export const roundApi = {
   async deleteRound(id: string): Promise<void> {
     await apiClient.delete(`/api/Round/${id}`);
   },
+<<<<<<< HEAD
+=======
+
+  // ==========================================
+  // CÁC API MỚI UPDATE
+  // ==========================================
+
+  // Lấy các menu đang active của round
+  async getActiveMenus(): Promise<any> {
+    const res = await apiClient.get("/api/Round/active-menus");
+    return res.data;
+  },
+
+  // Tự động chuyển vòng thi
+  async autoTransitionRound(roundId: string): Promise<any> {
+    const res = await apiClient.post(`/api/Round/auto-transition/${roundId}`);
+    return res.data;
+  },
+>>>>>>> Tri-dev-pr
 };

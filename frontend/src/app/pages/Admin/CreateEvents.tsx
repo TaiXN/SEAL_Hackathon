@@ -7,9 +7,12 @@ import {
   ArrowRight,
   Lock,
   Save,
+<<<<<<< HEAD
   Loader2,
   AlertCircle,
   RefreshCw,
+=======
+>>>>>>> Tri-dev-pr
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -20,6 +23,7 @@ import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
 
+<<<<<<< HEAD
 // HÀM DÙNG CHUNG (dùng chung với EventDetailsPage — xem lib/utils/criteriaHelpers.ts)
 import {
   getList,
@@ -136,6 +140,45 @@ function RubricPanel({
     </div>
   );
 }
+=======
+// Helper lấy mảng an toàn
+const getList = (res: any): any[] => {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res?.items)) return res.items;
+  if (Array.isArray(res?.result)) return res.result;
+  return [];
+};
+
+// Hàm dò tìm ID bất chấp Backend đặt tên biến là gì
+const extractId = (obj: any): string | null => {
+  if (!obj) return null;
+  return (
+    obj.id ||
+    obj.trackId ||
+    obj.trackID ||
+    obj.topicId ||
+    obj.topicID ||
+    obj.criteriaId ||
+    obj.CriteriaId ||
+    obj.criteriaID ||
+    obj.setID ||
+    obj.setId ||
+    obj.criteriaSetId ||
+    obj.criteriaSetID ||
+    // ⚠️ Khóa ngoại để CUỐI cùng — nếu không sẽ che mất ID thật của track
+    obj.eventId ||
+    obj.eventID ||
+    null
+  );
+};
+
+// Lấy CHÍNH XÁC trackId của một track object (không bao giờ nhầm sang eventId)
+const pickTrackId = (obj: any): string | null => {
+  if (!obj) return null;
+  return obj.trackId || obj.trackID || obj.id || null;
+};
+>>>>>>> Tri-dev-pr
 
 export function CreateEvents() {
   const navigate = useNavigate();
@@ -162,6 +205,7 @@ export function CreateEvents() {
   ]);
   const [topicInputs, setTopicInputs] = useState<{ [key: number]: string }>({});
 
+<<<<<<< HEAD
   const [rubrics, setRubrics] = useState<{
     prelim: RubricItem[];
     final: RubricItem[];
@@ -173,11 +217,21 @@ export function CreateEvents() {
     final: [{ id: 3, name: "Tính hoàn thiện", description: "", weight: 100 }],
   });
   const [isSavingRubrics, setIsSavingRubrics] = useState(false);
+=======
+  const [rubrics, setRubrics] = useState({
+    prelim: [
+      { id: 1, name: "Tính sáng tạo", weight: 50 },
+      { id: 2, name: "Tính thực tế", weight: 50 },
+    ],
+    final: [{ id: 3, name: "Tính hoàn thiện", weight: 100 }],
+  });
+>>>>>>> Tri-dev-pr
 
   // ===== #3A: Tạo mới HAY dùng lại bộ tiêu chí có sẵn =====
   const [rubricMode, setRubricMode] = useState<"new" | "reuse">("new");
   const [availableSets, setAvailableSets] = useState<any[]>([]);
   const [loadingSets, setLoadingSets] = useState(false);
+<<<<<<< HEAD
   const [loadSetsError, setLoadSetsError] = useState<string | null>(null);
   const [reusePrelimSetId, setReusePrelimSetId] = useState<string>("");
   const [reuseFinalSetId, setReuseFinalSetId] = useState<string>("");
@@ -187,10 +241,20 @@ export function CreateEvents() {
     try {
       setLoadingSets(true);
       setLoadSetsError(null);
+=======
+  const [reusePrelimSetId, setReusePrelimSetId] = useState<string>("");
+  const [reuseFinalSetId, setReuseFinalSetId] = useState<string>("");
+
+  // Nạp danh sách bộ tiêu chí có sẵn (kèm tên tiêu chí để xem trước)
+  const loadAvailableSets = async () => {
+    try {
+      setLoadingSets(true);
+>>>>>>> Tri-dev-pr
       const [setsRaw, critRaw] = await Promise.all([
         criteriaApi.getAllSet(),
         criteriaApi.getAllCriteria(),
       ]);
+<<<<<<< HEAD
       const critMap = buildCriteriaMap(critRaw);
 
       const baseSets = getList(setsRaw)
@@ -214,6 +278,57 @@ export function CreateEvents() {
     } catch (e) {
       console.error("Lỗi tải bộ tiêu chí có sẵn:", e);
       setLoadSetsError("Không tải được danh sách bộ tiêu chí có sẵn.");
+=======
+      const critMap: Record<string, string> = {};
+      getList(critRaw).forEach((c: any) => {
+        const cid = c.criteriaID || c.criteriaId || c.id;
+        if (cid) critMap[String(cid)] = c.criteriaName || c.name || "(?)";
+      });
+      const looksGuid = (v: any) =>
+        typeof v === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          v,
+        );
+      const grabSetId = (s: any): string | null => {
+        const direct =
+          s.setID || s.setId || s.criteriaSetId || s.criteriaSetID || s.id;
+        if (direct) return direct;
+        // Dự phòng: quét bất kỳ field nào có giá trị dạng GUID (bỏ qua field event)
+        for (const k of Object.keys(s)) {
+          if (k.toLowerCase().includes("event")) continue;
+          if (looksGuid(s[k])) return s[k];
+        }
+        return null;
+      };
+      const enriched = getList(setsRaw)
+        .map((s: any) => {
+          // ⚠️ Backend trả ID set dưới nhiều tên; phải lấy đúng GUID, KHÔNG được để undefined
+          const sid = grabSetId(s);
+          const rawList =
+            s.criteriaList ||
+            s.CriteriaList ||
+            s.criteriaMappingItemViewModels ||
+            [];
+          const list = rawList.map((it: any) => {
+            const cid =
+              it.criteriaId || it.criteriaID || it.CriteriaId || it.id;
+            return {
+              name: critMap[String(cid)] || "(?)",
+              score: it.score ?? it.Score ?? 0,
+            };
+          });
+          return {
+            setId: sid,
+            setName: s.setName || s.SetName || "Bộ tiêu chí",
+            items: list,
+          };
+        })
+        // Bỏ những set không lấy được ID (tránh dùng nhầm tên bộ làm value)
+        .filter((s: any) => !!s.setId);
+      setAvailableSets(enriched);
+    } catch (e) {
+      console.error("Lỗi tải bộ tiêu chí có sẵn:", e);
+>>>>>>> Tri-dev-pr
       Swal.fire("Lỗi", "Không tải được danh sách bộ tiêu chí có sẵn.", "error");
     } finally {
       setLoadingSets(false);
@@ -229,9 +344,12 @@ export function CreateEvents() {
     prelim: { startDate: "", endDate: "", maxTeams: 40, topAdvance: 10 },
     final: { endDate: "" },
   });
+<<<<<<< HEAD
   const [isSavingRounds, setIsSavingRounds] = useState(false);
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [isSavingTracks, setIsSavingTracks] = useState(false);
+=======
+>>>>>>> Tri-dev-pr
 
   // ==========================================
   // HÀM XỬ LÝ LƯU TỪNG TAB (ROBUST UPSERT LÝ TƯỞNG)
@@ -242,7 +360,10 @@ export function CreateEvents() {
     if (!eventForm.eventName.trim())
       return Swal.fire("Lỗi", "Vui lòng nhập tên sự kiện!", "warning");
 
+<<<<<<< HEAD
     setIsSavingEvent(true);
+=======
+>>>>>>> Tri-dev-pr
     try {
       Swal.fire({
         title: "Đang lưu Sự kiện...",
@@ -290,8 +411,11 @@ export function CreateEvents() {
       setActiveTab(2);
     } catch (error) {
       Swal.fire("Lỗi", "Lỗi lưu sự kiện!", "error");
+<<<<<<< HEAD
     } finally {
       setIsSavingEvent(false);
+=======
+>>>>>>> Tri-dev-pr
     }
   };
 
@@ -300,7 +424,10 @@ export function CreateEvents() {
     if (!savedEventId)
       return Swal.fire("Lỗi", "Vui lòng lưu Sự kiện ở Tab 1 trước!", "error");
 
+<<<<<<< HEAD
     setIsSavingTracks(true);
+=======
+>>>>>>> Tri-dev-pr
     try {
       Swal.fire({
         title: "Đang đồng bộ Hạng mục...",
@@ -364,12 +491,20 @@ export function CreateEvents() {
           String(currentTrackId) === String(savedEventId)
         ) {
           console.error(
+<<<<<<< HEAD
             "Không lấy được trackId hợp lệ cho track:",
+=======
+            "🟥 Không lấy được trackId hợp lệ cho track:",
+>>>>>>> Tri-dev-pr
             track.name,
             "-> bỏ qua topic.",
           );
           continue;
         }
+<<<<<<< HEAD
+=======
+        console.log("🟩 Track OK:", track.name, "-> trackId =", currentTrackId);
+>>>>>>> Tri-dev-pr
 
         // Xử lý Topic
         let existingTopics: any[] = [];
@@ -391,6 +526,10 @@ export function CreateEvents() {
           );
           if (isExist) continue;
           try {
+<<<<<<< HEAD
+=======
+            console.log("🟦 POST topic:", name, "-> trackID:", currentTrackId);
+>>>>>>> Tri-dev-pr
             await trackTopicApi.createTopic({
               trackID: currentTrackId,
               topicDetail: name,
@@ -403,7 +542,11 @@ export function CreateEvents() {
               e?.message ||
               "lỗi không rõ";
             console.error(
+<<<<<<< HEAD
               "POST topic lỗi:",
+=======
+              "🟥 POST topic lỗi:",
+>>>>>>> Tri-dev-pr
               name,
               e?.response?.status,
               e?.response?.data,
@@ -432,8 +575,11 @@ export function CreateEvents() {
     } catch (error) {
       console.error(error);
       Swal.fire("Lỗi", "Quá trình lưu Hạng mục có lỗi!", "error");
+<<<<<<< HEAD
     } finally {
       setIsSavingTracks(false);
+=======
+>>>>>>> Tri-dev-pr
     }
   };
 
@@ -446,6 +592,7 @@ export function CreateEvents() {
           "Hãy chọn bộ tiêu chí có sẵn cho cả Sơ khảo và Chung kết!",
           "warning",
         );
+<<<<<<< HEAD
       // 🔒 ÉP BUỘC: dù là bộ có sẵn, tổng trọng số bên trong vẫn phải đúng 100%
       const prelimSet = availableSets.find(
         (s) => String(s.setId) === String(reusePrelimSetId),
@@ -484,6 +631,25 @@ export function CreateEvents() {
     }
 
     setIsSavingRubrics(true);
+=======
+    } else {
+      const prelimTotal = rubrics.prelim.reduce(
+        (s, r) => s + Number(r.weight || 0),
+        0,
+      );
+      const finalTotal = rubrics.final.reduce(
+        (s, r) => s + Number(r.weight || 0),
+        0,
+      );
+      if (prelimTotal !== 100 || finalTotal !== 100)
+        return Swal.fire(
+          "Lỗi",
+          "Tổng trọng số mỗi vòng phải đúng 100%!",
+          "warning",
+        );
+    }
+
+>>>>>>> Tri-dev-pr
     try {
       Swal.fire({
         title: "Đang lưu Bộ Tiêu Chí...",
@@ -491,19 +657,30 @@ export function CreateEvents() {
       });
 
       const syncSet = async (
+<<<<<<< HEAD
         rubricList: RubricItem[],
+=======
+        rubricList: any[],
+>>>>>>> Tri-dev-pr
         setName: string,
         existingSetId: string | null,
       ) => {
         const criteriaMap = await Promise.all(
           rubricList.map(async (r) => {
             let cId = null;
+<<<<<<< HEAD
             const description =
               r.description.trim() || DEFAULT_CRITERIA_DESCRIPTION;
             try {
               const res = await criteriaApi.createCriterion({
                 criteriaName: r.name.trim(),
                 description,
+=======
+            try {
+              const res = await criteriaApi.createCriterion({
+                criteriaName: r.name.trim(),
+                description: "Tiêu chí Hackathon",
+>>>>>>> Tri-dev-pr
               } as any);
               cId = extractId(res);
             } catch (e) {
@@ -520,6 +697,7 @@ export function CreateEvents() {
                     r.name.trim().toLowerCase(),
                 );
               cId = extractId(found);
+<<<<<<< HEAD
 
               // ⚠️ QUAN TRỌNG: nếu createCriterion thất bại vì TRÙNG TÊN (tiêu
               // chí đã tồn tại từ sự kiện trước — rất hay gặp với các tên mặc
@@ -543,6 +721,8 @@ export function CreateEvents() {
                   );
                 }
               }
+=======
+>>>>>>> Tri-dev-pr
             }
             // Chuẩn hóa Object gửi lên Set
             return {
@@ -621,8 +801,11 @@ export function CreateEvents() {
       setActiveTab(4);
     } catch (error) {
       Swal.fire("Lỗi", "Không thể lưu Bộ tiêu chí!", "error");
+<<<<<<< HEAD
     } finally {
       setIsSavingRubrics(false);
+=======
+>>>>>>> Tri-dev-pr
     }
   };
 
@@ -660,7 +843,10 @@ export function CreateEvents() {
         "warning",
       );
 
+<<<<<<< HEAD
     setIsSavingRounds(true);
+=======
+>>>>>>> Tri-dev-pr
     try {
       Swal.fire({
         title: "Đang chốt Sổ Vòng Thi...",
@@ -689,6 +875,12 @@ export function CreateEvents() {
         criteriaSetID: savedFinalSetId,
       };
 
+<<<<<<< HEAD
+=======
+      console.log("🟦 Payload round Sơ khảo:", prelimPayload);
+      console.log("🟦 Payload round Chung kết:", finalPayload);
+
+>>>>>>> Tri-dev-pr
       await roundApi.createRound(prelimPayload as any);
       await roundApi.createRound(finalPayload as any);
 
@@ -699,7 +891,11 @@ export function CreateEvents() {
         confirmButtonColor: "#0f172a",
       }).then(() => navigate("/admin/events"));
     } catch (error: any) {
+<<<<<<< HEAD
       // Hiện ĐÚNG lỗi backend thay vì câu "lỗi ngày giờ" gây hiểu lầm
+=======
+      // 🟥 Hiện ĐÚNG lỗi backend thay vì câu "lỗi ngày giờ" gây hiểu lầm
+>>>>>>> Tri-dev-pr
       const serverMsg =
         error?.response?.data?.message ||
         error?.response?.data?.title ||
@@ -709,13 +905,20 @@ export function CreateEvents() {
         error?.message ||
         "Không rõ nguyên nhân";
       console.error(
+<<<<<<< HEAD
         "Lỗi tạo Round - chi tiết backend:",
+=======
+        "🟥 Lỗi tạo Round - chi tiết backend:",
+>>>>>>> Tri-dev-pr
         error?.response?.status,
         error?.response?.data || error,
       );
       Swal.fire("Lỗi tạo Vòng thi", `Backend báo: ${serverMsg}`, "error");
+<<<<<<< HEAD
     } finally {
       setIsSavingRounds(false);
+=======
+>>>>>>> Tri-dev-pr
     }
   };
 
@@ -843,6 +1046,7 @@ export function CreateEvents() {
                 <div className="flex justify-end border-t border-slate-200 pt-6 mt-6">
                   <button
                     onClick={handleSaveEvent}
+<<<<<<< HEAD
                     disabled={isSavingEvent}
                     className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
@@ -853,6 +1057,11 @@ export function CreateEvents() {
                     )}
                     {isSavingEvent ? "Đang lưu..." : "Lưu & Đi tiếp"}
                     {!isSavingEvent && <ArrowRight size={16} />}
+=======
+                    className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2"
+                  >
+                    <Save size={16} /> Lưu & Đi tiếp <ArrowRight size={16} />
+>>>>>>> Tri-dev-pr
                   </button>
                 </div>
               </div>
@@ -997,6 +1206,7 @@ export function CreateEvents() {
                 </button>
                 <button
                   onClick={handleSaveTracks}
+<<<<<<< HEAD
                   disabled={isSavingTracks}
                   className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
@@ -1007,6 +1217,12 @@ export function CreateEvents() {
                   )}
                   {isSavingTracks ? "Đang lưu..." : "Lưu Hạng mục & Đi tiếp"}
                   {!isSavingTracks && <ArrowRight size={16} />}
+=======
+                  className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2"
+                >
+                  <Save size={16} /> Lưu Hạng mục & Đi tiếp{" "}
+                  <ArrowRight size={16} />
+>>>>>>> Tri-dev-pr
                 </button>
               </div>
             </div>
@@ -1045,6 +1261,7 @@ export function CreateEvents() {
 
               {rubricMode === "new" && (
                 <div className="grid grid-cols-2 gap-6">
+<<<<<<< HEAD
                   <RubricPanel
                     title="Sơ Khảo (Prelim)"
                     items={rubrics.prelim}
@@ -1059,10 +1276,202 @@ export function CreateEvents() {
                       setRubrics((prev) => ({ ...prev, final: items }))
                     }
                   />
+=======
+                  {/* PRELIM */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="font-black text-slate-800 mb-4 pb-2 border-b border-slate-100">
+                      Sơ Khảo (Prelim)
+                    </h4>
+                    <div className="space-y-3">
+                      {rubrics.prelim.map((r) => (
+                        <div key={r.id} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={r.name}
+                            onChange={(e) =>
+                              setRubrics({
+                                ...rubrics,
+                                prelim: rubrics.prelim.map((i) =>
+                                  i.id === r.id
+                                    ? { ...i, name: e.target.value }
+                                    : i,
+                                ),
+                              })
+                            }
+                            className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-black"
+                            placeholder="Tên tiêu chí"
+                          />
+                          <div className="relative w-20">
+                            <input
+                              type="number"
+                              value={r.weight}
+                              onChange={(e) =>
+                                setRubrics({
+                                  ...rubrics,
+                                  prelim: rubrics.prelim.map((i) =>
+                                    i.id === r.id
+                                      ? { ...i, weight: Number(e.target.value) }
+                                      : i,
+                                  ),
+                                })
+                              }
+                              className="w-full px-2 py-2 pr-6 text-sm text-center bg-slate-50 border border-slate-200 rounded-lg font-black outline-none focus:border-black"
+                            />
+                            <span className="absolute right-2 top-2 text-slate-400 text-sm font-bold">
+                              %
+                            </span>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setRubrics({
+                                ...rubrics,
+                                prelim: rubrics.prelim.filter(
+                                  (i) => i.id !== r.id,
+                                ),
+                              })
+                            }
+                            className="text-slate-300 hover:text-red-500 p-1"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() =>
+                          setRubrics({
+                            ...rubrics,
+                            prelim: [
+                              ...rubrics.prelim,
+                              { id: Date.now(), name: "", weight: 0 },
+                            ],
+                          })
+                        }
+                        className="text-xs font-bold text-slate-500 hover:text-black mt-2"
+                      >
+                        + Thêm tiêu chí
+                      </button>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between font-bold text-sm">
+                      <span className="text-slate-500">Tổng trọng số:</span>
+                      <span
+                        className={
+                          rubrics.prelim.reduce(
+                            (s, r) => s + Number(r.weight || 0),
+                            0,
+                          ) === 100
+                            ? "text-emerald-600"
+                            : "text-red-500"
+                        }
+                      >
+                        {rubrics.prelim.reduce(
+                          (s, r) => s + Number(r.weight || 0),
+                          0,
+                        )}
+                        %
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* FINAL */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="font-black text-slate-800 mb-4 pb-2 border-b border-slate-100">
+                      Chung Kết (Final)
+                    </h4>
+                    <div className="space-y-3">
+                      {rubrics.final.map((r) => (
+                        <div key={r.id} className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={r.name}
+                            onChange={(e) =>
+                              setRubrics({
+                                ...rubrics,
+                                final: rubrics.final.map((i) =>
+                                  i.id === r.id
+                                    ? { ...i, name: e.target.value }
+                                    : i,
+                                ),
+                              })
+                            }
+                            className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-black"
+                            placeholder="Tên tiêu chí"
+                          />
+                          <div className="relative w-20">
+                            <input
+                              type="number"
+                              value={r.weight}
+                              onChange={(e) =>
+                                setRubrics({
+                                  ...rubrics,
+                                  final: rubrics.final.map((i) =>
+                                    i.id === r.id
+                                      ? { ...i, weight: Number(e.target.value) }
+                                      : i,
+                                  ),
+                                })
+                              }
+                              className="w-full px-2 py-2 pr-6 text-sm text-center bg-slate-50 border border-slate-200 rounded-lg font-black outline-none focus:border-black"
+                            />
+                            <span className="absolute right-2 top-2 text-slate-400 text-sm font-bold">
+                              %
+                            </span>
+                          </div>
+                          <button
+                            onClick={() =>
+                              setRubrics({
+                                ...rubrics,
+                                final: rubrics.final.filter(
+                                  (i) => i.id !== r.id,
+                                ),
+                              })
+                            }
+                            className="text-slate-300 hover:text-red-500 p-1"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() =>
+                          setRubrics({
+                            ...rubrics,
+                            final: [
+                              ...rubrics.final,
+                              { id: Date.now(), name: "", weight: 0 },
+                            ],
+                          })
+                        }
+                        className="text-xs font-bold text-slate-500 hover:text-black mt-2"
+                      >
+                        + Thêm tiêu chí
+                      </button>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between font-bold text-sm">
+                      <span className="text-slate-500">Tổng trọng số:</span>
+                      <span
+                        className={
+                          rubrics.final.reduce(
+                            (s, r) => s + Number(r.weight || 0),
+                            0,
+                          ) === 100
+                            ? "text-emerald-600"
+                            : "text-red-500"
+                        }
+                      >
+                        {rubrics.final.reduce(
+                          (s, r) => s + Number(r.weight || 0),
+                          0,
+                        )}
+                        %
+                      </span>
+                    </div>
+                  </div>
+>>>>>>> Tri-dev-pr
                 </div>
               )}
 
               {rubricMode === "reuse" && (
+<<<<<<< HEAD
                 <>
                   {/* Trạng thái LOADING */}
                   {loadingSets && (
@@ -1195,6 +1604,79 @@ export function CreateEvents() {
                       </div>
                     )}
                 </>
+=======
+                <div className="grid grid-cols-2 gap-6">
+                  {(["prelim", "final"] as const).map((slot) => {
+                    const isPrelim = slot === "prelim";
+                    const selectedId = isPrelim
+                      ? reusePrelimSetId
+                      : reuseFinalSetId;
+                    const setSel = isPrelim
+                      ? setReusePrelimSetId
+                      : setReuseFinalSetId;
+                    const picked = availableSets.find(
+                      (s) => String(s.setId) === String(selectedId),
+                    );
+                    return (
+                      <div
+                        key={slot}
+                        className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm"
+                      >
+                        <h4 className="font-black text-slate-800 mb-4 pb-2 border-b border-slate-100">
+                          {isPrelim ? "Sơ Khảo (Prelim)" : "Chung Kết (Final)"}
+                        </h4>
+                        {loadingSets ? (
+                          <p className="text-sm text-slate-400 italic">
+                            Đang tải danh sách bộ tiêu chí...
+                          </p>
+                        ) : availableSets.length === 0 ? (
+                          <p className="text-sm text-slate-400 italic">
+                            Chưa có bộ tiêu chí nào trong hệ thống.
+                          </p>
+                        ) : (
+                          <>
+                            <select
+                              value={selectedId}
+                              onChange={(e) => setSel(e.target.value)}
+                              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-black"
+                            >
+                              <option value="">-- Chọn bộ tiêu chí --</option>
+                              {availableSets.map((s) => (
+                                <option key={s.setId} value={s.setId}>
+                                  {s.setName}
+                                </option>
+                              ))}
+                            </select>
+                            {picked && (
+                              <div className="mt-4 space-y-2">
+                                {picked.items.length === 0 ? (
+                                  <p className="text-xs text-slate-400 italic">
+                                    Bộ này chưa có tiêu chí.
+                                  </p>
+                                ) : (
+                                  picked.items.map((it: any, i: number) => (
+                                    <div
+                                      key={i}
+                                      className="flex justify-between items-center text-sm px-3 py-2 bg-slate-50 rounded-lg"
+                                    >
+                                      <span className="font-semibold text-slate-700">
+                                        {it.name}
+                                      </span>
+                                      <span className="font-black text-slate-500">
+                                        {it.score}%
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+>>>>>>> Tri-dev-pr
               )}
 
               <div className="flex justify-between pt-6 border-t border-slate-100">
@@ -1206,6 +1688,7 @@ export function CreateEvents() {
                 </button>
                 <button
                   onClick={handleSaveRubrics}
+<<<<<<< HEAD
                   disabled={isSavingRubrics}
                   className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
@@ -1216,6 +1699,12 @@ export function CreateEvents() {
                   )}
                   {isSavingRubrics ? "Đang lưu..." : "Lưu Tiêu chí & Đi tiếp"}
                   {!isSavingRubrics && <ArrowRight size={16} />}
+=======
+                  className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-slate-800 flex items-center gap-2"
+                >
+                  <Save size={16} /> Lưu Tiêu chí & Đi tiếp{" "}
+                  <ArrowRight size={16} />
+>>>>>>> Tri-dev-pr
                 </button>
               </div>
             </div>
@@ -1359,6 +1848,7 @@ export function CreateEvents() {
                   </button>
                   <button
                     onClick={handleSaveRounds}
+<<<<<<< HEAD
                     disabled={isSavingRounds}
                     className="px-8 py-3 bg-emerald-600 text-white text-sm font-black rounded-xl shadow-md hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
@@ -1370,6 +1860,11 @@ export function CreateEvents() {
                     {isSavingRounds
                       ? "Đang khởi chạy..."
                       : "Hoàn tất & Khởi chạy Hệ thống"}
+=======
+                    className="px-8 py-3 bg-emerald-600 text-white text-sm font-black rounded-xl shadow-md hover:bg-emerald-700 flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={18} /> Hoàn tất & Khởi chạy Hệ thống
+>>>>>>> Tri-dev-pr
                   </button>
                 </div>
               </div>

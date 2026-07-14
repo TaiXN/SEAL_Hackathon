@@ -10,6 +10,7 @@ import {
   Save,
   Activity,
   CheckCircle2,
+<<<<<<< HEAD
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -19,6 +20,20 @@ import { judgeApi } from "../../lib/api/judgeApi";
 import { useAuthStore } from "../../stores/auth.store";
 
 // Hàm hỗ trợ moi móc mảng bất chấp cấu trúc của Backend
+=======
+  FileText,
+} from "lucide-react";
+import Swal from "sweetalert2";
+import { jwtDecode } from "jwt-decode";
+
+// Import APIs
+import apiClient from "../../lib/api/apiClient";
+import { judgeApi } from "../../lib/api/judgeApi";
+import { roundApi } from "../../lib/api/roundApi";
+import { useAuthStore } from "../../stores/auth.store";
+
+// Hàm hỗ trợ đọc mảng an toàn
+>>>>>>> Tri-dev-pr
 const getList = (res: any): any[] => {
   if (!res) return [];
   if (Array.isArray(res)) return res;
@@ -29,23 +44,67 @@ const getList = (res: any): any[] => {
   return [];
 };
 
+<<<<<<< HEAD
 export function ScoringPage() {
   const navigate = useNavigate();
   const { teamId } = useParams();
+=======
+// Hàm chuẩn hóa ID chuỗi
+const normalizeId = (id: any) =>
+  String(id || "")
+    .toLowerCase()
+    .trim();
+
+export function ScoringPage() {
+  const navigate = useNavigate();
+  const { teamId } = useParams(); // Có thể là submissionId hoặc teamInRoundId do Dashboard truyền qua
+>>>>>>> Tri-dev-pr
   const location = useLocation();
   const teamFromList = location.state?.team || {};
 
   const user = useAuthStore(
     (state: any) => state.user || state.profile || null,
   );
+<<<<<<< HEAD
+=======
+  const accessToken = useAuthStore((state: any) => state.accessToken);
+
+  let decodedUser: any = null;
+  if (accessToken) {
+    try {
+      decodedUser = jwtDecode(accessToken);
+    } catch {}
+  }
+
+  // SỬA LỖI 1: Bổ sung đầy đủ các trường ánh xạ token như bên Dashboard
+>>>>>>> Tri-dev-pr
   const currentTeacherId =
     user?.id ||
     user?.Id ||
     user?.teacherId ||
     user?.teacherID ||
+<<<<<<< HEAD
     user?.sub ||
     "";
 
+=======
+    decodedUser?.id ||
+    decodedUser?.Id ||
+    decodedUser?.sub ||
+    decodedUser?.nameid ||
+    decodedUser?.userId ||
+    decodedUser?.UserId || // <-- Thêm nameid
+    decodedUser?.teacherId ||
+    decodedUser?.teacherID ||
+    decodedUser?.TeacherId ||
+    decodedUser?.TeacherID ||
+    decodedUser?.[
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+    ] ||
+    "";
+
+  // States dữ liệu
+>>>>>>> Tri-dev-pr
   const [submissionData, setSubmissionData] = useState({
     githubUrl: "",
     demoUrl: "",
@@ -60,6 +119,7 @@ export function ScoringPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+<<<<<<< HEAD
   // Lấy chính xác ID bài nộp để tra cứu
   const submissionId =
     teamFromList?.submissionId || teamFromList?.submissionID || teamId || "";
@@ -67,11 +127,22 @@ export function ScoringPage() {
   useEffect(() => {
     const fetchScoringData = async () => {
       if (!submissionId) {
+=======
+  // SỬA LỖI 2: State lưu trữ ID Bài Nộp CHUẨN XÁC để gửi xuống DB lúc chấm
+  const [actualSubmissionId, setActualSubmissionId] = useState(
+    teamFromList?.submissionId || teamFromList?.submissionID || teamId || "",
+  );
+
+  useEffect(() => {
+    const fetchScoringData = async () => {
+      if (!actualSubmissionId) {
+>>>>>>> Tri-dev-pr
         setIsLoading(false);
         return;
       }
       setIsLoading(true);
 
+<<<<<<< HEAD
       // ==========================================
       // 1. TÌM LINK BÀI NỘP (Đã fix lỗi chữ d thường)
       // ==========================================
@@ -196,6 +267,257 @@ export function ScoringPage() {
   }, [submissionId, teamFromList]);
 
   // Tính tổng điểm
+=======
+      try {
+        // ==========================================
+        // BƯỚC 1: LẤY THÔNG TIN BÀI NỘP CỦA ĐỘI
+        // ==========================================
+        let finalRoundId = normalizeId(
+          teamFromList?.roundId ||
+            teamFromList?.roundID ||
+            teamFromList?.teamInRound?.roundId,
+        );
+
+        try {
+          const subRes = await apiClient.get("/api/Submission");
+          const allSubs = getList(subRes);
+
+          // Tìm bài nộp thông minh: Dò theo ID bài nộp HOẶC teamInRoundId
+          const expectedTeamInRoundId = normalizeId(
+            teamFromList?.teamInRoundId ||
+              teamFromList?.teamInRoundID ||
+              teamFromList?.teamId,
+          );
+
+          const mySub = allSubs.find((s: any) => {
+            const targetId = normalizeId(actualSubmissionId);
+            return (
+              normalizeId(s.id) === targetId ||
+              normalizeId(s.submissionID) === targetId ||
+              normalizeId(s.submissionId) === targetId ||
+              (expectedTeamInRoundId &&
+                normalizeId(s.teamInRoundId) === expectedTeamInRoundId)
+            );
+          });
+
+          if (mySub) {
+            setSubmissionData({
+              githubUrl:
+                mySub.urlGithub || mySub.URLGithub || mySub.githubUrl || "",
+              demoUrl: mySub.urlDemo || mySub.URLDemo || mySub.demoUrl || "",
+              slideUrl:
+                mySub.urlSlide || mySub.URLSlide || mySub.slideUrl || "",
+            });
+
+            // CHỐT ID BÀI NỘP CHUẨN XÁC
+            const foundSubmissionId =
+              mySub.id || mySub.submissionID || mySub.submissionId;
+            if (foundSubmissionId) {
+              setActualSubmissionId(foundSubmissionId);
+            }
+
+            if (!finalRoundId) {
+              finalRoundId = normalizeId(
+                mySub.teamInRound?.roundId || mySub.teamInRound?.roundID,
+              );
+            }
+          }
+        } catch (e) {
+          console.warn("Lỗi khi load Submission:", e);
+        }
+
+        // ==========================================
+        // BƯỚC 2: TRÍCH XUẤT VÀ TÌM KIẾM ID BỘ TIÊU CHÍ
+        // ==========================================
+        let targetSetId = normalizeId(
+          teamFromList?.criteriaSetId ||
+            teamFromList?.CriteriaSetId ||
+            teamFromList?.criteriaSetID,
+        );
+
+        if (
+          !targetSetId &&
+          finalRoundId &&
+          finalRoundId !== "undefined" &&
+          finalRoundId !== "null"
+        ) {
+          try {
+            const roundData = await roundApi.getRoundsById(finalRoundId);
+            targetSetId = normalizeId(
+              roundData?.criteriaSetID || (roundData as any)?.criteriaSetId,
+            );
+          } catch (e) {
+            console.warn("Lỗi khi gọi roundApi lấy tiêu chí theo Vòng:", e);
+          }
+        }
+
+        if (
+          !targetSetId ||
+          targetSetId === "undefined" ||
+          targetSetId === "null"
+        ) {
+          try {
+            const allSetsRes = await apiClient.get("/api/Criteria/set");
+            const allSets = getList(allSetsRes);
+            const defaultSet =
+              allSets.find(
+                (s) => s.isDefault === true || s.IsDefault === true,
+              ) || allSets[0];
+
+            if (defaultSet) {
+              targetSetId = normalizeId(
+                defaultSet.criteriaSetID ||
+                  defaultSet.criteriaSetId ||
+                  defaultSet.id ||
+                  defaultSet.setID,
+              );
+            }
+          } catch (e) {
+            console.error("Lỗi lấy danh sách bộ tiêu chí dự phòng:", e);
+          }
+        }
+
+        // ==========================================
+        // BƯỚC 3: TẢI DANH SÁCH MỤC TIÊU CHÍ VÀ TRA TỪ ĐIỂN
+        // ==========================================
+        let isCriteriaLoaded = false;
+
+        if (
+          targetSetId &&
+          targetSetId !== "undefined" &&
+          targetSetId !== "null"
+        ) {
+          try {
+            const criteriaNameMap: Record<
+              string,
+              { name: string; desc: string }
+            > = {};
+            const allCriteria = await apiClient.get("/api/Criteria/criterion");
+            getList(allCriteria).forEach((c: any) => {
+              const cId = normalizeId(c.criteriaID || c.criteriaId || c.id);
+              if (cId) {
+                criteriaNameMap[cId] = {
+                  name: c.criteriaName || c.CriteriaName || "Tiêu chí đánh giá",
+                  desc: c.description || c.Description || "",
+                };
+              }
+            });
+
+            const mappingRes = await apiClient.get(
+              `/api/Criteria/set/${targetSetId}`,
+            );
+            let mappingsArray = [];
+            const data = mappingRes?.data ?? mappingRes;
+
+            if (Array.isArray(data)) {
+              mappingsArray = data;
+            } else if (
+              data?.criteriaList ||
+              data?.mapping ||
+              data?.items ||
+              data?.CriteriaList
+            ) {
+              mappingsArray = getList(
+                data.criteriaList ||
+                  data.mapping ||
+                  data.items ||
+                  data.CriteriaList,
+              );
+            }
+
+            if (mappingsArray.length > 0) {
+              const mappedCriteria = mappingsArray.map((item: any) => {
+                const rawCId =
+                  item.criteriaId ||
+                  item.CriteriaId ||
+                  item.criteriaID ||
+                  item.id;
+                const cId = normalizeId(rawCId);
+                const dictInfo = criteriaNameMap[cId] || {
+                  name: "Tiêu chí hệ thống",
+                  desc: "",
+                };
+
+                return {
+                  id: cId || Math.random().toString(),
+                  name:
+                    item.criteria?.criteriaName ||
+                    item.Criteria?.CriteriaName ||
+                    dictInfo.name,
+                  description:
+                    item.criteria?.description ||
+                    item.Criteria?.Description ||
+                    dictInfo.desc,
+                  maxScore: item.score || item.Score || item.maxScore || 0,
+                  judgeScore: 0,
+                };
+              });
+
+              setCriteriaList(mappedCriteria);
+              isCriteriaLoaded = true;
+            }
+          } catch (error: any) {
+            if (error.response?.status === 404) {
+              Swal.fire({
+                icon: "warning",
+                title: "Bộ tiêu chí rỗng",
+                text: "Vòng thi này đã được gán Bộ Tiêu Chí, nhưng Bộ này hiện chưa được Admin thêm câu hỏi/thang điểm nào vào bên trong.",
+              });
+              isCriteriaLoaded = true;
+            }
+          }
+        }
+
+        if (!isCriteriaLoaded) {
+          Swal.fire({
+            icon: "error",
+            title: "Lỗi cấu hình thang điểm",
+            text: "Không thể nạp dữ liệu barem điểm cho đội thi này. Vui lòng kiểm tra lại cấu hình bộ tiêu chí!",
+          });
+        }
+
+        // ==========================================
+        // BƯỚC 4: TẢI ĐIỂM SỐ ĐÃ LƯU TRƯỚC ĐÓ
+        // ==========================================
+        try {
+          // Lấy đúng ID Bài nộp mới load ra được điểm
+          const currentSubId = actualSubmissionId;
+          if (currentSubId) {
+            const evalRes =
+              await judgeApi.getEvaluationBySubmission(currentSubId);
+            const evalData = evalRes?.data || evalRes;
+
+            if (
+              evalData &&
+              (evalData.evaluationID ||
+                evalData.id ||
+                evalData.score !== undefined)
+            ) {
+              setEvaluationId(
+                evalData.evaluationID ||
+                  evalData.id ||
+                  evalData.evaluationId ||
+                  "",
+              );
+              setFeedback(evalData.reason || evalData.feedback || "");
+              setSavedScore(evalData.score);
+            }
+          }
+        } catch (e) {
+          console.log("ℹ️ Đội thi hiện tại chưa được lưu điểm cũ.");
+        }
+      } catch (e) {
+        console.error("Lỗi hệ thống tổng thể:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchScoringData();
+  }, [actualSubmissionId, teamFromList]);
+
+  // Tính toán tổng điểm tự động
+>>>>>>> Tri-dev-pr
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
     0,
@@ -204,7 +526,13 @@ export function ScoringPage() {
     (acc, curr) => acc + (curr.maxScore || 0),
     0,
   );
+<<<<<<< HEAD
   const displayScore = inputTotalScore > 0 ? inputTotalScore : savedScore || 0;
+=======
+
+  const isEditing = criteriaList.some((c) => c.judgeScore > 0);
+  const displayScore = isEditing ? inputTotalScore : savedScore || 0;
+>>>>>>> Tri-dev-pr
 
   const handleScoreChange = (id: string, val: string, maxScore: number) => {
     let num = parseFloat(val);
@@ -218,6 +546,7 @@ export function ScoringPage() {
   };
 
   const handleSaveEvaluation = async () => {
+<<<<<<< HEAD
     if (displayScore === 0) {
       Swal.fire("Cảnh báo", "Vui lòng nhập điểm trước khi lưu!", "warning");
       return;
@@ -228,6 +557,50 @@ export function ScoringPage() {
         "Vui lòng nhập nhận xét (Feedback) cho đội thi!",
         "warning",
       );
+=======
+    if (!currentTeacherId) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi xác thực",
+        text: "Hệ thống không nhận diện được ID Giám khảo. Vui lòng F5 hoặc đăng nhập lại!",
+      });
+      return;
+    }
+
+    if (criteriaList.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Thiếu barem điểm",
+        text: "Không có bộ tiêu chí nào để chấm điểm. Vui lòng liên hệ Admin!",
+      });
+      return;
+    }
+
+    if (displayScore === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Điểm số không hợp lệ",
+        text: "Vui lòng nhập điểm đánh giá lớn hơn 0 trước khi tiến hành chốt kết quả!",
+      });
+      return;
+    }
+
+    if (!feedback.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Thiếu nhận xét",
+        text: "Vui lòng nhập nội dung nhận xét & góp ý (Feedback) dành cho đội thi!",
+      });
+      return;
+    }
+
+    if (!actualSubmissionId) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi dữ liệu",
+        text: "Không tìm thấy mã số bài nộp hợp lệ của đội thi này!",
+      });
+>>>>>>> Tri-dev-pr
       return;
     }
 
@@ -244,26 +617,49 @@ export function ScoringPage() {
           evaluationID: evaluationId,
         });
       } else {
+<<<<<<< HEAD
         await judgeApi.createEvaluation(currentTeacherId, {
           ...basePayload,
           submissionID: submissionId,
+=======
+        // Gửi ĐÚNG actualSubmissionId
+        await judgeApi.createEvaluation(currentTeacherId, {
+          ...basePayload,
+          submissionID: actualSubmissionId,
+>>>>>>> Tri-dev-pr
         });
       }
 
       Swal.fire({
         icon: "success",
+<<<<<<< HEAD
         title: "Đã lưu điểm!",
         text: `Đội thi đã được ghi nhận ${displayScore} điểm.`,
+=======
+        title: "Lưu điểm thành công!",
+        text: `Đội thi đã được ghi nhận tổng số điểm là: ${displayScore} điểm.`,
+>>>>>>> Tri-dev-pr
         timer: 2000,
         showConfirmButton: false,
       }).then(() => navigate("/judge"));
     } catch (error: any) {
+<<<<<<< HEAD
       console.error("Lỗi lưu điểm:", error);
       Swal.fire(
         "Lỗi",
         error.response?.data?.message || "Hệ thống từ chối việc lưu điểm.",
         "error",
       );
+=======
+      console.error("Lỗi khi gửi dữ liệu chấm điểm lên hệ thống:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Lưu kết quả thất bại",
+        text:
+          error.response?.data?.message ||
+          "Hệ thống từ chối ghi nhận điểm số lúc này.",
+      });
+>>>>>>> Tri-dev-pr
     } finally {
       setIsSaving(false);
     }
@@ -273,7 +669,11 @@ export function ScoringPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-400 font-bold animate-pulse">
+<<<<<<< HEAD
           Đang nạp bộ tiêu chí và đồ án...
+=======
+          Đang nạp dữ liệu bài thi và bộ tiêu chí đánh giá thật...
+>>>>>>> Tri-dev-pr
         </p>
       </div>
     );
@@ -285,7 +685,11 @@ export function ScoringPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
+<<<<<<< HEAD
             className="p-2 hover:bg-slate-100 rounded-full transition-colors mr-2"
+=======
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors mr-2 cursor-pointer"
+>>>>>>> Tri-dev-pr
           >
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </button>
@@ -304,7 +708,11 @@ export function ScoringPage() {
             <Calculator size={20} />
             {displayScore}{" "}
             <span className="text-sm font-medium text-indigo-400">
+<<<<<<< HEAD
               / {maxPossibleScore || 100}
+=======
+              / {maxPossibleScore > 0 ? maxPossibleScore : 100}
+>>>>>>> Tri-dev-pr
             </span>
           </div>
         </div>
@@ -339,7 +747,11 @@ export function ScoringPage() {
                   </p>
                   <p className="text-xs text-emerald-600 mt-1">
                     Đội này đã được chấm <b>{savedScore} điểm</b>. Bạn có thể
+<<<<<<< HEAD
                     nhập điểm mới bên phải để ghi đè.
+=======
+                    nhập lại điểm để cập nhật kết quả mới.
+>>>>>>> Tri-dev-pr
                   </p>
                 </div>
               </div>
@@ -406,27 +818,57 @@ export function ScoringPage() {
         {/* ================= CỘT PHẢI: BẢNG TIÊU CHÍ CHẤM ================= */}
         <div className="lg:col-span-7">
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 lg:p-8">
+<<<<<<< HEAD
             <h3 className="text-lg font-extrabold text-slate-900 mb-2">
               Rubric Đánh Giá
             </h3>
             <p className="text-sm text-slate-500 mb-6 font-medium">
               Vui lòng nhập điểm số cho từng tiêu chí để hệ thống tính tổng.
+=======
+            <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2">
+              <FileText className="text-blue-600" /> Rubric Đánh Giá
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 font-medium">
+              Vui lòng nhập điểm số cho từng tiêu chí, hệ thống sẽ tự động tính
+              tổng điểm để gửi xuống Backend.
+>>>>>>> Tri-dev-pr
             </p>
 
             {criteriaList.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+<<<<<<< HEAD
                 <p className="text-slate-500 font-medium">
                   Không tìm thấy bộ tiêu chí đánh giá cho vòng thi này!
+=======
+                <p className="text-slate-500 font-medium text-lg">
+                  Bộ tiêu chí trống
+                </p>
+                <p className="text-slate-400 mt-2 text-sm">
+                  Vòng thi này hiện chưa được thiết lập các câu hỏi chấm điểm.
+                  Hãy nhắc Admin thêm nội dung vào bộ tiêu chí!
+>>>>>>> Tri-dev-pr
                 </p>
               </div>
             ) : (
               criteriaList.map((crit, index) => (
+<<<<<<< HEAD
                 <div key={crit.id} className="mb-5 last:mb-0">
+=======
+                <div key={`${crit.id}-${index}`} className="mb-5 last:mb-0">
+>>>>>>> Tri-dev-pr
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border border-slate-100 p-4 rounded-xl hover:border-blue-200 transition-colors">
                     <div className="flex-1">
                       <h4 className="font-bold text-slate-800 text-sm">
                         {index + 1}. {crit.name}
                       </h4>
+<<<<<<< HEAD
+=======
+                      {crit.description && (
+                        <p className="text-[12px] text-slate-500 mt-1">
+                          {crit.description}
+                        </p>
+                      )}
+>>>>>>> Tri-dev-pr
                       <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
                         Điểm tối đa:{" "}
                         <span className="text-blue-600">{crit.maxScore}</span>
@@ -458,6 +900,7 @@ export function ScoringPage() {
             )}
 
             <div className="pt-6 mt-6 border-t border-slate-100">
+<<<<<<< HEAD
               <h4 className="font-bold text-slate-800 text-sm mb-3">
                 Nhận xét của Giám khảo (Feedback){" "}
                 <span className="text-red-500">*</span>
@@ -467,6 +910,17 @@ export function ScoringPage() {
                 onChange={(e) => setFeedback(e.target.value)}
                 className="w-full h-28 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
                 placeholder="Nhập nhận xét chi tiết, góp ý xây dựng cho đội thi..."
+=======
+              <label className="block text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">
+                Nhận xét & Góp ý (Feedback){" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                className="w-full h-36 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
+                placeholder="Nhập nhận xét chi tiết, điểm mạnh, điểm yếu và các góp ý xây dựng cho đội thi..."
+>>>>>>> Tri-dev-pr
               ></textarea>
             </div>
 
@@ -474,7 +928,11 @@ export function ScoringPage() {
               <button
                 onClick={handleSaveEvaluation}
                 disabled={isSaving || criteriaList.length === 0}
+<<<<<<< HEAD
                 className="px-8 py-3 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/30"
+=======
+                className="px-8 py-3 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/30 cursor-pointer"
+>>>>>>> Tri-dev-pr
               >
                 <Save size={18} />
                 {isSaving
