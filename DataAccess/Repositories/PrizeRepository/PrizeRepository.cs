@@ -7,7 +7,7 @@ using System.Text;
 
 namespace DataAccess.Repositories.PrizeRepository
 {
-    public class PrizeRepository : Repository<PrizeRepository>, IPrizeRepository
+    public class PrizeRepository : Repository<Prize>, IPrizeRepository
     {
         private readonly SealContext _db;
         public PrizeRepository(SealContext db) : base(db)
