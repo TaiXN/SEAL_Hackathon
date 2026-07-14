@@ -1,9 +1,5 @@
 import { RouterProvider } from "react-router-dom";
-<<<<<<< HEAD
 import { router } from "./router";
-=======
-import { router } from "./routes";
->>>>>>> Tri-dev-pr
 import { Toaster } from "react-hot-toast";
 
 function App() {

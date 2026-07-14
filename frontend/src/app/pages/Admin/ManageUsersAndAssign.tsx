@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  Search,
   Plus,
   Briefcase,
   ShieldAlert,
@@ -9,13 +8,6 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Link as LinkIcon,
-  FileText,
-  CheckSquare,
-  Activity,
-  Globe,
-  Ban,
-  Unlock,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -334,10 +326,10 @@ export function ManageUsersAndAssign() {
   // ==========================================
   // TAB 4: DUYỆT BÀI NỘP CỦA TEAM (REFACTORED)
   // ==========================================
-  const [rounds, setRounds] = useState<any[]>([]);
-  const [selectedRoundId, setSelectedRoundId] = useState("");
-  const [teamInRounds, setTeamInRounds] = useState<any[]>([]);
-  const [isLoadingSubs, setIsLoadingSubs] = useState(false);
+  const [_rounds, setRounds] = useState<any[]>([]);
+  const [selectedRoundId, _setSelectedRoundId] = useState("");
+  const [_teamInRounds, setTeamInRounds] = useState<any[]>([]);
+  const [_isLoadingSubs, setIsLoadingSubs] = useState(false);
 
   // Lấy danh sách Vòng thi (Rounds) khi vào tab
   useEffect(() => {
@@ -375,6 +367,7 @@ export function ManageUsersAndAssign() {
   }, [selectedRoundId]);
 
   // Hàm xử lý hành động (Approve, Ban, Unban)
+  // @ts-expect-error
   const handleTeamAction = async (
     teamInRoundId: string,
     action: "approve" | "ban" | "unban",

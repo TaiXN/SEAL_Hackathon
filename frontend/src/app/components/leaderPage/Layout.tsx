@@ -1,12 +1,24 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router";
-import { LayoutDashboard, Users, UploadCloud, Hexagon, Settings, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  UploadCloud,
+  Hexagon,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { SettingsModal } from "./Modals";
-
+interface NavItem {
+  to: string;
+  icon: any; // Hoặc kiểu dữ liệu cụ thể cho icon của bạn
+  label: string;
+  badge?: string; // Dấu ? nghĩa là thuộc tính này có thể có hoặc không
+}
 export function Layout() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/team", icon: Users, label: "My Team" },
     { to: "/submit", icon: UploadCloud, label: "Submit Project" },
@@ -22,7 +34,9 @@ export function Layout() {
             <Hexagon className="w-6 h-6 fill-primary" />
             <span>Hackathon</span>
           </div>
-          <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5 ml-8">Team Leader</div>
+          <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5 ml-8">
+            Team Leader
+          </div>
         </div>
 
         {/* Navigation */}
@@ -52,7 +66,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        
+
         {/* User Profile - Hover Menu Area */}
         <div className="relative group p-4 border-t border-border mt-auto">
           {/* Hover Menu */}
@@ -65,9 +79,7 @@ export function Layout() {
                 <Settings className="w-4 h-4 text-muted-foreground" /> Settings
               </button>
               <div className="h-px bg-border my-1 mx-1"></div>
-              <button
-                className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-radius-sm transition-colors w-full text-left"
-              >
+              <button className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-radius-sm transition-colors w-full text-left">
                 <LogOut className="w-4 h-4" /> Logout
               </button>
             </div>
@@ -78,8 +90,12 @@ export function Layout() {
               NL
             </div>
             <div className="flex flex-col text-sm">
-              <span className="font-semibold text-sidebar-foreground leading-none">Nguyen Quoc Lap</span>
-              <span className="text-muted-foreground text-xs mt-1 font-medium">Team Leader</span>
+              <span className="font-semibold text-sidebar-foreground leading-none">
+                Nguyen Quoc Lap
+              </span>
+              <span className="text-muted-foreground text-xs mt-1 font-medium">
+                Team Leader
+              </span>
             </div>
           </div>
         </div>
@@ -93,7 +109,9 @@ export function Layout() {
       </main>
 
       {/* Modals */}
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      {isSettingsOpen && (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
     </div>
   );
 }

@@ -1,16 +1,10 @@
-<<<<<<< HEAD
-import React, { useEffect } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
-=======
-import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
->>>>>>> Tri-dev-pr
 import { useAuthStore } from "../../stores/auth.store";
+import { useEffect } from "react";
 
 const RequireUnAuth = () => {
   const accessToken = useAuthStore((state) => state.accessToken);
   const role = useAuthStore((state) => state.role);
-<<<<<<< HEAD
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,23 +31,6 @@ const RequireUnAuth = () => {
   }
 
   // Chắc chắn 100% KHÔNG có token thì mới cho hiện trang (Outlet)
-=======
-
-  if (accessToken) {
-    // 1. có token: tùy theo role, đẩy về đúng page đó
-    if (role === "admin") {
-      return <Navigate to="/admin/dashboard" replace />;
-    }
-
-    if (role === "judge") {
-      return <Navigate to="/judge" replace />;
-    }
-
-    return <Navigate to="/gateway" replace />;
-  }
-
-  // 2. chưa có token: cho phép đi tiếp vào form Login/Register
->>>>>>> Tri-dev-pr
   return <Outlet />;
 };
 

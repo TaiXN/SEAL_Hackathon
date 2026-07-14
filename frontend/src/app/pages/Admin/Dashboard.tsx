@@ -8,7 +8,6 @@ import {
   AlertCircle,
   ArrowRight,
   RefreshCw,
-  CalendarClock,
   CheckCircle2,
   LayoutGrid,
   Plus,
@@ -148,7 +147,6 @@ export function Dashboard() {
   }
 
   const ongoing = events.filter((e) => e.status === "ongoing");
-  const upcoming = events.filter((e) => e.status === "upcoming");
   const ended = events.filter((e) => e.status === "ended");
 
   const stats = [

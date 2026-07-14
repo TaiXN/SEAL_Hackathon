@@ -1,4 +1,3 @@
-import React from "react";
 import { Hexagon, User, LogOut } from "lucide-react";
 
 export function Gateway() {
