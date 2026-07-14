@@ -271,7 +271,6 @@ public partial class SealContext : DbContext
 
             entity.HasOne(d => d.Team).WithMany(p => p.Prizes)
                 .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Prize_Team");
         });
 
