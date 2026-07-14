@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -90,6 +90,12 @@ export function EventDetailsPage() {
   const [deletedCriteria, setDeletedCriteria] = useState<any[]>([]);
   const [loadingCriteria, setLoadingCriteria] = useState(false);
   const [criteriaError, setCriteriaError] = useState<string | null>(null);
+
+  // [FIX] Danh sách setId đã bị người dùng xóa trong phiên làm việc này.
+  // Dùng để chặn không cho các bộ đã xóa hiện lại nếu backend trả 200 khi
+  // DELETE nhưng GET /Criteria/set/{id} sau đó vẫn trả về dữ liệu cũ (chưa
+  // cập nhật cờ isActive/isDeleted).
+  const deletedSetIdsRef = useRef<Set<string>>(new Set());
 
   const [eventRounds, setEventRounds] = useState<any[]>([]);
   const [showAddRound, setShowAddRound] = useState(false);
@@ -488,6 +494,7 @@ export function EventDetailsPage() {
           (r as any).CriteriaSetID ||
           (r as any).CriteriaSetId;
         if (!setId || seen.has(String(setId))) continue;
+        if (deletedSetIdsRef.current.has(String(setId))) continue; // [FIX] đã xóa trong phiên này -> bỏ qua luôn
         seen.add(String(setId));
         try {
           const setRes: any = await criteriaApi.getSetById(setId);
@@ -758,6 +765,11 @@ export function EventDetailsPage() {
     try {
       await criteriaApi.deleteSet(set.setId);
 
+      // [FIX] Đánh dấu setId này là đã xóa trong phiên làm việc hiện tại,
+      // để loadCriteria() không bao giờ hiện lại nó nữa, kể cả khi backend
+      // trả DELETE 200 nhưng GET set/{id} sau đó vẫn trả dữ liệu cũ.
+      deletedSetIdsRef.current.add(String(set.setId));
+
       // Gỡ cả bộ khỏi UI ngay lập tức
       setCriteriaSets((prev) =>
         prev.filter((s) => String(s.setId) !== String(set.setId)),
@@ -813,7 +825,9 @@ export function EventDetailsPage() {
           setId: grabSetId(s),
           setName: s.setName || s.SetName || "Bộ tiêu chí",
         }))
-        .filter((s): s is { setId: string; setName: string } => !!s.setId);
+        .filter((s): s is { setId: string; setName: string } => !!s.setId)
+        // [FIX] Không cho bộ vừa xóa trong phiên này lọt vào danh sách "Dùng có sẵn"
+        .filter((s) => !deletedSetIdsRef.current.has(String(s.setId)));
 
       const sets = await loadSetsWithItems(baseSets, critMap, (setId) =>
         criteriaApi.getSetById(setId),
