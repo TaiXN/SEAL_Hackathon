@@ -4,6 +4,7 @@ using DataAccess.Repositories.UnitOfWork;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace Services.PrizeService
 {
@@ -22,6 +23,13 @@ namespace Services.PrizeService
                 if (request == null || string.IsNullOrEmpty(request.PrizeName) || string.IsNullOrEmpty(request.EventId))
                 {
                     return (false, "Prize Name and EventId cannot be empty!");
+                }
+
+                Event existingEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId);
+
+                if (existingEvent == null)
+                {
+                    return (false, "Event does not exist in the system!");
                 }
 
                 Prize newPrize = new Prize
@@ -70,7 +78,21 @@ namespace Services.PrizeService
             }
         }
 
+        public async Task<List<Prize>> GetPrizesByEventIdAsync(string eventId)
+        {
+            try
+            {
+                List<Prize> result = await _uow.Prize.GetAllQueryable()
+                    .Where(p => p.EventId == eventId)
+                    .ToListAsync();
 
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<Prize>();
+            }
+        }
 
         public async Task<(bool IsSuccess, string Message)> UpdatePrizeAsync(string prizeId, UpdatePrizeAPIViewModel request)
         {
@@ -119,6 +141,35 @@ namespace Services.PrizeService
                 await _uow.SaveAsync();
 
                 return (true, "Prize deleted successfully!");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"System error: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool IsSuccess, string Message)> ReActivePrizeAsync(string prizeId)
+        {
+            try
+            {
+                Prize existingPrize = await _uow.Prize.GetFirstOrDefaultAsync(p => p.PrizeId == prizeId);
+
+                if (existingPrize == null)
+                {
+                    return (false, "Prize not found.");
+                }
+
+                if (existingPrize.IsActive == true)
+                {
+                    return (false, "Prize is already active.");
+                }
+
+                existingPrize.IsActive = true;
+
+                _uow.Prize.Update(existingPrize);
+                await _uow.SaveAsync();
+
+                return (true, "Prize reactivated successfully!");
             }
             catch (Exception ex)
             {

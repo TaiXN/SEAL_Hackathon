@@ -55,6 +55,17 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
+
+        [HttpGet("event/{eventId}")]
+        public async Task<IActionResult> GetPrizeByEventId(string eventId)
+        {
+           
+            List<Prize> result = await _prize.GetPrizesByEventIdAsync(eventId);
+
+            
+            return Ok(result);
+        }
+
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdatePrize(string id, UpdatePrizeAPIViewModel request)
@@ -74,6 +85,20 @@ namespace SEAL_Hackathon.Controllers
         public async Task<IActionResult> DeletePrize(string id)
         {
             (bool IsSuccess, string Message) result = await _prize.DeletePrizeAsync(id);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+
+            return Ok(new { message = result.Message });
+        }
+
+        [HttpPut("{prizeId}/reactive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ReActivePrize(string prizeId)
+        {
+            (bool IsSuccess, string Message) result = await _prize.ReActivePrizeAsync(prizeId);
 
             if (!result.IsSuccess)
             {

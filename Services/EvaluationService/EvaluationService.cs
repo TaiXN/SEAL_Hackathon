@@ -27,12 +27,25 @@ namespace Services.EvaluationService
         {
             try
             {
+             
                 Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == info.SubmissionID, "TeamInRound");
                 if (submission == null || submission.TeamInRound == null) return false;
 
                 TeacherList teacherlist = await _uow.TeacherList.GetFirstOrDefaultAsync(q => q.TrackId == submission.TeamInRound.TrackId && !q.IsMentor && q.TeacherId == teacherId);
                 if (teacherlist == null) return false;
 
+              
+                Evaluation existingEval = await _uow.Evaluation.GetFirstOrDefaultAsync(q =>
+                    q.SubmissionId == info.SubmissionID &&
+                    q.TeacherId == teacherId);
+
+                if (existingEval != null)
+                {
+                  
+                    return false;
+                }
+
+               
                 Evaluation newEval = new Evaluation()
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -45,6 +58,7 @@ namespace Services.EvaluationService
                 await _uow.Evaluation.AddAsync(newEval);
                 await _uow.SaveAsync();
 
+                
                 await CalculateAndUpdateAverageScoreAsync(
                       info.SubmissionID,
                       submission.TeamInRound.TrackId,
@@ -53,7 +67,6 @@ namespace Services.EvaluationService
                      );
 
                 return true;
-
             }
             catch (Exception ex)
             {

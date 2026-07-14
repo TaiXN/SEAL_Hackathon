@@ -13,11 +13,11 @@ public partial class Prize
 
     public string EventId { get; set; } = null!;
 
-    public string TeamId { get; set; } = null!;
+    public string? TeamId { get; set; }
 
     public bool IsActive { get; set; }
 
     public virtual Event Event { get; set; } = null!;
 
-    public virtual Team Team { get; set; } = null!;
+    public virtual Team? Team { get; set; }
 }
