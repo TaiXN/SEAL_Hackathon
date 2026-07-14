@@ -5,6 +5,7 @@ import { Landing } from "./pages/Landing";
 import { AuthLayout } from "./pages/AuthLayout";
 import { Gateway } from "./pages/Gateway";
 import RequireAuth from "../app/components/guards/RequireAuth";
+import RequireUnAuth from "../app/components/guards/RequireUnAuth"; // <--- BƯỚC 1: IMPORT GUARD MỚI VÀO ĐÂY
 
 // 2. IMPORT CỤM TRANG PLAYER
 import { Dashboard as PlayerDashboard } from "./pages/Player/Dashboard";
@@ -21,8 +22,6 @@ import { Dashboard as AdminDashboard } from "./pages/Admin/Dashboard";
 import { EventDetailsPage as EventDetailsPage } from "./pages/Admin/EventDetailsPage";
 import { EventHistoryPage as EventHistoryPage } from "./pages/Admin/EventHistoryPage";
 import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
-// import { AdminUsersPage as AdminUsers } from "./pages/Admin/AdminUsersPage";
-// import { AdminViolationsPage as AdminViolations } from "./pages/Admin/AdminViolationsPage";
 
 // 4. IMPORT CỤM TRANG JUDGE
 import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
@@ -34,21 +33,31 @@ export const router = createBrowserRouter([
   // KHU VỰC CÔNG CỘNG: Ai vào cũng được, không cần token
   // =========================================================
   { path: "/", element: <Landing /> },
-  { path: "/login", element: <AuthLayout /> },
 
   // =========================================================
-  // KHU VỰC BẢO MẬT: BẮT BUỘC PHẢI QUA REQUIREAUTH KIỂM TRA
+  // 🚨 KHU VỰC UN-AUTH: CHỈ CHO NGƯỜI CHƯA ĐĂNG NHẬP VÀO
+  // =========================================================
+  {
+    element: <RequireUnAuth />, // <--- BƯỚC 2: BỌC GUARD VÀO ĐÂY
+    children: [
+      { path: "/login", element: <AuthLayout /> }, // Giờ ai có token rồi mâm me vào đây sẽ bị sút văng qua Dashboard
+    ],
+  },
+
+  // =========================================================
+  // 🔒 KHU VỰC BẢO MẬT: BẮT BUỘC PHẢI QUA REQUIREAUTH KIỂM TRA
   // =========================================================
   {
     element: <RequireAuth />,
     children: [
       { path: "/gateway", element: <Gateway /> },
-      // --- Khu vực của Admin (Được bảo mật bởi RequireAuth) ---
+
+      // --- Khu vực của Admin ---
       {
         path: "/admin",
         element: <AdminLayout />,
         children: [
-          { index: true, element: <CreateEvents /> }, // Trang chính của Admin
+          { index: true, element: <CreateEvents /> },
           { path: "users", element: <ManageUsersAndAssign /> },
           { path: "violations", element: <AdminViolationsPage /> },
           { path: "events/create", element: <CreateEvents /> },
@@ -56,12 +65,10 @@ export const router = createBrowserRouter([
           { path: "events", element: <EventHistoryPage /> },
           { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
-          // { path: "users", element: <AdminUsers /> },
-          // { path: "violations", element: <AdminViolations /> },
         ],
       },
-      // --- Khu vực của Judge (Cũng được bảo mật) ---
-      // Judge routes
+
+      // --- Khu vực của Judge ---
       {
         path: "/judge",
         children: [
@@ -74,14 +81,13 @@ export const router = createBrowserRouter([
             element: <JudgeProfile />,
           },
           {
-            path: "score/:teamId", // <--- THÊM "/:teamId" VÀO ĐÂY LÀ XONG!
+            path: "score/:teamId",
             element: <ScoringPage />,
           },
         ],
       },
 
-      // ... (Các route khác giữ nguyên)
-
+      // --- Khu vực của Player ---
       {
         path: "/player",
         element: <PlayerLayout />,
@@ -100,32 +106,12 @@ export const router = createBrowserRouter([
           },
         ],
       },
+
+      // Fallback cho người đi lạc trong khu vực Auth
       {
         path: "*",
         element: <Navigate to="/" replace />,
       },
-
-      // --- Khu vực của Leader (Cũng được bảo mật) ---
-      // {
-      //   path: "/leader",
-      //   element: <LeaderLayout />,
-      //   children: [
-      //     { index: true, element: <LeaderDashboard /> },
-      //     { path: "team", element: <LeaderTeam /> },
-      //     { path: "submit", element: <LeaderSubmit /> },
-      //   ],
-      // },
-
-      // --- Khu vực của Member (Cũng được bảo mật) ---
-      // {
-      //   path: "/member",
-      //   element: <MemberLayout />,
-      //   children: [
-      //     { index: true, element: <MemberDashboard /> },
-      //     { path: "team", element: <MemberMyTeam /> },
-      //     { path: "sidebar", element: <MemberSidebar /> },
-      //   ],
-      // },
     ],
   },
 ]);
