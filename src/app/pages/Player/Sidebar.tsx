@@ -6,6 +6,7 @@ import {
   LogOut,
   Hexagon,
   UploadCloud,
+  Trophy
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 import { teamApi } from "../../lib/api/teamApi";
