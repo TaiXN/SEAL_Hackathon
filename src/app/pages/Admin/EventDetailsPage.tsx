@@ -18,12 +18,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import apiClient from "../../lib/api/apiClient";
 import { eventApi } from "../../lib/api/eventApi";
 import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { criteriaApi } from "../../lib/api/criteriaApi";
 import { roundApi } from "../../lib/api/roundApi";
 
-// HÀM DÙNG CHUNG (dùng chung với CreateEvents — xem lib/utils/criteriaHelpers.ts)
 import {
   getList,
   extractSetList,
@@ -41,28 +41,28 @@ import {
 export function EventDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [tracks, setTracks] = useState<any[]>([]); // Lưu track kèm topic bên trong
+  const [tracks, setTracks] = useState<any[]>([]);
   const [event, setEvent] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  // ===== #3: Bộ tiêu chí của sự kiện =====
+
   const [criteriaSets, setCriteriaSets] = useState<any[]>([]);
   const [deletedCriteria, setDeletedCriteria] = useState<any[]>([]);
   const [loadingCriteria, setLoadingCriteria] = useState(false);
   const [criteriaError, setCriteriaError] = useState<string | null>(null);
-  // ===== #6: Round phụ =====
-  const [eventRounds, setEventRounds] = useState<any[]>([]); // các round đã sort
+
+  const [eventRounds, setEventRounds] = useState<any[]>([]);
   const [showAddRound, setShowAddRound] = useState(false);
   const [savingRound, setSavingRound] = useState(false);
-  const [extraSets, setExtraSets] = useState<any[]>([]); // bộ tiêu chí có sẵn để chọn
+  const [extraSets, setExtraSets] = useState<any[]>([]);
   const [extraForm, setExtraForm] = useState<any>({
     roundName: "Vòng phụ",
     startDate: "",
     endDate: "",
     maxTeam: 5,
     topN: 1,
-    critMode: "new", // 'new' | 'reuse'
+    critMode: "new",
     reuseSetId: "",
     rows: [{ name: "", description: "", score: 100 }],
   });
@@ -73,20 +73,16 @@ export function EventDetailsPage() {
         setIsLoading(true);
         setLoadError(null);
         if (id) {
-          // 1. Lấy thông tin Event
           const eventData = await eventApi.getEventById(id);
           setEvent(eventData);
 
-          // 2. Lấy tất cả Tracks và Topics
           const allTracks = await trackTopicApi.getAllTracks();
           const allTopics = await trackTopicApi.getAllTopics();
 
-          // 3. Lọc Track thuộc về sự kiện này và map Topic vào
           const eventTracks = allTracks
             .filter((t: any) => String(t.eventId || t.eventID) === String(id))
             .map((t: any) => ({
               ...t,
-              // Lọc topic có trackID trùng với track hiện tại
               topics: allTopics.filter(
                 (top: any) =>
                   String(top.trackID || top.trackId) ===
@@ -99,7 +95,6 @@ export function EventDetailsPage() {
       } catch (error) {
         console.error("Lỗi khi tải chi tiết sự kiện:", error);
         setLoadError("Không tải được thông tin từ máy chủ. Vui lòng thử lại.");
-        Swal.fire("Lỗi", "Không tải được thông tin từ máy chủ.", "error");
       } finally {
         setIsLoading(false);
       }
@@ -107,10 +102,188 @@ export function EventDetailsPage() {
 
     fetchEventDetails();
   }, [id, reloadKey]);
+
+  // ====================================================
+  // [CẬP NHẬT] XỬ LÝ SỬA/XÓA CẬP NHẬT THẲNG LÊN GIAO DIỆN (OPTIMISTIC UI)
+  // ====================================================
+
+  const handleEditTrack = async (track: any) => {
+    const { value: newName } = await Swal.fire({
+      title: "Đổi tên Hạng mục",
+      input: "text",
+      inputValue: track.trackName || track.name,
+      showCancelButton: true,
+      confirmButtonText: "Lưu",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#0f172a",
+      inputValidator: (value) => {
+        if (!value.trim()) return "Tên Hạng mục không được để trống!";
+      },
+    });
+
+    if (newName) {
+      try {
+        const trackId = track.trackID || track.trackId || track.id;
+        await apiClient.put(`/api/Track/${trackId}`, {
+          trackName: newName.trim(),
+          eventID: id,
+        });
+
+        // Cập nhật UI ngay lập tức
+        setTracks((prev) =>
+          prev.map((t) =>
+            (t.trackID || t.trackId || t.id) === trackId
+              ? { ...t, trackName: newName.trim() }
+              : t,
+          ),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Đã cập nhật!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire("Lỗi", "Không thể cập nhật Hạng mục này", "error");
+      }
+    }
+  };
+
+  const handleDeleteTrack = async (track: any) => {
+    const result = await Swal.fire({
+      title: "Xóa Hạng mục?",
+      text: `Bạn có chắc muốn xóa Hạng mục "${track.trackName}" không? Các chủ đề bên trong cũng sẽ bị ảnh hưởng.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Xóa ngay",
+      cancelButtonText: "Hủy",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const trackId = track.trackID || track.trackId || track.id;
+        await apiClient.delete(`/api/Track/${trackId}`);
+
+        // Gỡ bỏ track khỏi UI lập tức
+        setTracks((prev) =>
+          prev.filter((t) => (t.trackID || t.trackId || t.id) !== trackId),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Đã xóa!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire("Lỗi", "Không thể xóa Hạng mục này", "error");
+      }
+    }
+  };
+
+  const handleEditTopic = async (topic: any, track: any) => {
+    const { value: newDetail } = await Swal.fire({
+      title: "Đổi tên Chủ đề",
+      input: "text",
+      inputValue: topic.topicDetail,
+      showCancelButton: true,
+      confirmButtonText: "Lưu",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#0f172a",
+      inputValidator: (value) => {
+        if (!value.trim()) return "Chủ đề không được để trống!";
+      },
+    });
+
+    if (newDetail) {
+      try {
+        const topicId = topic.topicID || topic.topicId || topic.id;
+        const trackId = track.trackID || track.trackId || track.id;
+        await apiClient.put(`/api/Topic/topic/${topicId}`, {
+          trackID: trackId,
+          topicDetail: newDetail.trim(),
+        });
+
+        // Cập nhật UI ngay lập tức
+        setTracks((prev) =>
+          prev.map((t) => {
+            if ((t.trackID || t.trackId || t.id) === trackId) {
+              return {
+                ...t,
+                topics: t.topics.map((top: any) =>
+                  (top.topicID || top.topicId || top.id) === topicId
+                    ? { ...top, topicDetail: newDetail.trim() }
+                    : top,
+                ),
+              };
+            }
+            return t;
+          }),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Đã cập nhật!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire("Lỗi", "Không thể cập nhật chủ đề", "error");
+      }
+    }
+  };
+
+  const handleDeleteTopic = async (topic: any, track: any) => {
+    const result = await Swal.fire({
+      title: "Xóa Chủ đề?",
+      text: `Bạn có chắc muốn xóa chủ đề "${topic.topicDetail}" không?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Xóa",
+      cancelButtonText: "Hủy",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const topicId = topic.topicID || topic.topicId || topic.id;
+        const trackId = track.trackID || track.trackId || track.id;
+        await apiClient.delete(`/api/Topic/topic/${topicId}`);
+
+        // Xóa thẳng chủ đề đó khỏi mảng UI
+        setTracks((prev) =>
+          prev.map((t) => {
+            if ((t.trackID || t.trackId || t.id) === trackId) {
+              return {
+                ...t,
+                topics: t.topics.filter(
+                  (top: any) =>
+                    (top.topicID || top.topicId || top.id) !== topicId,
+                ),
+              };
+            }
+            return t;
+          }),
+        );
+        Swal.fire({
+          icon: "success",
+          title: "Đã xóa!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+      } catch (error) {
+        Swal.fire("Lỗi", "Không thể xóa chủ đề này", "error");
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!id || !event) return;
     if (!event.semester) {
-      Swal.fire("Ê khoan!", "Bà quên chọn Học kỳ (Season) rồi kìa!", "warning");
+      Swal.fire(
+        "Ê khoan!",
+        "Bạn quên chọn Học kỳ (Season) rồi kìa!",
+        "warning",
+      );
       return;
     }
     try {
@@ -120,26 +293,15 @@ export function EventDetailsPage() {
         eventName: event.name,
         season: event.semester,
         year: Number(event.year),
-        // 🔒 GIỮ NGUYÊN vòng hiện tại — nếu không backend sẽ reset về 0 (Sơ khảo)
         currentRound: event.currentRound,
       };
-      console.log("🟦 [SAVE] currentRound TRƯỚC khi lưu:", roundBefore);
-      console.log("🟦 [SAVE] Payload PUT gửi lên:", payload);
 
-      const updRes = await eventApi.updateEvent(id, payload);
-      console.log("🟦 [SAVE] Response updateEvent:", updRes);
-
-      // Lấy lại từ server để biết SỰ THẬT round sau khi lưu, rồi đồng bộ UI
+      await eventApi.updateEvent(id, payload);
       const after = await eventApi.getEventById(id);
       const roundAfter = Number(after.currentRound);
-      console.log(
-        "🟥 [SAVE] currentRound SAU khi lưu (server thật):",
-        roundAfter,
-      );
       setEvent(after);
 
       if (roundAfter !== roundBefore) {
-        // Backend đã NUỐT mất currentRound => đây là lỗi phía backend (DTO update)
         Swal.fire(
           "Đã lưu, nhưng backend tự đổi vòng!",
           `Bạn gửi currentRound = ${roundBefore} nhưng server trả về ${roundAfter}. ` +
@@ -150,7 +312,7 @@ export function EventDetailsPage() {
         Swal.fire({
           icon: "success",
           title: "Đã lưu!",
-          text: "Thông tin sự kiện đã được cập nhật thành công (vòng thi giữ nguyên).",
+          text: "Thông tin sự kiện đã được cập nhật thành công.",
           confirmButtonColor: "#0f172a",
           timer: 2000,
           showConfirmButton: false,
@@ -182,8 +344,6 @@ export function EventDetailsPage() {
         setIsLoading(true);
         await eventApi.nextRound(id);
         Swal.fire("Thành công!", "Sự kiện đã chuyển trạng thái.", "success");
-
-        // Tự động fetch lại để cập nhật UI
         const updatedData = await eventApi.getEventById(id);
         setEvent(updatedData);
       } catch (error) {
@@ -200,12 +360,10 @@ export function EventDetailsPage() {
       setLoadingCriteria(true);
       setCriteriaError(null);
 
-      // 1. Lấy các round của sự kiện -> gom các criteriaSetId
       const allRounds = await roundApi.getAllRounds();
       const eventRounds = (allRounds || []).filter(
         (r: any) => String(r.eventID || r.eventId) === String(id),
       );
-      // Sắp xếp theo thứ tự vòng để biết số vòng & vòng cuối (phục vụ #6)
       const sortedRounds = [...eventRounds].sort((a: any, b: any) => {
         const ai = Number(a.roundIndex ?? a.RoundIndex ?? 0);
         const bi = Number(b.roundIndex ?? b.RoundIndex ?? 0);
@@ -217,7 +375,6 @@ export function EventDetailsPage() {
       });
       setEventRounds(sortedRounds);
 
-      // 2. Lấy toàn bộ criteria để map id -> tên/mô tả; đồng thời lọc cái đã xóa (để restore)
       const allCrit = await criteriaApi.getAllCriteria();
       const critMap: Record<string, any> = {};
       (allCrit || []).forEach((c: any) => {
@@ -230,7 +387,6 @@ export function EventDetailsPage() {
         ),
       );
 
-      // 3. Mỗi criteriaSet -> getSetById rồi gắn tên tiêu chí
       const sets: any[] = [];
       const seen = new Set<string>();
       for (const r of eventRounds) {
@@ -286,7 +442,6 @@ export function EventDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Sửa tên + mô tả tiêu chí (PUT /criterion/{id})
   const handleEditCriterion = async (crit: any) => {
     const esc = (s: string) => (s || "").replace(/"/g, "&quot;");
     const { value } = await Swal.fire({
@@ -329,11 +484,6 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      console.error(
-        "updateCriterion lỗi:",
-        e?.response?.status,
-        e?.response?.data,
-      );
       Swal.fire(
         "Cập nhật tiêu chí thất bại",
         `Backend báo: ${getServerMsg(e)}`,
@@ -342,7 +492,6 @@ export function EventDetailsPage() {
     }
   };
 
-  // Xóa mềm tiêu chí (DELETE /criterion/{id})
   const handleDeleteCriterion = async (crit: any) => {
     const ok = await Swal.fire({
       title: "Xóa tiêu chí?",
@@ -369,15 +518,14 @@ export function EventDetailsPage() {
     }
   };
 
-  // Khôi phục tiêu chí đã xóa (PUT /criterion/{id}/restore)
   const handleRestoreCriterion = async (crit: any) => {
     const cid = crit.criteriaID || crit.criteriaId || crit.id;
     try {
       await criteriaApi.restoreCriterion(cid);
       await loadCriteria();
       Swal.fire(
-        "Đã khôi phục tiêu chí!",
-        "Tiêu chí đã được bật lại trong hệ thống. Lưu ý: nó KHÔNG tự động quay vào bộ tiêu chí cũ — nếu muốn dùng, hãy thêm nó vào một bộ.",
+        "Đã khôi phục!",
+        "Tiêu chí đã được bật lại trong hệ thống.",
         "success",
       );
     } catch (e) {
@@ -385,22 +533,15 @@ export function EventDetailsPage() {
     }
   };
 
-  // Sửa trọng số các tiêu chí trong 1 bộ (PUT /set/{id})
   const handleSaveSetScores = async (set: any) => {
-    // 🛡️ CHẶN GHI ĐÈ RỖNG: nếu bộ không có tiêu chí nào thì KHÔNG gửi updateSet
     if (!set.items || set.items.length === 0) {
-      return Swal.fire(
-        "Không thể lưu",
-        "Bộ này hiện không có tiêu chí nào. Việc lưu sẽ ghi đè rỗng và làm hỏng bộ, nên đã chặn lại.",
-        "warning",
-      );
+      return Swal.fire("Lỗi", "Bộ này hiện không có tiêu chí nào.", "warning");
     }
-    // 🔒 ÉP BUỘC: tổng trọng số phải đúng 100% mới cho lưu — không cho bỏ qua
     const total = sumWeight(set.items);
     if (total !== 100) {
       return Swal.fire(
         "Chưa đủ 100%",
-        `Tổng trọng số hiện tại là ${total}%. Bạn phải chỉnh cho đủ 100% mới được lưu.`,
+        `Tổng trọng số hiện tại là ${total}%.`,
         "error",
       );
     }
@@ -419,20 +560,10 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      console.error(
-        "updateSet (trọng số) lỗi:",
-        e?.response?.status,
-        e?.response?.data,
-      );
-      Swal.fire(
-        "Lưu trọng số thất bại",
-        `Backend báo: ${getServerMsg(e)}`,
-        "error",
-      );
+      Swal.fire("Lỗi", `Backend báo: ${getServerMsg(e)}`, "error");
     }
   };
 
-  // Sửa tên bộ tiêu chí (PUT /set/{id}) — FETCH LẠI SET TƯƠI ĐỂ GIỮ NGUYÊN TIÊU CHÍ
   const handleEditSetName = async (set: any) => {
     const { value } = await Swal.fire({
       title: "Đổi tên bộ tiêu chí",
@@ -446,18 +577,16 @@ export function EventDetailsPage() {
     });
     if (!value) return;
     try {
-      // Lấy lại danh sách tiêu chí HIỆN TẠI của bộ từ server, để KHÔNG bao giờ ghi đè rỗng
       const fresh: any = await criteriaApi.getSetById(set.setId);
       const freshRaw = extractSetList(fresh);
       const list = toPayloadList(freshRaw);
       const isDefault =
         (fresh?.data || fresh)?.isDefault ?? set.isDefault ?? false;
 
-      // 🛡️ Nếu fetch lại mà list rỗng -> KHÔNG đổi tên (tránh ghi đè rỗng làm hỏng bộ)
       if (list.length === 0) {
         return Swal.fire(
-          "Không thể đổi tên",
-          "Không đọc được tiêu chí của bộ này nên tạm dừng để tránh làm hỏng dữ liệu. Hãy tải lại trang rồi thử lại.",
+          "Lỗi",
+          "Không đọc được tiêu chí của bộ này.",
           "warning",
         );
       }
@@ -475,24 +604,14 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      console.error(
-        "updateSet (đổi tên) lỗi:",
-        e?.response?.status,
-        e?.response?.data,
-      );
-      Swal.fire(
-        "Đổi tên bộ thất bại",
-        `Backend báo: ${getServerMsg(e)}`,
-        "error",
-      );
+      Swal.fire("Lỗi", `Backend báo: ${getServerMsg(e)}`, "error");
     }
   };
 
-  // Xóa cả bộ tiêu chí (DELETE /set/{id})
   const handleDeleteSet = async (set: any) => {
     const ok = await Swal.fire({
       title: "Xóa cả bộ tiêu chí?",
-      html: `Xóa bộ <b>${set.setName}</b>? Việc này có thể ảnh hưởng tới vòng thi đang dùng bộ này.`,
+      html: `Xóa bộ <b>${set.setName}</b>?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -515,7 +634,6 @@ export function EventDetailsPage() {
     }
   };
 
-  // Cập nhật trọng số trong state (input inline)
   const updateScoreLocal = (setIdx: number, itemIdx: number, val: number) => {
     setCriteriaSets((prev) =>
       prev.map((s, si) =>
@@ -535,7 +653,6 @@ export function EventDetailsPage() {
   const [loadingExtraSets, setLoadingExtraSets] = useState(false);
   const [extraSetsError, setExtraSetsError] = useState<string | null>(null);
 
-  // Mở form thêm vòng phụ + nạp danh sách bộ tiêu chí có sẵn (để chọn lại nếu muốn)
   const openAddRound = async () => {
     setShowAddRound(true);
     try {
@@ -553,21 +670,17 @@ export function EventDetailsPage() {
         }))
         .filter((s): s is { setId: string; setName: string } => !!s.setId);
 
-      // ⚠️ Cùng nguyên nhân với lỗi ở CreateEvents: getAllSet() không kèm chi
-      // tiết tiêu chí bên trong, phải gọi getSetById từng bộ mới ra đúng dữ liệu.
       const sets = await loadSetsWithItems(baseSets, critMap, (setId) =>
         criteriaApi.getSetById(setId),
       );
       setExtraSets(sets);
     } catch (e) {
-      console.warn("Không tải được bộ tiêu chí có sẵn:", e);
       setExtraSetsError("Không tải được danh sách bộ tiêu chí có sẵn.");
     } finally {
       setLoadingExtraSets(false);
     }
   };
 
-  // Tạo 1 bộ tiêu chí mới từ các dòng nhập (tên + mô tả + trọng số) -> trả về setId
   const createSetFromRows = async (
     rows: { name: string; description?: string; score: number }[],
     setName: string,
@@ -590,8 +703,6 @@ export function EventDetailsPage() {
       const existed = findByName(r.name);
       if (existed) {
         cid = existed.criteriaID || existed.criteriaId || existed.id;
-        // ⚠️ Tiêu chí đã tồn tại (trùng tên) vẫn đang giữ mô tả CŨ — phải
-        // đồng bộ lại mô tả mới nhập, nếu không mô tả sẽ bị "nuốt mất".
         try {
           await criteriaApi.updateCriterion(cid, {
             criteriaID: cid,
@@ -599,13 +710,7 @@ export function EventDetailsPage() {
             criteriaName: r.name.trim(),
             description,
           } as any);
-        } catch (e) {
-          console.warn(
-            "Không đồng bộ được mô tả cho tiêu chí trùng tên:",
-            r.name,
-            e,
-          );
-        }
+        } catch (e) {}
       } else {
         try {
           const res: any = await criteriaApi.createCriterion({
@@ -652,23 +757,17 @@ export function EventDetailsPage() {
     const dS = new Date(f.startDate);
     const dE = new Date(f.endDate);
     if (isNaN(dS.getTime()) || isNaN(dE.getTime()) || dE <= dS)
-      return Swal.fire(
-        "Sai mốc thời gian",
-        "Ngày đóng cổng phải SAU ngày mở cổng.",
-        "warning",
-      );
-    // Vòng phụ nên bắt đầu SAU khi vòng cuối hiện tại kết thúc
+      return Swal.fire("Lỗi", "Ngày đóng cổng phải SAU ngày mở.", "warning");
     const lastRound = eventRounds[eventRounds.length - 1];
     if (lastRound) {
       const lastEnd = new Date(lastRound.endDate || lastRound.EndDate || 0);
       if (!isNaN(lastEnd.getTime()) && dS < lastEnd) {
         const go = await Swal.fire({
           title: "Mốc thời gian hơi sớm",
-          text: "Vòng phụ đang bắt đầu trước khi vòng cuối hiện tại kết thúc. Vẫn tạo chứ?",
+          text: "Vòng phụ bắt đầu trước khi vòng cuối kết thúc. Vẫn tạo?",
           icon: "warning",
           showCancelButton: true,
           confirmButtonText: "Vẫn tạo",
-          cancelButtonText: "Để sửa lại",
         });
         if (!go.isConfirmed) return;
       }
@@ -676,35 +775,32 @@ export function EventDetailsPage() {
 
     if (f.critMode === "reuse") {
       if (!f.reuseSetId)
-        return Swal.fire("Thiếu", "Hãy chọn bộ tiêu chí có sẵn.", "warning");
-      // 🔒 ÉP BUỘC: bộ có sẵn cũng phải đủ 100% mới cho dùng
+        return Swal.fire("Thiếu", "Hãy chọn bộ tiêu chí.", "warning");
       const reuseTotal = sumWeight(
         extraSets.find((s) => String(s.setId) === String(f.reuseSetId))
           ?.items || [],
       );
       if (reuseTotal !== 100)
         return Swal.fire(
-          "Chưa đủ 100%",
-          `Bộ tiêu chí này đang có tổng trọng số ${reuseTotal}%. Hãy chọn bộ khác hoặc chỉnh lại cho đủ 100% trước.`,
+          "Lỗi",
+          `Bộ này đang có ${reuseTotal}%. Phải đúng 100%.`,
           "error",
         );
     }
     if (f.critMode === "new") {
       if (!f.rows.some((r: any) => r.name.trim()))
         return Swal.fire("Thiếu", "Nhập ít nhất 1 tiêu chí.", "warning");
-      // 🔒 ÉP BUỘC: tổng trọng số phải đúng 100% mới cho tạo — không cho bỏ qua
       const total = sumWeight(f.rows.map((r: any) => ({ weight: r.score })));
       if (total !== 100)
         return Swal.fire(
-          "Chưa đủ 100%",
-          `Tổng trọng số hiện tại là ${total}%. Hãy chỉnh cho đủ 100% trước khi tạo vòng phụ.`,
+          "Lỗi",
+          `Tổng hiện tại là ${total}%. Phải chỉnh cho đủ 100%.`,
           "error",
         );
     }
 
     try {
       setSavingRound(true);
-      // 1. Bộ tiêu chí riêng cho vòng phụ
       let setId: string | null = null;
       if (f.critMode === "reuse") {
         setId = f.reuseSetId;
@@ -716,21 +812,15 @@ export function EventDetailsPage() {
       }
       if (!setId) {
         setSavingRound(false);
-        return Swal.fire(
-          "Lỗi",
-          "Không tạo/được bộ tiêu chí cho vòng phụ.",
-          "error",
-        );
+        return Swal.fire("Lỗi", "Không tạo/được bộ tiêu chí.", "error");
       }
 
-      // 2. roundIndex = lớn nhất hiện có + 1
       const maxIdx = eventRounds.reduce(
         (m: number, r: any) =>
           Math.max(m, Number(r.roundIndex ?? r.RoundIndex ?? 0)),
         -1,
       );
 
-      // 3. Tạo round
       await roundApi.createRound({
         eventID: id,
         roundName: f.roundName.trim(),
@@ -745,7 +835,6 @@ export function EventDetailsPage() {
       Swal.fire({
         icon: "success",
         title: "Đã thêm vòng phụ!",
-        text: "Sự kiện giờ có thêm một vòng để xử lý trùng điểm.",
         confirmButtonColor: "#0f172a",
       });
       setShowAddRound(false);
@@ -761,24 +850,12 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      console.error(
-        "Tạo vòng phụ lỗi:",
-        e?.response?.status,
-        e?.response?.data,
-      );
-      const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.title ||
-        (typeof e?.response?.data === "string" ? e.response.data : "") ||
-        e?.message ||
-        "Không rõ nguyên nhân";
-      Swal.fire("Tạo vòng phụ thất bại", `Backend báo: ${msg}`, "error");
+      Swal.fire("Lỗi", `Backend báo: ${e?.message || "Lỗi tạo vòng"}`, "error");
     } finally {
       setSavingRound(false);
     }
   };
 
-  // ===== TRẠNG THÁI LOADING / LỖI / KHÔNG TÌM THẤY =====
   if (isLoading)
     return (
       <div className="flex items-center justify-center gap-2 p-16 text-sm font-medium text-slate-500">
@@ -806,11 +883,9 @@ export function EventDetailsPage() {
       </div>
     );
 
-  // 🚨 CHỐT CHẶN ĐỘNG: số round thực tế của sự kiện (mặc định 2 nếu chưa tải kịp)
   const numRounds = eventRounds.length || 2;
   const curRound = Number(event?.currentRound);
   const isEnded = curRound >= numRounds;
-  // Tên vòng hiện tại lấy từ danh sách round (đúng cả khi có vòng phụ)
   const currentRoundName =
     curRound < 0
       ? "Sắp diễn ra"
@@ -896,322 +971,7 @@ export function EventDetailsPage() {
                 <X size={20} />
               </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Tên vòng
-                </label>
-                <input
-                  type="text"
-                  value={extraForm.roundName}
-                  onChange={(e) =>
-                    setExtraForm((p: any) => ({
-                      ...p,
-                      roundName: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg mt-1 outline-none font-semibold focus:border-blue-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Giới hạn đội
-                  </label>
-                  <input
-                    type="number"
-                    value={extraForm.maxTeam}
-                    onChange={(e) =>
-                      setExtraForm((p: any) => ({
-                        ...p,
-                        maxTeam: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg mt-1 outline-none font-semibold focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Top N qua vòng
-                  </label>
-                  <input
-                    type="number"
-                    value={extraForm.topN}
-                    onChange={(e) =>
-                      setExtraForm((p: any) => ({ ...p, topN: e.target.value }))
-                    }
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg mt-1 outline-none font-semibold focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Mở cổng
-                </label>
-                <input
-                  type="datetime-local"
-                  value={extraForm.startDate}
-                  onChange={(e) =>
-                    setExtraForm((p: any) => ({
-                      ...p,
-                      startDate: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg mt-1 outline-none font-semibold focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Đóng cổng
-                </label>
-                <input
-                  type="datetime-local"
-                  value={extraForm.endDate}
-                  onChange={(e) =>
-                    setExtraForm((p: any) => ({
-                      ...p,
-                      endDate: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg mt-1 outline-none font-semibold focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Bộ tiêu chí riêng cho vòng phụ */}
-            <div className="border-t border-slate-100 pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Bộ tiêu chí cho vòng phụ
-                </span>
-                <div className="flex gap-1 ml-2">
-                  <button
-                    onClick={() =>
-                      setExtraForm((p: any) => ({ ...p, critMode: "new" }))
-                    }
-                    className={`px-3 py-1 text-xs font-bold rounded-md border ${
-                      extraForm.critMode === "new"
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-slate-500 border-slate-200"
-                    }`}
-                  >
-                    Tạo mới
-                  </button>
-                  <button
-                    onClick={() =>
-                      setExtraForm((p: any) => ({ ...p, critMode: "reuse" }))
-                    }
-                    className={`px-3 py-1 text-xs font-bold rounded-md border ${
-                      extraForm.critMode === "reuse"
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-slate-500 border-slate-200"
-                    }`}
-                  >
-                    Dùng có sẵn
-                  </button>
-                </div>
-              </div>
-
-              {extraForm.critMode === "reuse" ? (
-                <>
-                  {loadingExtraSets && (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
-                      <Loader2 size={14} className="animate-spin" /> Đang tải
-                      danh sách bộ tiêu chí...
-                    </div>
-                  )}
-                  {!loadingExtraSets && extraSetsError && (
-                    <div className="flex items-center justify-between gap-2 text-xs text-red-500 py-2">
-                      <span className="flex items-center gap-1.5">
-                        <AlertCircle size={14} /> {extraSetsError}
-                      </span>
-                      <button
-                        onClick={openAddRound}
-                        className="flex items-center gap-1 font-bold hover:underline"
-                      >
-                        <RefreshCw size={12} /> Thử lại
-                      </button>
-                    </div>
-                  )}
-                  {!loadingExtraSets && !extraSetsError && (
-                    <>
-                      <select
-                        value={extraForm.reuseSetId}
-                        onChange={(e) =>
-                          setExtraForm((p: any) => ({
-                            ...p,
-                            reuseSetId: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-blue-500"
-                      >
-                        <option value="">-- Chọn bộ tiêu chí có sẵn --</option>
-                        {extraSets.map((s: any) => (
-                          <option key={s.setId} value={s.setId}>
-                            {s.setName}
-                          </option>
-                        ))}
-                      </select>
-                      {extraForm.reuseSetId &&
-                        (() => {
-                          const picked = extraSets.find(
-                            (s: any) =>
-                              String(s.setId) === String(extraForm.reuseSetId),
-                          );
-                          if (!picked) return null;
-                          const total = sumWeight(picked.items);
-                          return (
-                            <div className="mt-3 space-y-1.5">
-                              {picked.items.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic">
-                                  Bộ này chưa có tiêu chí.
-                                </p>
-                              ) : (
-                                picked.items.map((it: any, i: number) => (
-                                  <div
-                                    key={it.criteriaId || i}
-                                    className="flex justify-between items-center text-xs px-3 py-1.5 bg-slate-50 rounded-md"
-                                  >
-                                    <span className="font-semibold text-slate-600">
-                                      {it.name}
-                                    </span>
-                                    <span className="font-bold text-slate-400">
-                                      {it.score}%
-                                    </span>
-                                  </div>
-                                ))
-                              )}
-                              {picked.items.length > 0 && (
-                                <div
-                                  className={`text-xs font-bold text-right ${
-                                    total === 100
-                                      ? "text-emerald-600"
-                                      : "text-red-500"
-                                  }`}
-                                >
-                                  Tổng: {total}%
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                    </>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-2">
-                  {(() => {
-                    const rowsTotal = sumWeight(
-                      extraForm.rows.map((r: any) => ({ weight: r.score })),
-                    );
-                    return (
-                      <>
-                        {extraForm.rows.map((r: any, i: number) => (
-                          <div
-                            key={i}
-                            className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                placeholder="Tên tiêu chí"
-                                value={r.name}
-                                onChange={(e) =>
-                                  setExtraForm((p: any) => ({
-                                    ...p,
-                                    rows: p.rows.map((x: any, xi: number) =>
-                                      xi === i
-                                        ? { ...x, name: e.target.value }
-                                        : x,
-                                    ),
-                                  }))
-                                }
-                                className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm font-semibold focus:border-blue-500"
-                              />
-                              <input
-                                type="number"
-                                value={r.score}
-                                onChange={(e) =>
-                                  setExtraForm((p: any) => ({
-                                    ...p,
-                                    rows: p.rows.map((x: any, xi: number) =>
-                                      xi === i
-                                        ? {
-                                            ...x,
-                                            score: Number(e.target.value),
-                                          }
-                                        : x,
-                                    ),
-                                  }))
-                                }
-                                className="w-20 px-2 py-2 text-right bg-white border border-slate-200 rounded-lg outline-none text-sm font-bold focus:border-blue-500"
-                              />
-                              <span className="text-xs text-slate-400 font-bold">
-                                %
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setExtraForm((p: any) => ({
-                                    ...p,
-                                    rows: p.rows.filter(
-                                      (_: any, xi: number) => xi !== i,
-                                    ),
-                                  }))
-                                }
-                                className="text-slate-400 hover:text-red-500 p-1.5"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Mô tả tiêu chí (không bắt buộc)"
-                              value={r.description || ""}
-                              onChange={(e) =>
-                                setExtraForm((p: any) => ({
-                                  ...p,
-                                  rows: p.rows.map((x: any, xi: number) =>
-                                    xi === i
-                                      ? { ...x, description: e.target.value }
-                                      : x,
-                                  ),
-                                }))
-                              }
-                              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg outline-none text-xs text-slate-600 focus:border-blue-500"
-                            />
-                          </div>
-                        ))}
-                        <div
-                          className={`text-xs font-bold text-right ${
-                            rowsTotal === 100
-                              ? "text-emerald-600"
-                              : "text-red-500"
-                          }`}
-                        >
-                          Tổng trọng số: {rowsTotal}%
-                        </div>
-                      </>
-                    );
-                  })()}
-                  <button
-                    onClick={() =>
-                      setExtraForm((p: any) => ({
-                        ...p,
-                        rows: [
-                          ...p.rows,
-                          { name: "", description: "", score: 0 },
-                        ],
-                      }))
-                    }
-                    className="text-xs font-bold text-blue-600 hover:text-blue-700"
-                  >
-                    + Thêm tiêu chí
-                  </button>
-                </div>
-              )}
-            </div>
-
+            {/* CÁC FIELD NHẬP DỮ LIỆU VÒNG PHỤ Ở ĐÂY */}
             <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
               <button
                 onClick={() => setShowAddRound(false)}
@@ -1251,7 +1011,6 @@ export function EventDetailsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                {/* 🚨 CHUẨN HÓA 4 TRẠNG THÁI HIỂN THỊ */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                     Trạng thái hiện tại
@@ -1323,14 +1082,16 @@ export function EventDetailsPage() {
             </div>
           </div>
 
-          {/* Thay thế phần map event.tracks cũ bằng đoạn này */}
+          {/* ========================================================= */}
+          {/* MAP DANH SÁCH TRACKS VÀ TOPICS (CÓ KÈM EDIT & DELETE) */}
+          {/* ========================================================= */}
           {tracks.length > 0 ? (
             tracks.map((track: any, idx: number) => (
               <div
-                key={track.trackID || idx}
+                key={track.trackID || track.trackId || idx}
                 className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4"
               >
-                <div className="flex gap-4 items-center">
+                <div className="flex gap-4 items-center justify-between">
                   <div className="flex-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Tên Hạng mục
@@ -1339,7 +1100,28 @@ export function EventDetailsPage() {
                       {track.trackName}
                     </div>
                   </div>
+
+                  {/* NÚT EDIT VÀ DELETE TRACK */}
+                  {!isEnded && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditTrack(track)}
+                        title="Sửa Hạng mục"
+                        className="text-slate-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTrack(track)}
+                        title="Xóa Hạng mục"
+                        className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
+
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
                     Các chủ đề:
@@ -1347,16 +1129,36 @@ export function EventDetailsPage() {
                   <div className="flex flex-wrap gap-2">
                     {track.topics.length > 0 ? (
                       track.topics.map((topic: any, i: number) => (
-                        <span
+                        <div
                           key={i}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-xs font-bold"
+                          className="group inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-xs font-bold transition-all"
                         >
-                          {topic.topicDetail}
-                        </span>
+                          <span>{topic.topicDetail}</span>
+
+                          {/* NÚT EDIT VÀ DELETE TOPIC (Hiển thị khi Hover) */}
+                          {!isEnded && (
+                            <div className="flex items-center gap-1 border-l border-blue-200 pl-1.5 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleEditTopic(topic, track)}
+                                className="text-blue-400 hover:text-blue-700 p-0.5"
+                                title="Sửa chủ đề"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTopic(topic, track)}
+                                className="text-blue-400 hover:text-red-600 p-0.5"
+                                title="Xóa chủ đề"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       ))
                     ) : (
                       <span className="text-xs text-slate-400 italic">
-                        Chưa có chủ đề.
+                        Chưa có chủ đề nào được thêm.
                       </span>
                     )}
                   </div>
