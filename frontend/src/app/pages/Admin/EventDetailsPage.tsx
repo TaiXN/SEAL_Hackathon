@@ -38,6 +38,45 @@ import {
   DEFAULT_CRITERIA_DESCRIPTION,
 } from "../../lib/utils/criteriaHelpers";
 
+// ====================================================
+// [FIX] Helper dùng chung để xử lý các lỗi "xóa xong vẫn hiện lại"
+// ====================================================
+
+// Kiểm tra 1 record (track / topic / tiêu chí / bộ tiêu chí) đã bị xóa mềm
+// hay chưa. Check nhiều tên field & kiểu casing khác nhau (camelCase lẫn
+// PascalCase mà backend .NET hay trả về) để tránh trường hợp field check bị
+// sai tên khiến item đã xóa vẫn lọt qua filter và hiện lại sau khi reload.
+const isInactiveRecord = (obj: any): boolean => {
+  if (!obj) return false;
+  if (
+    obj.isDeleted === true ||
+    obj.IsDeleted === true ||
+    obj.deleted === true ||
+    obj.Deleted === true
+  ) {
+    return true;
+  }
+  if (
+    obj.isActive === false ||
+    obj.IsActive === false ||
+    obj.status === false ||
+    obj.Status === false
+  ) {
+    return true;
+  }
+  const statusStr = String(obj.status ?? obj.Status ?? "").toLowerCase();
+  if (statusStr === "deleted" || statusStr === "inactive") return true;
+  return false;
+};
+
+// Đoán xem lỗi trả về từ backend có phải dạng "không tìm thấy" hay không
+// (record đã bị xóa từ trước) để tự dọn lại UI thay vì chỉ hiện lỗi mơ hồ.
+const isNotFoundError = (e: any): boolean => {
+  if (e?.response?.status === 404) return true;
+  const msg = getServerMsg(e).toLowerCase();
+  return msg.includes("not found") || msg.includes("không tìm thấy");
+};
+
 export function EventDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -83,17 +122,14 @@ export function EventDetailsPage() {
             .filter(
               (t: any) =>
                 String(t.eventId || t.eventID) === String(id) &&
-                t.status !== false && // Loại bỏ track đã xóa mềm
-                t.isDeleted !== true,
+                !isInactiveRecord(t), // Loại bỏ track đã xóa mềm
             )
             .map((t: any) => ({
               ...t,
               topics: allTopics.filter(
                 (top: any) =>
                   String(top.trackID || top.trackId) ===
-                    String(t.trackID || t.trackId) &&
-                  top.status !== false && // Loại bỏ topic đã xóa mềm
-                  top.isDeleted !== true,
+                    String(t.trackID || t.trackId) && !isInactiveRecord(top), // Loại bỏ topic đã xóa mềm
               ),
             }));
 
@@ -129,8 +165,8 @@ export function EventDetailsPage() {
     });
 
     if (newName) {
+      const trackId = track.trackID || track.trackId || track.id;
       try {
-        const trackId = track.trackID || track.trackId || track.id;
         await apiClient.put(`/api/Track/${trackId}`, {
           trackName: newName.trim(),
           eventID: id,
@@ -150,8 +186,24 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-      } catch (error) {
-        Swal.fire("Lỗi", "Không thể cập nhật Hạng mục này", "error");
+      } catch (error: any) {
+        if (isNotFoundError(error)) {
+          // Hạng mục này thực ra đã bị xóa từ trước (chỉ còn "sót" trên UI) -> dọn lại
+          setTracks((prev) =>
+            prev.filter((t) => (t.trackID || t.trackId || t.id) !== trackId),
+          );
+          Swal.fire(
+            "Hạng mục đã bị xóa",
+            "Mục này đã bị xóa trước đó nên không thể sửa. Danh sách vừa được cập nhật lại.",
+            "info",
+          );
+        } else {
+          Swal.fire(
+            "Lỗi",
+            `Không thể cập nhật Hạng mục này. Backend báo: ${getServerMsg(error)}`,
+            "error",
+          );
+        }
       }
     }
   };
@@ -182,8 +234,12 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-      } catch (error) {
-        Swal.fire("Lỗi", "Không thể xóa Hạng mục này", "error");
+      } catch (error: any) {
+        Swal.fire(
+          "Lỗi",
+          `Không thể xóa Hạng mục này. Backend báo: ${getServerMsg(error)}`,
+          "error",
+        );
       }
     }
   };
@@ -203,9 +259,9 @@ export function EventDetailsPage() {
     });
 
     if (newDetail) {
+      const topicId = topic.topicID || topic.topicId || topic.id;
+      const trackId = track.trackID || track.trackId || track.id;
       try {
-        const topicId = topic.topicID || topic.topicId || topic.id;
-        const trackId = track.trackID || track.trackId || track.id;
         await apiClient.put(`/api/Topic/topic/${topicId}`, {
           trackID: trackId,
           topicDetail: newDetail.trim(),
@@ -233,8 +289,35 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-      } catch (error) {
-        Swal.fire("Lỗi", "Không thể cập nhật chủ đề", "error");
+      } catch (error: any) {
+        if (isNotFoundError(error)) {
+          // Chủ đề này thực ra đã bị xóa từ trước -> dọn lại UI cho khớp thực tế
+          setTracks((prev) =>
+            prev.map((t) => {
+              if ((t.trackID || t.trackId || t.id) === trackId) {
+                return {
+                  ...t,
+                  topics: t.topics.filter(
+                    (top: any) =>
+                      (top.topicID || top.topicId || top.id) !== topicId,
+                  ),
+                };
+              }
+              return t;
+            }),
+          );
+          Swal.fire(
+            "Chủ đề đã bị xóa",
+            "Chủ đề này đã bị xóa trước đó nên không thể sửa. Danh sách vừa được cập nhật lại.",
+            "info",
+          );
+        } else {
+          Swal.fire(
+            "Lỗi",
+            `Không thể cập nhật chủ đề. Backend báo: ${getServerMsg(error)}`,
+            "error",
+          );
+        }
       }
     }
   };
@@ -277,8 +360,12 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-      } catch (error) {
-        Swal.fire("Lỗi", "Không thể xóa chủ đề này", "error");
+      } catch (error: any) {
+        Swal.fire(
+          "Lỗi",
+          `Không thể xóa chủ đề này. Backend báo: ${getServerMsg(error)}`,
+          "error",
+        );
       }
     }
   };
@@ -389,9 +476,7 @@ export function EventDetailsPage() {
         if (cid) critMap[String(cid)] = c;
       });
       setDeletedCriteria(
-        (allCrit || []).filter(
-          (c: any) => c.isActive === false || c.isDeleted === true,
-        ),
+        (allCrit || []).filter((c: any) => isInactiveRecord(c)),
       );
 
       const sets: any[] = [];
@@ -407,23 +492,34 @@ export function EventDetailsPage() {
         try {
           const setRes: any = await criteriaApi.getSetById(setId);
           const s = setRes?.data || setRes;
+
+          // Bộ tiêu chí này đã bị xóa (deleteSet) nhưng round vẫn còn trỏ tới id
+          // cũ -> bỏ qua, không hiện lại nữa (kể cả sau khi reload trang).
+          if (isInactiveRecord(s)) continue;
+
           const rawList = extractSetList(setRes);
-          const items = rawList.map((it: any) => {
-            const cid = itemCriteriaId(it);
-            const info = critMap[String(cid)] || {};
-            return {
-              criteriaId: cid,
-              name:
-                info.criteriaName ||
-                info.name ||
-                it.criteriaName ||
-                it.name ||
-                "(không rõ tên)",
-              description: info.description || it.description || "",
-              score: itemScore(it),
-              isActive: info.isActive !== false,
-            };
-          });
+          const items = rawList
+            .map((it: any) => {
+              const cid = itemCriteriaId(it);
+              const info = critMap[String(cid)] || {};
+              return {
+                criteriaId: cid,
+                name:
+                  info.criteriaName ||
+                  info.name ||
+                  it.criteriaName ||
+                  it.name ||
+                  "(không rõ tên)",
+                description: info.description || it.description || "",
+                score: itemScore(it),
+                isActive: !isInactiveRecord(info),
+              };
+            })
+            // [FIX] Trước đây field isActive được tính ra nhưng KHÔNG hề được
+            // dùng để lọc -> tiêu chí đã xóa vẫn hiện trong bộ. Giờ lọc bỏ hẳn,
+            // tiêu chí đã xóa sẽ rời khỏi bộ ngay và chỉ quay lại khi restore.
+            .filter((it: any) => it.isActive);
+
           sets.push({
             setId,
             setName: s.setName || s.SetName || "Bộ tiêu chí",
@@ -513,6 +609,17 @@ export function EventDetailsPage() {
     if (!ok.isConfirmed) return;
     try {
       await criteriaApi.deleteCriterion(crit.criteriaId);
+
+      // Gỡ tiêu chí này khỏi bộ đang hiển thị ngay lập tức, không cần đợi reload
+      setCriteriaSets((prev) =>
+        prev.map((s) => ({
+          ...s,
+          items: s.items.filter(
+            (it: any) => String(it.criteriaId) !== String(crit.criteriaId),
+          ),
+        })),
+      );
+
       Swal.fire({
         icon: "success",
         title: "Đã xóa!",
@@ -520,23 +627,44 @@ export function EventDetailsPage() {
         showConfirmButton: false,
       });
       await loadCriteria();
-    } catch (e) {
-      Swal.fire("Lỗi", "Xóa tiêu chí thất bại.", "error");
+    } catch (e: any) {
+      Swal.fire(
+        "Lỗi",
+        `Xóa tiêu chí thất bại. Backend báo: ${getServerMsg(e)}`,
+        "error",
+      );
     }
   };
 
   const handleRestoreCriterion = async (crit: any) => {
     const cid = crit.criteriaID || crit.criteriaId || crit.id;
+
+    // Gỡ khỏi danh sách "đã xóa" ngay lập tức
+    setDeletedCriteria((prev) =>
+      prev.filter(
+        (c: any) =>
+          String(c.criteriaID || c.criteriaId || c.id) !== String(cid),
+      ),
+    );
+
     try {
       await criteriaApi.restoreCriterion(cid);
+      // loadCriteria() sẽ đưa tiêu chí này quay lại đúng bộ tiêu chí của nó,
+      // vì liên kết Set-Criteria vẫn còn, chỉ có cờ isActive đổi lại thành true.
       await loadCriteria();
       Swal.fire(
         "Đã khôi phục!",
-        "Tiêu chí đã được bật lại trong hệ thống.",
+        "Tiêu chí đã được bật lại và quay về bộ tiêu chí của nó.",
         "success",
       );
-    } catch (e) {
-      Swal.fire("Lỗi", "Khôi phục thất bại.", "error");
+    } catch (e: any) {
+      // Restore thất bại -> load lại để item quay về đúng danh sách "đã xóa"
+      await loadCriteria();
+      Swal.fire(
+        "Lỗi",
+        `Khôi phục thất bại. Backend báo: ${getServerMsg(e)}`,
+        "error",
+      );
     }
   };
 
@@ -629,6 +757,12 @@ export function EventDetailsPage() {
     if (!ok.isConfirmed) return;
     try {
       await criteriaApi.deleteSet(set.setId);
+
+      // Gỡ cả bộ khỏi UI ngay lập tức
+      setCriteriaSets((prev) =>
+        prev.filter((s) => String(s.setId) !== String(set.setId)),
+      );
+
       Swal.fire({
         icon: "success",
         title: "Đã xóa bộ!",
@@ -636,8 +770,12 @@ export function EventDetailsPage() {
         showConfirmButton: false,
       });
       await loadCriteria();
-    } catch (e) {
-      Swal.fire("Lỗi", "Xóa bộ thất bại.", "error");
+    } catch (e: any) {
+      Swal.fire(
+        "Lỗi",
+        `Xóa bộ thất bại. Backend báo: ${getServerMsg(e)}`,
+        "error",
+      );
     }
   };
 
@@ -890,6 +1028,26 @@ export function EventDetailsPage() {
       </div>
     );
 
+  // [FIX #2] Tổng trọng số tính real-time cho form tạo vòng phụ, dùng để hiện
+  // cảnh báo nhỏ và khóa nút tạo nếu chưa đúng 100%.
+  const newRowsTotal = sumWeight(
+    extraForm.rows.map((r: any) => ({ weight: r.score })),
+  );
+  const reuseSetTotal =
+    extraForm.critMode === "reuse" && extraForm.reuseSetId
+      ? sumWeight(
+          extraSets.find(
+            (s: any) => String(s.setId) === String(extraForm.reuseSetId),
+          )?.items || [],
+        )
+      : null;
+  const canSubmitRound =
+    extraForm.critMode === "new"
+      ? extraForm.rows.some((r: any) => r.name.trim()) && newRowsTotal === 100
+      : extraForm.critMode === "reuse"
+        ? !!extraForm.reuseSetId && reuseSetTotal === 100
+        : false;
+
   const numRounds = eventRounds.length || 2;
   const curRound = Number(event?.currentRound);
   const isEnded = curRound >= numRounds;
@@ -1112,7 +1270,19 @@ export function EventDetailsPage() {
                     </option>
                   ))}
                 </select>
-              ) : (
+              ) : null}
+              {extraForm.critMode === "reuse" && extraForm.reuseSetId && (
+                <p
+                  className={`text-xs font-bold mt-2 flex items-center gap-1 ${
+                    reuseSetTotal === 100 ? "text-emerald-600" : "text-red-500"
+                  }`}
+                >
+                  <Scale size={12} />
+                  Tổng trọng số của bộ này: {reuseSetTotal}%
+                  {reuseSetTotal !== 100 && " (phải đúng 100% mới dùng được)"}
+                </p>
+              )}
+              {extraForm.critMode === "new" ? (
                 <div className="space-y-3">
                   {extraForm.rows.map((r: any, i: number) => (
                     <div
@@ -1201,8 +1371,19 @@ export function EventDetailsPage() {
                   >
                     + Thêm tiêu chí
                   </button>
+
+                  {/* [FIX #2] Cảnh báo trọng số real-time + chặn tạo nếu chưa đủ 100% */}
+                  <p
+                    className={`text-xs font-bold flex items-center gap-1 ${
+                      newRowsTotal === 100 ? "text-emerald-600" : "text-red-500"
+                    }`}
+                  >
+                    <Scale size={12} />
+                    Tổng trọng số: {newRowsTotal}%
+                    {newRowsTotal !== 100 && " (phải đúng 100% mới được tạo)"}
+                  </p>
                 </div>
-              )}
+              ) : null}
             </div>
             {/* NÚT CHỐT TẠO VÒNG PHỤ NẰM Ở ĐÂY NÈ!! */}
             <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
@@ -1214,8 +1395,13 @@ export function EventDetailsPage() {
               </button>
               <button
                 onClick={handleAddExtraRound}
-                disabled={savingRound}
-                className="flex items-center gap-2 px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={savingRound || !canSubmitRound}
+                title={
+                  !canSubmitRound
+                    ? "Tổng trọng số của bộ tiêu chí phải đúng 100%"
+                    : undefined
+                }
+                className="flex items-center gap-2 px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingRound ? (
                   <Loader2 size={16} className="animate-spin" />
