@@ -193,7 +193,7 @@ namespace Services.RoundService
 
                 if (nextRound == null) return (false, "This is the final round, cannot transition.");
 
-                int topN = currentRound.TopNpromotion ?? 0;
+                int topN = currentRound.TopNpromotion;
                 if (topN <= 0) return (false, "TopNPromotion has not been set up for this round.");
 
                 List<LeaderBoard> leaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
