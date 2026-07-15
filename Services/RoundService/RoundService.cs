@@ -28,8 +28,19 @@ namespace Services.RoundService
                     return false;
                 }
 
-                Event targetEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.IsActive);
-                if (targetEvent == null) return false;
+                List<Round> existingRounds = await _uow.Round.GetAllQueryable()
+            .Where(e => e.EventId == info.EventID)
+            .ToListAsync(); 
+
+                if (existingRounds.Count > 0)
+                {
+                    DateTime earliestStartDate = existingRounds.Min(r => r.StartDate);
+
+                    if (DateTime.Now >= earliestStartDate)
+                    {
+                        return false;
+                    }
+                }
 
                 CriteriaSet targetSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == info.CriteriaSetID && e.IsActive);
                 if (targetSet == null) return false;
@@ -207,7 +218,7 @@ namespace Services.RoundService
 
                     if (details.Count > topN)
                     {
-                        
+
                         LeaderBoardDetail lastPromoted = details[topN - 1];
                         LeaderBoardDetail firstEliminated = details[topN];
 
@@ -217,10 +228,10 @@ namespace Services.RoundService
                         }
                     }
 
-              
+
                     List<LeaderBoardDetail> winningDetails = details.Take(topN).ToList();
 
-              
+
                     foreach (LeaderBoardDetail detail in winningDetails)
                     {
                         TeamInRound oldTeamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == detail.TeamInRoundId);
