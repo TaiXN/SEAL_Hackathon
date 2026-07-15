@@ -15,6 +15,8 @@ namespace Services.RoundService
         Task<bool> DeleteRoundAsync(string roundID);
         Task<List<RoundMenuAPIViewModel>> GetActiveMenuAsync();
         Task<(bool IsSuccess, string Message)> AutoTransitionRoundAsync(string currentRoundId);
+        Task<List<Round>> GetActiveRoundsAsync();
+
 
     }
 }

@@ -269,5 +269,19 @@ namespace Services.RoundService
                 return (false, $"System error: {ex.Message}");
             }
         }
+
+        public async Task<List<Round>> GetActiveRoundsAsync()
+        {
+            try
+            {
+
+                List<Round> result = await _uow.Round.GetAllAsync(q => q.IsActive && q.StartDate <= DateTime.UtcNow);
+                return result.ToList();
+            }
+            catch
+            {
+                return new List<Round>();
+            }
+        }
     }
 }

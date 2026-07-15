@@ -105,5 +105,12 @@ namespace SEAL_Hackathon.Controllers
 
             return Ok(new { message = result.Message });
         }
+
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveRounds()
+        {
+            var result = await _round.GetActiveRoundsAsync();
+            return Ok(result);
+        }
     }
 }
