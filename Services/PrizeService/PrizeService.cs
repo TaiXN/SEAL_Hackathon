@@ -1,9 +1,6 @@
 ﻿using APIViewModels.Prize;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 namespace Services.PrizeService

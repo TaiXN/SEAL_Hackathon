@@ -1,9 +1,5 @@
-﻿//using DataAccess.Entities;
-//using DataAccess.Repositories.RefreshTokenRepository;
-//using DataAccess.Repositories.RepositoryBase;
-//using System;
-//using System.Collections.Generic;
-//using System.Text;
+﻿using DataAccess.Entities;
+using DataAccess.Repositories.RepositoryBase;
 
 namespace DataAccess.Repositories.PrizeRepository
 {
@@ -20,5 +16,5 @@ namespace DataAccess.Repositories.PrizeRepository
         }
 
 
-//    }
-//}
+    }
+}
