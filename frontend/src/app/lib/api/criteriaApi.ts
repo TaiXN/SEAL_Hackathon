@@ -107,7 +107,7 @@ export const criteriaApi = {
   async deleteSet(id: string): Promise<void> {
     await apiClient.delete(`/api/Criteria/set/${id}`);
   },
-  // Cập nhật bộ tiêu chí (đã đổi endpoint và payload theo chuẩn mới)
+  // dùng api mới update criteria set - có thay đổi endpoint
   updateSet: async (
     setId: string,
     payload: {
