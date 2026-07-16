@@ -8,6 +8,7 @@ import {
   LogOut,
   User,
   Trophy,
+  BarChart2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authApi } from "../../lib/api/authApi";
@@ -46,6 +47,11 @@ export function AdminLayout() {
       icon: <Trophy size={20} />,
       path: "/admin/prizes",
     }, // update admin sidebar
+    {
+      name: "Leader Board",
+      icon: <BarChart2 size={20} />,
+      path: "/admin/leaderboard",
+    },
   ];
 
   const handleLogout = async () => {

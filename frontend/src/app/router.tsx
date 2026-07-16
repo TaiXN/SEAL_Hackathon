@@ -65,6 +65,7 @@ export const router = createBrowserRouter([
           { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
           { path: "prizes", element: <AdminPrizesPage /> }, // add new path in router to navigate exactly
+          { path: "leaderboard", element: <AdminLeaderboardPage /> },
         ],
       },
 
