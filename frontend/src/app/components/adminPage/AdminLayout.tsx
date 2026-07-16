@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   LogOut,
   User,
+  Trophy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authApi } from "../../lib/api/authApi";
@@ -40,6 +41,11 @@ export function AdminLayout() {
       icon: <ShieldAlert size={20} />,
       path: "/admin/violations",
     },
+    {
+      name: "Prizes & Awards",
+      icon: <Trophy size={20} />,
+      path: "/admin/prizes",
+    },
   ];
 
   const handleLogout = async () => {
@@ -52,9 +58,12 @@ export function AdminLayout() {
       });
     } catch (error) {
       console.error("Lỗi BE khi logout nhưng vẫn xóa FE:", error);
-      toast.error("A system error occurred, but you have been logged out successfully!", {
-        id: loadingToastId,
-      });
+      toast.error(
+        "A system error occurred, but you have been logged out successfully!",
+        {
+          id: loadingToastId,
+        },
+      );
     } finally {
       clearTokens();
       localStorage.removeItem("seal-hackathon-auth");

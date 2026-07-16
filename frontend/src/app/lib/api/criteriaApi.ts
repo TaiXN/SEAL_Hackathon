@@ -103,14 +103,19 @@ export const criteriaApi = {
     return res.data;
   },
 
-  // API MỚI: Cập nhật bộ tiêu chí
-  async updateSet(id: string, data: CriteriaSet): Promise<CriteriaSet> {
-    const res = await apiClient.put(`/api/Criteria/set/${id}`, data);
-    return res.data;
-  },
-
   // API MỚI: Xóa bộ tiêu chí
   async deleteSet(id: string): Promise<void> {
     await apiClient.delete(`/api/Criteria/set/${id}`);
+  },
+  // Cập nhật bộ tiêu chí (đã đổi endpoint và payload theo chuẩn mới)
+  updateSet: async (
+    setId: string,
+    payload: {
+      setName: string;
+      isDefault: boolean;
+      criteriaList: { criteriaId: string; score: number }[];
+    },
+  ) => {
+    return await apiClient.put(`/api/Criteria/set/${setId}`, payload);
   },
 };

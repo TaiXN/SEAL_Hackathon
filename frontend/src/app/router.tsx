@@ -27,6 +27,7 @@ import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
+import { AdminPrizesPage } from "./pages/Admin/AdminPrizesPage";
 
 export const router = createBrowserRouter([
   // =========================================================
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: "events", element: <EventHistoryPage /> },
           { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
+          { path: "prizes", element: <AdminPrizesPage /> },
         ],
       },
 

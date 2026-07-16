@@ -88,4 +88,8 @@ export const roundApi = {
     const res = await apiClient.post(`/api/Round/auto-transition/${roundId}`);
     return res.data;
   },
+  // Gọi API để tự động chuyển vòng (lọc ra Top N đội có điểm cao nhất sang vòng sau)
+  autoTransition: async (roundId: string) => {
+    return await apiClient.post(`/api/Round/auto-transition/${roundId}`);
+  },
 };
