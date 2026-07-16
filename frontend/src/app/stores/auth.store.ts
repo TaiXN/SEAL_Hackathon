@@ -3,10 +3,11 @@ import { createJSONStorage, devtools, persist } from "zustand/middleware";
 
 interface AuthState {
   accessToken: string | null;
-  role: string | null; // chừa chỗ để chứa role (admin, judge, member, leader...)
+  refreshToken: string | null;
+  role: string | null;
 
-  // Actions
-  setTokens: (access: string, role: string) => void;
+  setTokens: (access: string, refresh: string, role: string) => void;
+  updateAccessToken: (access: string) => void;
   clearTokens: () => void;
 }
 
@@ -14,18 +15,20 @@ export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
       (set) => ({
-        // Initial state
         accessToken: null,
+        refreshToken: null,
         role: null,
 
-        // Actions
-        setTokens: (access, role) => set({ accessToken: access, role: role }),
+        setTokens: (access, refresh, role) =>
+          set({ accessToken: access, refreshToken: refresh, role: role }),
 
-        // clear zustand khi đăng xuất hoặc token hết hạn
-        clearTokens: () => set({ accessToken: null, role: null }),
+        updateAccessToken: (access) => set({ accessToken: access }),
+
+        clearTokens: () =>
+          set({ accessToken: null, refreshToken: null, role: null }),
       }),
       {
-        name: "seal-hackathon-auth", // tên token
+        name: "seal-hackathon-auth",
         storage: createJSONStorage(() => localStorage),
       },
     ),

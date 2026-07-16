@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { ArrowRight, Check, ArrowLeft, Mail } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // 1. Import thằng này vào
+import React, { useState, useEffect, useRef } from "react";
+import { ArrowRight, Check, ArrowLeft, Mail, ChevronDown } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 import { authApi } from "../lib/api/authApi";
@@ -16,17 +16,24 @@ type AuthView =
 
 export function AuthLayout() {
   const setTokens = useAuthStore((state) => state.setTokens);
-  // const accessToken = useAuthStore((state) => state.accessToken);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [view, setView] = useState<AuthView>("login");
 
-  // ================= STATE CHO LOGIN =================
+  // ĐÓN LỆNH TỪ TRANG CHỦ
+  useEffect(() => {
+    if (location.state?.view) {
+      setView(location.state.view as AuthView);
+    }
+  }, [location]);
+
+  // ================= STATES =================
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [role, setRole] = useState("player"); // mặc định là member
+  const [role, setRole] = useState("player");
+  const [isRoleOpen, setIsRoleOpen] = useState(false); // State cho Custom Dropdown Role
 
-  // ================= STATE CHO REGISTER =================
   const [regEmail, setRegEmail] = useState("");
   const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -35,37 +42,55 @@ export function AuthLayout() {
   const [regAddress, setRegAddress] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regUniversityId, setRegUniversityId] = useState("");
+  const [isUniOpen, setIsUniOpen] = useState(false); // State cho Custom Dropdown University
 
-  // Danh sách trường Đại học (Lấy theo Database hiện tại)
-  const universitiesList = [
-    { id: "9cc4a00d-e012-4bda-ac97-482fbbaacc8d", name: "THU THEM UNIVERSITY" },
-    { id: "UNI_FPT", name: "FPT University HCM" },
-    { id: "UNI_HCMUS", name: "Đại học Khoa học Tự nhiên - ĐHQG TP.HCM" },
-    { id: "UNI_HCMUT", name: "Đại học Bách Khoa - ĐHQG TP.HCM" },
-    { id: "UNI_HCMUTE", name: "Đại học Sư phạm Kỹ thuật TP.HCM" },
-    { id: "UNI_IU", name: "Đại học Quốc tế - ĐHQG TP.HCM" },
-    {
-      id: "UNI_KHTN",
-      name: "Đại học Khoa học Xã hội và Nhân văn - ĐHQG TP.HCM",
-    },
-    { id: "UNI_OTHER", name: "Trường Đại học Khác" },
-    { id: "UNI_RMIT", name: "Đại học RMIT Nam Sài Gòn" },
-    { id: "UNI_TDTU", name: "Đại học Tôn Đức Thắng" },
-    { id: "UNI_UEH", name: "Đại học Kinh tế TP.HCM" },
-    { id: "UNI_UIT", name: "Đại học Công nghệ Thông tin - ĐHQG TP.HCM" },
-  ];
-
-  // ================= STATE CHO FORGOT / RESET PASSWORD =================
   const [forgotEmail, setForgotEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
+  const roleRef = useRef<HTMLDivElement>(null);
+  const uniRef = useRef<HTMLDivElement>(null);
+
+  const universitiesList = [
+    { id: "9cc4a00d-e012-4bda-ac97-482fbbaacc8d", name: "THU THEM UNIVERSITY" },
+    { id: "UNI_FPT", name: "FPT University HCM" },
+    { id: "UNI_HCMUS", name: "University of Science - VNUHCM" },
+    { id: "UNI_HCMUT", name: "Ho Chi Minh City University of Technology" },
+    { id: "UNI_HCMUTE", name: "HCM University of Technology and Education" },
+    { id: "UNI_IU", name: "International University - VNUHCM" },
+    { id: "UNI_KHTN", name: "University of Social Sciences and Humanities" },
+    { id: "UNI_OTHER", name: "Other University" },
+    { id: "UNI_RMIT", name: "RMIT University" },
+    { id: "UNI_TDTU", name: "Ton Duc Thang University" },
+    { id: "UNI_UEH", name: "University of Economics HCMC" },
+    { id: "UNI_UIT", name: "UIT - VNUHCM" },
+  ];
+
+  const roleList = [
+    { id: "admin", name: "Administrator" },
+    { id: "judge", name: "Judge / Mentor" },
+    { id: "player", name: "Participant (Player)" },
+  ];
+
+  // CLICK OUTSIDE ĐỂ ĐÓNG DROPDOWN
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (roleRef.current && !roleRef.current.contains(event.target as Node)) {
+        setIsRoleOpen(false);
+      }
+      if (uniRef.current && !uniRef.current.contains(event.target as Node)) {
+        setIsUniOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ================= HANDLERS =================
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const loadingToastId = toast.loading("Đang kiểm tra thông tin...");
+    const loadingToastId = toast.loading("Verifying credentials...");
     const credentials = { email: loginEmail, password: loginPassword };
-    console.log("Dữ liệu chuẩn bị gửi đi là:", credentials);
 
     try {
       let data;
@@ -79,35 +104,23 @@ export function AuthLayout() {
         navigateTo = "/judge";
       } else {
         data = await authApi.loginPlayer(credentials);
-        navigateTo = "/player";
+        navigateTo = "/gateway";
       }
 
-      if (!data) {
-        throw new Error("Không nhận được dữ liệu từ Server");
-      }
+      if (!data) throw new Error("No data received from server.");
 
-      console.log("Data API trả về nè: ", data); // ac & rf
-
-      // lấy token: axios ép thành json r
       const actualToken = data.accessToken;
-      setTokens(actualToken, role); // set vào kho zustand
+      const actualRefreshToken = data.refreshToken || "dummy-refresh-token";
 
-      toast.success("Đăng nhập thành công! Đang chuyển hướng...", {
-        id: loadingToastId,
-      });
+      setTokens(actualToken, actualRefreshToken, role);
 
-      navigate(navigateTo);
-      //Axios: tự động xuống catch này, bắt lỗi BE trả về 400: sai mk, 404: k tìm thấy, 401: k có token,...
+      toast.success("Login successful! Redirecting...", { id: loadingToastId });
+      navigate(navigateTo, { replace: true });
     } catch (error: any) {
-      // 1. log ra xem lỗi (lỗi API hay lỗi code JS)
-      console.error("Chi tiết lỗi:", error);
-
-      // 2. Lấy thông báo từ Backend (nếu backend có gửi kèm message)
       const errorMsg =
-        error.response?.data?.message ||
-        "Có lỗi xảy ra trong quá trình đăng nhập!";
-
-      Swal.fire("Lỗi", errorMsg, "error");
+        error.response?.data?.message || "An error occurred during login!";
+      toast.dismiss(loadingToastId);
+      Swal.fire("Error", errorMsg, "error");
     }
   };
 
@@ -115,17 +128,15 @@ export function AuthLayout() {
     e.preventDefault();
 
     if (regPassword !== regConfirmPassword) {
-      Swal.fire("Lỗi", "Mật khẩu xác nhận không khớp!", "error");
+      Swal.fire("Error", "Passwords do not match!", "error");
       return;
     }
-
     if (!regUniversityId) {
-      Swal.fire("Lỗi", "Vui lòng chọn trường Đại học!", "warning");
+      Swal.fire("Error", "Please select a University!", "warning");
       return;
     }
 
-    const loadingToastId = toast.loading("Đang tạo tài khoản sinh viên...");
-
+    const loadingToastId = toast.loading("Creating student account...");
     try {
       await playerApi.register({
         email: regEmail.trim(),
@@ -137,55 +148,44 @@ export function AuthLayout() {
         universityId: regUniversityId.trim(),
       });
 
-      toast.success("Đăng ký thành công! Đăng nhập để tiếp tục.", {
+      toast.success("Registration successful! Please login.", {
         id: loadingToastId,
       });
-
       setView("login");
       setLoginEmail(regEmail);
       setRole("player");
     } catch (error: any) {
-      console.error("Register player failed:", error);
-
       const errorMsg =
         error.response?.data?.message ||
         error.response?.data ||
-        "Không thể đăng ký tài khoản sinh viên.";
-
-      toast.error(errorMsg, {
-        id: loadingToastId,
-      });
-
-      Swal.fire("Lỗi", errorMsg, "error");
+        "Unable to register account.";
+      toast.error(errorMsg, { id: loadingToastId });
+      Swal.fire("Error", errorMsg, "error");
     }
   };
+
   const handleForgotSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[FORGOT PWD] Gửi yêu cầu reset cho email:", forgotEmail);
-    setView("link-sent"); // Chuyển sang màn hình thông báo đã gửi link
+    setView("link-sent");
   };
 
   const handleResetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
-      alert("Hai mật khẩu mới không khớp nhau!");
+      alert("Passwords do not match!");
       return;
     }
-    console.log("[RESET PWD] Mật khẩu mới cập nhật là:", newPassword);
-    alert("Đổi mật khẩu thành công! Chuyển về trang Login.");
+    alert("Password updated successfully! Redirecting to login.");
     setView("login");
   };
 
-  // ================= GIAO DIỆN =================
+  // ================= UI RENDER =================
   return (
     <div className="flex min-h-screen w-full bg-slate-50 font-sans text-slate-900">
-      {/* Left Side - Brand/Minimalist Area */}
       <div className="hidden lg:flex lg:flex-col lg:w-5/12 bg-slate-900 text-white p-12 relative overflow-hidden">
         <div className="relative z-10 flex-1 flex flex-col justify-center pb-12">
           <h1 className="text-5xl md:text-6xl font-medium tracking-tight mb-6 leading-tight">
-            FPT Edu
-            <br />
-            Hackathon
+            SEAL Hackathon
           </h1>
           <p className="text-slate-400 text-lg max-w-sm leading-relaxed">
             The ultimate platform for innovators. Register your team and build
@@ -193,13 +193,19 @@ export function AuthLayout() {
           </p>
         </div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/4 -right-24 w-64 h-64 bg-orange-500 opacity-15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-1/4 -right-24 w-64 h-64 bg-blue-500 opacity-15 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
-      {/* Right Side - Forms */}
-      <div className="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-12 lg:p-24 bg-white">
+      <div className="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-12 lg:p-24 bg-white relative">
+        <button
+          onClick={() => navigate("/")}
+          className="absolute top-8 left-8 flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft size={16} /> Back to Home
+        </button>
+
         <div className="w-full max-w-[440px]">
-          {/* ================= LOGIN VIEW ================= */}
+          {/* ================= LOGIN ================= */}
           {view === "login" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="mb-10">
@@ -211,16 +217,49 @@ export function AuthLayout() {
                 </p>
               </div>
 
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="admin">Admin</option>
-                <option value="judge">Judge</option>
-                <option value="player">Participants</option>
-              </select>
+              {/* CUSTOM DROPDOWN CHỌN ROLE */}
+              <div className="mb-6 relative" ref={roleRef}>
+                <label className="text-sm font-bold text-slate-700 mb-2 block uppercase tracking-wider">
+                  Select Role
+                </label>
+                <div
+                  onClick={() => setIsRoleOpen(!isRoleOpen)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 font-bold hover:bg-slate-100 transition-all cursor-pointer flex justify-between items-center"
+                >
+                  <span>{roleList.find((r) => r.id === role)?.name}</span>
+                  <ChevronDown
+                    size={18}
+                    className={`text-slate-400 transition-transform duration-200 ${isRoleOpen ? "rotate-180" : ""}`}
+                  />
+                </div>
+
+                {isRoleOpen && (
+                  <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    {roleList.map((r) => (
+                      <div
+                        key={r.id}
+                        onClick={() => {
+                          setRole(r.id);
+                          setIsRoleOpen(false);
+                        }}
+                        className={`px-4 py-3.5 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between ${
+                          role === r.id
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
+                      >
+                        {r.name}
+                        {role === r.id && <Check size={16} />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <form className="space-y-5" onSubmit={handleLoginSubmit}>
                 <div className="space-y-2">
                   <label
-                    className="text-sm font-medium text-slate-700"
+                    className="text-sm font-bold text-slate-700"
                     htmlFor="login-email"
                   >
                     Email Address
@@ -230,7 +269,7 @@ export function AuthLayout() {
                     type="email"
                     required
                     placeholder="name@example.com"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all font-medium"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                   />
@@ -239,7 +278,7 @@ export function AuthLayout() {
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between">
                     <label
-                      className="text-sm font-medium text-slate-700"
+                      className="text-sm font-bold text-slate-700"
                       htmlFor="login-password"
                     >
                       Password
@@ -247,7 +286,7 @@ export function AuthLayout() {
                     <button
                       type="button"
                       onClick={() => setView("forgot-password")}
-                      className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
+                      className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
                     >
                       Forgot password?
                     </button>
@@ -257,7 +296,7 @@ export function AuthLayout() {
                     type="password"
                     required
                     placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all font-medium"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                   />
@@ -265,19 +304,19 @@ export function AuthLayout() {
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 mt-8"
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 mt-8"
                 >
                   Sign In <ArrowRight size={18} strokeWidth={2} />
                 </button>
               </form>
 
               <div className="text-center mt-10">
-                <p className="text-slate-500 text-sm">
+                <p className="text-slate-500 text-sm font-medium">
                   Don't have an account?{" "}
                   <button
                     type="button"
                     onClick={() => setView("register")}
-                    className="font-semibold text-slate-900 hover:underline underline-offset-4 transition-all"
+                    className="font-bold text-slate-900 hover:underline transition-all"
                   >
                     Register now
                   </button>
@@ -286,10 +325,10 @@ export function AuthLayout() {
             </div>
           )}
 
-          {/* ================= REGISTER VIEW ================= */}
+          {/* ================= REGISTER ================= */}
           {view === "register" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-10">
+              <div className="mb-8">
                 <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
                   Create an account
                 </h2>
@@ -298,70 +337,55 @@ export function AuthLayout() {
                 </p>
               </div>
 
-              <form className="space-y-5" onSubmit={handleRegisterSubmit}>
-                {/* --- Full Name --- */}
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="reg-fullname"
-                  >
+              <form className="space-y-4" onSubmit={handleRegisterSubmit}>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-bold text-slate-700">
                     Full Name
                   </label>
                   <input
                     id="reg-fullname"
                     type="text"
                     required
-                    placeholder="Nguyen Van A"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    placeholder="John Doe"
+                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
                   />
                 </div>
 
-                {/* --- Phone & Address --- */}
                 <div className="flex gap-4">
-                  <div className="space-y-2 flex-1">
-                    <label
-                      className="text-sm font-medium text-slate-700"
-                      htmlFor="reg-phone"
-                    >
-                      Phone Number
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      Phone
                     </label>
                     <input
                       id="reg-phone"
                       type="tel"
                       required
                       placeholder="0901234567"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2 flex-1">
-                    <label
-                      className="text-sm font-medium text-slate-700"
-                      htmlFor="reg-address"
-                    >
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
                       Address
                     </label>
                     <input
                       id="reg-address"
                       type="text"
                       required
-                      placeholder="Ho Chi Minh City"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      placeholder="HCMC"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regAddress}
                       onChange={(e) => setRegAddress(e.target.value)}
                     />
                   </div>
                 </div>
 
-                {/* --- Email --- */}
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="reg-email"
-                  >
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-bold text-slate-700">
                     Email Address
                   </label>
                   <input
@@ -369,64 +393,76 @@ export function AuthLayout() {
                     type="email"
                     required
                     placeholder="name@example.com"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                   />
                 </div>
 
-                {/* --- University Dropdown --- */}
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="reg-university"
-                  >
+                {/* CUSTOM DROPDOWN CHỌN TRƯỜNG ĐẠI HỌC */}
+                <div className="space-y-1.5 relative" ref={uniRef}>
+                  <label className="text-[13px] font-bold text-slate-700">
                     University
                   </label>
-                  <select
-                    id="reg-university"
-                    required
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all appearance-none cursor-pointer"
-                    value={regUniversityId}
-                    onChange={(e) => setRegUniversityId(e.target.value)}
+                  <div
+                    onClick={() => setIsUniOpen(!isUniOpen)}
+                    className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-100 transition-all cursor-pointer flex justify-between items-center ${!regUniversityId ? "text-slate-400" : "text-slate-900"}`}
                   >
-                    <option value="" disabled>
-                      Select your university
-                    </option>
-                    {universitiesList.map((uni) => (
-                      <option key={uni.id} value={uni.id}>
-                        {uni.name}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="truncate pr-4">
+                      {regUniversityId
+                        ? universitiesList.find((u) => u.id === regUniversityId)
+                            ?.name
+                        : "Select your university"}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${isUniOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+
+                  {isUniOpen && (
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/50 overflow-y-auto max-h-60 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {universitiesList.map((uni) => (
+                        <div
+                          key={uni.id}
+                          onClick={() => {
+                            setRegUniversityId(uni.id);
+                            setIsUniOpen(false);
+                          }}
+                          className={`px-4 py-3 text-sm cursor-pointer transition-colors flex items-center justify-between ${
+                            regUniversityId === uni.id
+                              ? "bg-slate-900 text-white font-bold"
+                              : "text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                        >
+                          <span className="truncate pr-4">{uni.name}</span>
+                          {regUniversityId === uni.id && (
+                            <Check size={16} className="flex-shrink-0" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* --- Student ID --- */}
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="studentId"
-                  >
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-bold text-slate-700">
                     Student ID
                   </label>
                   <input
                     id="studentId"
                     type="text"
                     required
-                    placeholder="e.g. SE123456"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    placeholder="SE123456"
+                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                     value={regStudentId}
                     onChange={(e) => setRegStudentId(e.target.value)}
                   />
                 </div>
 
-                {/* --- Passwords --- */}
-                <div className="space-y-5 pt-2">
-                  <div className="space-y-2">
-                    <label
-                      className="text-sm font-medium text-slate-700"
-                      htmlFor="reg-password"
-                    >
+                <div className="flex gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
                       Password
                     </label>
                     <input
@@ -434,45 +470,42 @@ export function AuthLayout() {
                       type="password"
                       required
                       placeholder="••••••••"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label
-                      className="text-sm font-medium text-slate-700"
-                      htmlFor="reg-confirm"
-                    >
-                      Confirm Password
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      Confirm Pwd
                     </label>
                     <input
                       id="reg-confirm"
                       type="password"
                       required
                       placeholder="••••••••"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 mt-8"
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3 px-4 rounded-xl text-sm font-bold transition-all mt-6"
                 >
-                  Create Account <ArrowRight size={18} strokeWidth={2} />
+                  Create Account <ArrowRight size={16} strokeWidth={2} />
                 </button>
               </form>
 
-              <div className="text-center mt-10">
-                <p className="text-slate-500 text-sm">
+              <div className="text-center mt-8">
+                <p className="text-slate-500 text-sm font-medium">
                   Already have an account?{" "}
                   <button
                     type="button"
                     onClick={() => setView("login")}
-                    className="font-semibold text-slate-900 hover:underline underline-offset-4 transition-all"
+                    className="font-bold text-slate-900 hover:underline transition-all"
                   >
                     Sign in
                   </button>
@@ -481,14 +514,14 @@ export function AuthLayout() {
             </div>
           )}
 
-          {/* ================= FORGOT PASSWORD ================= */}
+          {/* ================= FORGOT PWD & RESET PWD ================= */}
           {view === "forgot-password" && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="mb-8">
                 <button
                   type="button"
                   onClick={() => setView("login")}
-                  className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 mb-6 group transition-colors w-fit"
+                  className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-900 mb-6 group transition-colors"
                 >
                   <ArrowLeft
                     size={16}
@@ -504,28 +537,23 @@ export function AuthLayout() {
                   your password.
                 </p>
               </div>
-
               <form className="space-y-5" onSubmit={handleForgotSubmit}>
                 <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="reset-email"
-                  >
+                  <label className="text-sm font-bold text-slate-700">
                     Email Address
                   </label>
                   <input
-                    id="reset-email"
                     type="email"
                     required
                     placeholder="name@example.com"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 transition-all font-medium"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 mt-8"
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all mt-8"
                 >
                   Send Reset Link
                 </button>
@@ -533,7 +561,6 @@ export function AuthLayout() {
             </div>
           )}
 
-          {/* ================= LINK SENT ================= */}
           {view === "link-sent" && (
             <div className="animate-in fade-in zoom-in-95 duration-500 text-center py-8">
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -547,14 +574,10 @@ export function AuthLayout() {
                 click the link to continue.
               </p>
               <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl mt-8 w-full text-left">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-400"></span>{" "}
-                  Simulator
-                </p>
                 <button
                   type="button"
                   onClick={() => setView("reset-password")}
-                  className="w-full flex items-center justify-center bg-white border border-slate-200 hover:border-slate-300 text-slate-700 py-3 px-4 rounded-xl text-sm font-medium transition-all shadow-sm hover:shadow"
+                  className="w-full flex items-center justify-center bg-white border border-slate-200 hover:border-slate-300 text-slate-700 py-3 px-4 rounded-xl text-sm font-bold transition-all shadow-sm"
                 >
                   Simulate clicking email link
                 </button>
@@ -562,7 +585,6 @@ export function AuthLayout() {
             </div>
           )}
 
-          {/* ================= RESET PASSWORD ================= */}
           {view === "reset-password" && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="mb-10">
@@ -573,45 +595,36 @@ export function AuthLayout() {
                   Please enter and confirm your new password below.
                 </p>
               </div>
-
               <form className="space-y-5" onSubmit={handleResetSubmit}>
                 <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="new-password"
-                  >
+                  <label className="text-sm font-bold text-slate-700">
                     New Password
                   </label>
                   <input
-                    id="new-password"
                     type="password"
                     required
                     placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-slate-900 transition-all"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="confirm-new-password"
-                  >
+                  <label className="text-sm font-bold text-slate-700">
                     Confirm New Password
                   </label>
                   <input
-                    id="confirm-new-password"
                     type="password"
                     required
                     placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-slate-900 transition-all"
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 mt-8"
+                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all mt-8"
                 >
                   Update Password <Check size={18} strokeWidth={2} />
                 </button>

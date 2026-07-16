@@ -18,20 +18,20 @@ export function AdminLeaderboardPage() {
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 1. Lấy danh sách sự kiện ban đầu
+  // 1. Fetch initial events
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const res = await eventApi.getAllEvents();
         setEvents(res || []);
       } catch (err) {
-        console.error("Lỗi tải sự kiện", err);
+        console.error("Error loading events", err);
       }
     };
     fetchEvents();
   }, []);
 
-  // 2. Khi chọn Sự kiện -> Load Vòng thi & Hạng mục của sự kiện đó
+  // 2. Load Rounds & Tracks when Event changes
   useEffect(() => {
     if (!selectedEventId) return;
     const fetchDetails = async () => {
@@ -51,18 +51,18 @@ export function AdminLeaderboardPage() {
         setRounds(filteredRounds);
         setTracks(filteredTracks);
 
-        // Reset lựa chọn bên dưới
+        // Reset lower selections
         setSelectedRoundId("");
         setSelectedTrackId("");
         setLeaderboardData([]);
       } catch (error) {
-        console.error("Lỗi tải chi tiết", error);
+        console.error("Error loading details", error);
       }
     };
     fetchDetails();
   }, [selectedEventId]);
 
-  // 3. Khi Admin đã chọn đủ Vòng và Hạng mục -> Gọi API Leaderboard
+  // 3. Call Leaderboard API when Round & Track are selected
   useEffect(() => {
     if (!selectedRoundId || !selectedTrackId) return;
 
@@ -73,10 +73,9 @@ export function AdminLeaderboardPage() {
           selectedRoundId,
           selectedTrackId,
         );
-        // Giả sử backend trả về mảng, xếp giảm dần theo điểm
         setLeaderboardData(data || []);
       } catch (error: any) {
-        Swal.fire("Lỗi", "Không thể lấy bảng xếp hạng!", "error");
+        Swal.fire("Error", "Failed to fetch leaderboard data!", "error");
         setLeaderboardData([]);
       } finally {
         setIsLoading(false);
@@ -88,32 +87,32 @@ export function AdminLeaderboardPage() {
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-8 animate-in fade-in duration-300">
       <div className="max-w-6xl mx-auto space-y-6">
+        {/* HEADER TITLE */}
         <div className="mb-8">
           <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <BarChart2 size={32} className="text-blue-500" />
-            Bảng Xếp Hạng Đội Thi
+            Tournament Leaderboard
           </h2>
           <p className="text-slate-500 font-medium mt-1">
-            Xem điểm số và thứ hạng của các đội theo từng ngách.
+            View real-time scores and rankings of teams across all tracks.
           </p>
         </div>
 
-        {/* BỘ LỌC */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+        {/* FILTERS */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-5 items-end">
           <div className="flex-1 w-full">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-              1. Chọn Sự Kiện
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">
+              1. Select Event
             </label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-lg px-4 py-2.5 outline-none focus:border-blue-500"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition-colors cursor-pointer"
             >
               <option value="" disabled>
-                -- Chọn Sự Kiện --
+                -- Choose an Event --
               </option>
               {events.map((e) => {
-                // Bọc lót đủ kiểu case-sensitive
                 const eId = e.eventID || e.eventId || e.id;
                 return (
                   <option key={eId} value={eId}>
@@ -125,20 +124,19 @@ export function AdminLeaderboardPage() {
           </div>
 
           <div className="flex-1 w-full">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-              2. Chọn Vòng Thi
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">
+              2. Select Round
             </label>
             <select
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-lg px-4 py-2.5 outline-none focus:border-blue-500 disabled:opacity-50"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-500 disabled:opacity-50 transition-colors cursor-pointer"
             >
               <option value="" disabled>
-                -- Chọn Vòng Thi --
+                -- Choose a Round --
               </option>
               {rounds.map((r) => {
-                // Bọc lót đủ kiểu case-sensitive để không bị rớt chữ
                 const rId = r.roundID || r.roundId || r.id;
                 return (
                   <option key={rId} value={rId}>
@@ -150,20 +148,19 @@ export function AdminLeaderboardPage() {
           </div>
 
           <div className="flex-1 w-full">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-              3. Chọn Hạng Mục
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">
+              3. Select Track
             </label>
             <select
               value={selectedTrackId}
               onChange={(e) => setSelectedTrackId(e.target.value)}
               disabled={!selectedRoundId}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-lg px-4 py-2.5 outline-none focus:border-blue-500 disabled:opacity-50"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-blue-500 disabled:opacity-50 transition-colors cursor-pointer"
             >
               <option value="" disabled>
-                -- Chọn Hạng Mục --
+                -- Choose a Track --
               </option>
               {tracks.map((t) => {
-                // Bọc lót đủ kiểu case-sensitive
                 const tId = t.trackID || t.trackId || t.id;
                 return (
                   <option key={tId} value={tId}>
@@ -175,139 +172,136 @@ export function AdminLeaderboardPage() {
           </div>
         </div>
 
-        {/* KẾT QUẢ BẢNG XẾP HẠNG SẼ NẰM Ở ĐÂY */}
-        {/* KẾT QUẢ BẢNG XẾP HẠNG SẼ NẰM Ở ĐÂY */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+        {/* LEADERBOARD RESULT */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-slate-500 my-20">
               <Loader2 size={40} className="animate-spin text-blue-500 mb-4" />
-              <p className="font-bold">Đang tính toán điểm số...</p>
+              <p className="font-bold">Calculating scores...</p>
             </div>
           ) : !selectedRoundId || !selectedTrackId ? (
             <div className="flex flex-col items-center justify-center flex-1 text-slate-400 my-20">
-              <Filter size={48} className="mb-4 opacity-30" />
+              <Filter size={56} className="mb-5 opacity-20" />
               <p className="font-medium text-slate-500">
-                Vui lòng chọn đầy đủ Sự Kiện, Vòng thi và Hạng mục để xem bảng
-                điểm.
+                Please select Event, Round, and Track to view the leaderboard.
               </p>
             </div>
           ) : leaderboardData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-slate-400 my-20 bg-slate-50 mx-6 rounded-xl border-2 border-dashed border-slate-200">
-              <Medal size={48} className="mb-3 text-slate-300" />
-              <p className="font-bold text-slate-500">
-                Chưa có đội nào được chấm điểm ở Hạng mục này!
+            <div className="flex flex-col items-center justify-center flex-1 text-slate-400 my-20 bg-slate-50 mx-8 rounded-2xl border-2 border-dashed border-slate-200">
+              <Medal size={56} className="mb-4 text-slate-300" />
+              <p className="font-bold text-slate-500 text-lg">
+                No teams have been graded in this track yet!
               </p>
               <p className="text-sm mt-1">
-                Vui lòng đợi Giám khảo hoàn tất việc chấm thi.
+                Please wait for the judges to complete their evaluations.
               </p>
             </div>
           ) : (
             <div className="w-full">
-              {/* Header của Bảng */}
-              <div className="grid grid-cols-12 gap-4 bg-slate-900 text-white px-6 py-4 text-sm font-bold uppercase tracking-wider">
-                <div className="col-span-2 text-center">Xếp hạng</div>
-                <div className="col-span-7">Đội thi</div>
-                <div className="col-span-3 text-center">Tổng điểm</div>
+              {/* BEAUTIFUL SOFTER HEADER */}
+              <div className="flex items-center bg-slate-50/80 border-b border-slate-200 px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                <div className="w-24 text-center">Rank</div>
+                <div className="flex-1 px-6">Team Name</div>
+                <div className="w-36 text-center">Total Score</div>
               </div>
 
-              {/* Danh sách các đội thi */}
-              <div className="divide-y divide-slate-100">
-                {/* Sắp xếp data theo điểm từ cao xuống thấp cho chắc cú */}
+              {/* LIST OF TEAMS */}
+              <div className="divide-y divide-slate-100/60">
                 {[...leaderboardData]
                   .sort((a, b) => (b.score || 0) - (a.score || 0))
                   .map((team, index) => {
-                    // Style cho Top 1, 2, 3
+                    // STYLING LOGIC FOR TOP 3
                     let rankIcon = null;
-                    let rowClass = "hover:bg-slate-50 transition-colors";
-                    let rankTextClass = "text-slate-500 font-bold";
+                    let rowClass =
+                      "hover:bg-slate-50 bg-white transition-colors";
+                    let rankTextClass = "text-slate-400 font-bold";
+                    let scoreBgClass =
+                      "bg-slate-100 text-slate-600 border border-slate-200";
 
                     if (index === 0) {
                       rankIcon = (
                         <Trophy
-                          size={24}
-                          className="text-amber-400 drop-shadow-md"
+                          size={28}
+                          className="text-amber-400 drop-shadow-md mb-1"
                         />
                       );
                       rowClass =
-                        "bg-amber-50/30 hover:bg-amber-50 transition-colors";
-                      rankTextClass = "text-amber-600 font-black text-lg";
+                        "bg-gradient-to-r from-amber-50/50 to-white hover:from-amber-50 transition-colors";
+                      rankTextClass = "text-amber-600 font-black";
+                      scoreBgClass =
+                        "bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md shadow-amber-200 border-none";
                     } else if (index === 1) {
                       rankIcon = (
                         <Medal
-                          size={24}
-                          className="text-slate-400 drop-shadow-sm"
+                          size={28}
+                          className="text-slate-400 drop-shadow-sm mb-1"
                         />
                       );
                       rowClass =
-                        "bg-slate-50/50 hover:bg-slate-100 transition-colors";
-                      rankTextClass = "text-slate-500 font-black text-lg";
+                        "bg-gradient-to-r from-slate-50/80 to-white hover:from-slate-100 transition-colors";
+                      rankTextClass = "text-slate-500 font-black";
+                      scoreBgClass =
+                        "bg-slate-200 text-slate-700 border border-slate-300";
                     } else if (index === 2) {
                       rankIcon = (
                         <Medal
-                          size={24}
-                          className="text-amber-700 drop-shadow-sm opacity-80"
+                          size={28}
+                          className="text-amber-700/80 drop-shadow-sm mb-1"
                         />
                       );
                       rowClass =
-                        "bg-orange-50/30 hover:bg-orange-50 transition-colors";
-                      rankTextClass = "text-amber-800 font-black text-lg";
+                        "bg-gradient-to-r from-orange-50/50 to-white hover:from-orange-50 transition-colors";
+                      rankTextClass = "text-amber-800 font-black";
+                      scoreBgClass =
+                        "bg-orange-100 text-amber-900 border border-orange-200";
                     }
 
                     return (
                       <div
                         key={team.teamInRoundId || index}
-                        className={`grid grid-cols-12 gap-4 px-6 py-5 items-center ${rowClass}`}
+                        className={`flex items-center px-8 py-5 ${rowClass}`}
                       >
-                        {/* CỘT 1: Hạng */}
-                        <div className="col-span-2 flex justify-center items-center">
+                        {/* COLUMN 1: RANK */}
+                        <div className="w-24 flex flex-col items-center justify-center">
                           {rankIcon ? (
-                            <div className="flex flex-col items-center justify-center">
+                            <>
                               {rankIcon}
                               <span
-                                className={`text-[10px] mt-1 ${rankTextClass}`}
+                                className={`text-[10px] mt-0.5 ${rankTextClass}`}
                               >
                                 TOP {index + 1}
                               </span>
-                            </div>
+                            </>
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
+                            <div className="w-10 h-10 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center text-slate-400 font-bold text-lg shadow-sm">
                               {index + 1}
                             </div>
                           )}
                         </div>
 
-                        {/* CỘT 2: Tên đội */}
-                        <div className="col-span-7">
-                          <p className="font-bold text-slate-800 text-base">
-                            {team.teamName || "Đội Ẩn Danh"}
-                          </p>
-                          {/* Hiện cái ID nhỏ nhỏ cho Admin dễ tra soát nếu cần */}
-                          <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                            ID: {team.teamInRoundId}
+                        {/* COLUMN 2: TEAM NAME (ID Removed for UI/UX) */}
+                        <div className="flex-1 px-6 flex items-center">
+                          <p
+                            className={`font-bold text-lg ${index < 3 ? "text-slate-800" : "text-slate-600"}`}
+                          >
+                            {team.teamName || "Anonymous Team"}
                           </p>
                         </div>
 
-                        {/* CỘT 3: Điểm số */}
-                        <div className="col-span-3 flex justify-center">
+                        {/* COLUMN 3: SCORE */}
+                        <div className="w-36 flex justify-center">
                           <div
-                            className="px-4 py-1.5 rounded-xl font-black text-lg flex items-center gap-1 min-w-[80px] justify-center shadow-sm border
-                          ${index === 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white border-amber-500' : 'bg-white text-slate-700 border-slate-200'}"
-                            style={
-                              index === 0
-                                ? {
-                                    background:
-                                      "linear-gradient(to right, #fbbf24, #f59e0b)",
-                                    color: "white",
-                                    borderColor: "#f59e0b",
-                                  }
-                                : {}
-                            }
+                            className={`px-4 py-2 rounded-2xl font-black text-xl flex flex-col items-center min-w-[100px] justify-center ${scoreBgClass}`}
                           >
-                            {Number(team.score || 0).toFixed(2)}{" "}
+                            <span>{Number(team.score || 0).toFixed(2)}</span>
                             <span
-                              className={`text-xs ${index === 0 ? "text-amber-100" : "text-slate-400"}`}
+                              className={`text-[9px] uppercase tracking-widest -mt-1 font-bold ${
+                                index === 0
+                                  ? "text-amber-100"
+                                  : "text-slate-400"
+                              }`}
                             >
-                              pt
+                              Points
                             </span>
                           </div>
                         </div>

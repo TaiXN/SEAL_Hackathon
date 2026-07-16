@@ -1,78 +1,118 @@
 import axios from "axios";
 import { useAuthStore } from "../../stores/auth.store";
-import { jwtDecode } from "jwt-decode";
 
+// Khởi tạo instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: "https://seal.cosplane.io.vn", // Hoặc biến môi trường của bà
   headers: {
     "Content-Type": "application/json",
   },
-  // timeout: 10000,
-  withCredentials: true,
 });
 
-//REQUEST INTERCEPTOR: attach token: tự động thêm token vào header Authorization nếu cần
-apiClient.interceptors.request.use(
-  async (config) => {
-    // 1. chỉ lấy token khi ko phải trang login
-    if (config.url?.includes("/login")) {
-      return config; // return config cho an toàn
+// Cờ báo hiệu đang refresh token
+let isRefreshing = false;
+// Hàng đợi các request bị kẹt lại chờ token mới
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
     }
-    let accessToken = useAuthStore.getState().accessToken;
-    if (accessToken) {
-      try {
-        const decodedToken = jwtDecode(accessToken);
-        const currentTime = Date.now() / 1000;
+  });
+  failedQueue = [];
+};
 
-        if (decodedToken.exp && decodedToken.exp < currentTime + 10) {
-          console.log("Token sắp hết hạn, đang đổi token...");
-
-          const response = await axios.post(
-            `${import.meta.env.VITE_API_URL}/api/Auth/refreshtoken`,
-            {},
-            { withCredentials: true },
-          );
-
-          const newAccessToken = response.data.accessToken;
-          const currentRole = useAuthStore.getState().role;
-
-          useAuthStore
-            .getState()
-            .setTokens(newAccessToken, currentRole || "member");
-
-          // cập nhật lại newAc vào access token global để gắn vô header
-          accessToken = newAccessToken;
-          console.log("Cấp token mới thành công, duy trì đăng nhập!");
-        }
-      } catch (error) {
-        console.error("Lỗi token!");
-        useAuthStore.getState().clearTokens();
-        window.location.href = "/";
-        return Promise.reject(error);
-      }
-      // 3. Gắn biến accessToken (dù cũ hay mới) vô header
-      config.headers.Authorization = `Bearer ${accessToken}`;
+// ==========================================
+// INTERCEPTOR GẮN TOKEN VÀO REQUEST
+// ==========================================
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = useAuthStore.getState().accessToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// RESPONSE INTERCETPTOR : Xử lý lỗi chung
-// ví dụ 401 Unauthorized: set tự động xin vé mới || logout
+// ==========================================
+// INTERCEPTOR BẮT LỖI 401 VÀ REFRESH TOKEN
+// ==========================================
 apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // nếu 401 thì ac bị cố tình đổi trong f12 => đá về login luôn
-    if (error.response?.status === 401) {
-      console.error(
-        "Truy cập trái phép hoặc vé bị Backend từ chối! Đăng xuất!",
-      );
-      useAuthStore.getState().clearTokens();
-      window.location.href = "/";
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Nếu lỗi 401 (Hết hạn Token) và chưa từng thử gửi lại (_retry)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Nếu lỗi 401 xảy ra ngay tại API login hoặc refresh, thì bỏ qua luôn (tránh lặp vô tận)
+      if (
+        originalRequest.url.includes("/login") ||
+        originalRequest.url.includes("/refresh")
+      ) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        // Đang có người khác đi lấy token rồi, mình xếp hàng đợi
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = "Bearer " + token;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = useAuthStore.getState().refreshToken;
+
+      if (!refreshToken) {
+        useAuthStore.getState().clearTokens();
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+
+      try {
+        // GỌI API REFRESH TOKEN Ở ĐÂY (Sửa lại đúng URL của Backend bà nhé)
+        const res = await axios.post(
+          "https://seal.cosplane.io.vn/api/Auth/refresh-token",
+          {
+            refreshToken: refreshToken,
+          },
+        );
+
+        const newAccessToken = res.data.accessToken;
+
+        // Cập nhật token mới vào kho
+        useAuthStore.getState().updateAccessToken(newAccessToken);
+
+        // Báo cho các request đang xếp hàng biết là có token mới rồi
+        processQueue(null, newAccessToken);
+
+        // Chạy lại cái request vừa bị tịt
+        originalRequest.headers.Authorization = "Bearer " + newAccessToken;
+        return apiClient(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        useAuthStore.getState().clearTokens();
+        // Refresh thất bại (do token refresh cũng hết hạn luôn) -> Đá văng về trang Login
+        window.location.href = "/login";
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   },
 );
