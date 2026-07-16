@@ -16,6 +16,7 @@ import {
 import Swal from "sweetalert2";
 import { eventApi } from "../../lib/api/eventApi";
 import { prizeApi, type PrizeData } from "../../lib/api/prizeApi";
+import apiClient from "../../lib/api/apiClient";
 
 const isInactiveRecord = (obj: any): boolean => {
   if (!obj) return false;
@@ -264,37 +265,82 @@ export function AdminPrizesPage() {
     const pId = prize.id || prize.prizeId;
     if (!pId) return;
 
-    const { value: teamId } = await Swal.fire({
-      title: "Trao giải cho đội",
-      text: `Nhập ID của đội thi để trao giải "${prize.prizeName}"`,
-      input: "text",
-      inputPlaceholder: "Nhập Team ID...",
-      showCancelButton: true,
-      confirmButtonText: "Trao giải",
-      confirmButtonColor: "#10b981",
-      inputValidator: (val) => {
-        if (!val.trim()) return "Team ID không được để trống!";
-      },
-    });
+    try {
+      // 1. GỌI API LẤY DANH SÁCH ĐỘI THI (TEAM)
+      // 🚨 Lưu ý: Check lại với Backend xem endpoint lấy danh sách Team có đúng là "/api/Team" không nha!
+      const teamRes = await apiClient.get("/api/Team");
+      const teams = teamRes.data || [];
 
-    if (teamId) {
-      try {
-        await prizeApi.manualAssign({ prizeId: pId, teamId: teamId.trim() });
-        Swal.fire({
-          icon: "success",
-          title: "Đã trao giải!",
-          timer: 1200,
-          showConfirmButton: false,
-        });
-        fetchPrizes();
-      } catch (err: any) {
-        Swal.fire(
-          "Lỗi",
-          "Trao giải thất bại. Hãy kiểm tra lại Team ID. " +
-            (err.response?.data?.message || ""),
-          "error",
+      // Lọc danh sách đội thi thuộc về Sự kiện của giải thưởng này (nếu dữ liệu team có eventId)
+      // Để tránh Dropdown hiện ra cả ngàn đội của các mùa giải cũ.
+      const eventTeams = teams.filter(
+        (t: any) => (t.eventId || t.eventID) === prize.eventId,
+      );
+      const displayTeams = eventTeams.length > 0 ? eventTeams : teams;
+
+      if (displayTeams.length === 0) {
+        return Swal.fire(
+          "Khoan đã",
+          "Hệ thống chưa có Đội thi nào để trao giải!",
+          "warning",
         );
       }
+
+      // 2. TẠO HTML DROPDOWN TỪ DANH SÁCH TEAM (Ẩn ID, Hiện Tên)
+      const teamOptions = displayTeams
+        .map(
+          (t: any) =>
+            `<option value="${t.teamId || t.id}">${t.teamName || t.name}</option>`,
+        )
+        .join("");
+
+      // 3. HIỂN THỊ POPUP VỚI DROPDOWN
+      const { value: selectedTeamId } = await Swal.fire({
+        title: "Trao giải cho đội",
+        html: `
+          <p style="margin-bottom: 15px; font-size: 14px; color: #475569;">
+            Chọn đội thi xứng đáng nhận giải <b>"${prize.prizeName}"</b>:
+          </p>
+          <select id="sw-team" class="swal2-input" style="display:flex; width: 85%; margin: 0 auto; font-size: 15px; cursor: pointer;">
+            <option value="" disabled selected>-- Bấm để chọn Tên Đội --</option>
+            ${teamOptions}
+          </select>
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Xác nhận Trao giải",
+        confirmButtonColor: "#10b981",
+        cancelButtonText: "Hủy",
+        preConfirm: () => {
+          const selectEl = document.getElementById(
+            "sw-team",
+          ) as HTMLSelectElement;
+          if (!selectEl.value) {
+            Swal.showValidationMessage(
+              "Vui lòng chọn một đội thi từ danh sách!",
+            );
+            return false;
+          }
+          return selectEl.value; // Trả về cái value ẩn (chính là teamId)
+        },
+      });
+
+      // 4. GỌI API TRAO GIẢI GỬI LÊN SERVER
+      if (selectedTeamId) {
+        await prizeApi.manualAssign({ prizeId: pId, teamId: selectedTeamId });
+        Swal.fire({
+          icon: "success",
+          title: "Đã trao giải thành công!",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        fetchPrizes(); // Tự động load lại danh sách để hiện chữ "ĐÃ TRAO"
+      }
+    } catch (err: any) {
+      Swal.fire(
+        "Lỗi",
+        "Trao giải thất bại. " + (err.response?.data?.message || err.message),
+        "error",
+      );
     }
   };
 
