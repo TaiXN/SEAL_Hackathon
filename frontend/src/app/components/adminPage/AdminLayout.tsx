@@ -45,7 +45,7 @@ export function AdminLayout() {
       name: "Prizes & Awards",
       icon: <Trophy size={20} />,
       path: "/admin/prizes",
-    },
+    }, // update admin sidebar
   ];
 
   const handleLogout = async () => {
