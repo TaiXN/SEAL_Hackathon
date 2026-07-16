@@ -28,6 +28,7 @@ import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
 import { AdminPrizesPage } from "./pages/Admin/AdminPrizesPage";
+import { AdminLeaderboardPage } from "./pages/Admin/AdminLeaderboardPage";
 
 export const router = createBrowserRouter([
   // =========================================================

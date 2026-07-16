@@ -112,11 +112,15 @@ export function AdminLeaderboardPage() {
               <option value="" disabled>
                 -- Chọn Sự Kiện --
               </option>
-              {events.map((e) => (
-                <option key={e.id || e.eventID} value={e.id || e.eventID}>
-                  {e.name || e.eventName}
-                </option>
-              ))}
+              {events.map((e) => {
+                // Bọc lót đủ kiểu case-sensitive
+                const eId = e.eventID || e.eventId || e.id;
+                return (
+                  <option key={eId} value={eId}>
+                    {e.name || e.eventName}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -133,11 +137,15 @@ export function AdminLeaderboardPage() {
               <option value="" disabled>
                 -- Chọn Vòng Thi --
               </option>
-              {rounds.map((r) => (
-                <option key={r.id || r.roundID} value={r.id || r.roundID}>
-                  {r.roundName}
-                </option>
-              ))}
+              {rounds.map((r) => {
+                // Bọc lót đủ kiểu case-sensitive để không bị rớt chữ
+                const rId = r.roundID || r.roundId || r.id;
+                return (
+                  <option key={rId} value={rId}>
+                    {r.roundName}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -154,11 +162,15 @@ export function AdminLeaderboardPage() {
               <option value="" disabled>
                 -- Chọn Hạng Mục --
               </option>
-              {tracks.map((t) => (
-                <option key={t.id || t.trackID} value={t.id || t.trackID}>
-                  {t.trackName}
-                </option>
-              ))}
+              {tracks.map((t) => {
+                // Bọc lót đủ kiểu case-sensitive
+                const tId = t.trackID || t.trackId || t.id;
+                return (
+                  <option key={tId} value={tId}>
+                    {t.trackName}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
