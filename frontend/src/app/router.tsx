@@ -1,46 +1,54 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
+// 1. IMPORT CÁC TRANG ĐƠN
 import { Landing } from "./pages/Landing";
 import { AuthLayout } from "./pages/AuthLayout";
 import { Gateway } from "./pages/Gateway";
 import RequireAuth from "../app/components/guards/RequireAuth";
 import RequireUnAuth from "../app/components/guards/RequireUnAuth";
 
+// 2. IMPORT CỤM TRANG PLAYER
 import { Dashboard as PlayerDashboard } from "./pages/Player/Dashboard";
 import { Team as PlayerTeam } from "./pages/Player/Team";
 import { Submit as PlayerSubmit } from "./pages/Player/Submit";
 import { PlayerLayout } from "./pages/Player/PlayerLayout";
 
-import { AdminLayout } from "../app/components/adminPage/AdminLayout";
-import { AdminViolationsPage } from "./pages/Admin/AdminViolationsPage";
-import { ManageUsersAndAssign } from "./pages/Admin/ManageUsersAndAssign";
-import { CreateEvents } from "./pages/Admin/CreateEvents";
+// 3. IMPORT CỤM TRANG ADMIN
+import { AdminLayout as AdminLayout } from "../app/components/adminPage/AdminLayout";
+import { AdminViolationsPage as AdminViolationsPage } from "./pages/Admin/AdminViolationsPage";
+import { ManageUsersAndAssign as ManageUsersAndAssign } from "./pages/Admin/ManageUsersAndAssign";
+import { CreateEvents as CreateEvents } from "./pages/Admin/CreateEvents";
 import { Dashboard as AdminDashboard } from "./pages/Admin/Dashboard";
-import { EventDetailsPage } from "./pages/Admin/EventDetailsPage";
-import { EventHistoryPage } from "./pages/Admin/EventHistoryPage";
+import { EventDetailsPage as EventDetailsPage } from "./pages/Admin/EventDetailsPage";
+import { EventHistoryPage as EventHistoryPage } from "./pages/Admin/EventHistoryPage";
 import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 import { AdminPrizesPage } from "./pages/Admin/AdminPrizesPage";
 import { AdminLeaderboardPage } from "./pages/Admin/AdminLeaderboardPage";
 
+// 4. IMPORT CỤM TRANG JUDGE
 import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
 
 export const router = createBrowserRouter([
-  // 1. PUBLIC ZONE (Ai vào cũng được, log in rồi vẫn xem được Landing Page)
-  { path: "/", element: <Landing /> },
-
-  // 2. UN-AUTH ZONE (Chỉ dành cho người CHƯA đăng nhập)
+  // =========================================================
+  // 🚨 KHU VỰC UN-AUTH: CHỈ DÀNH CHO NGƯỜI CHƯA ĐĂNG NHẬP
+  // Những ai đã có Token mà mò về 2 trang này sẽ bị đá văng về Dashboard!
+  // =========================================================
   {
     element: <RequireUnAuth />,
-    children: [{ path: "/login", element: <AuthLayout /> }],
+    children: [
+      { path: "/", element: <Landing /> },
+      { path: "/login", element: <AuthLayout /> },
+    ],
   },
 
-  // 3. AUTH ZONE (Bảo mật: Check kỹ Role ở bên trong)
+  // =========================================================
+  // 🔒 KHU VỰC BẢO MẬT: BẮT BUỘC PHẢI QUA REQUIREAUTH KIỂM TRA
+  // =========================================================
   {
     element: <RequireAuth />,
     children: [
-      // Gateway dùng cho Player vừa login xong để chọn Create/Join Team
       { path: "/gateway", element: <Gateway /> },
 
       // --- Khu vực của Admin ---
@@ -49,10 +57,10 @@ export const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: "dashboard", element: <AdminDashboard /> },
           { path: "users", element: <ManageUsersAndAssign /> },
           { path: "violations", element: <AdminViolationsPage /> },
           { path: "events/create", element: <CreateEvents /> },
+          { path: "dashboard", element: <AdminDashboard /> },
           { path: "events", element: <EventHistoryPage /> },
           { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
@@ -82,8 +90,11 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Đi bậy bạ trong khu vực Auth thì đá về Gateway/Dashboard
-      { path: "*", element: <Navigate to="/login" replace /> },
+      // Fallback cho người đi lạc trong khu vực Auth
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
+      },
     ],
   },
 ]);

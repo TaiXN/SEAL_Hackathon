@@ -1,36 +1,25 @@
-import { useNavigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth.store";
-import { useEffect } from "react";
 
 const RequireUnAuth = () => {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const role = useAuthStore((state) => state.role);
-  const navigate = useNavigate();
+  const role = useAuthStore((state) => state.role)
+    ?.toLowerCase()
+    ?.trim();
 
-  useEffect(() => {
-    // Nếu có token, bế cổ ném thẳng về Dashboard, cấm lảng vảng ở Landing/Gateway/Login
-    if (accessToken) {
-      const currentRole = role?.toLowerCase()?.trim();
-
-      if (currentRole === "admin") {
-        navigate("/admin/dashboard", { replace: true });
-      } else if (currentRole === "judge" || currentRole === "teacher") {
-        navigate("/judge", { replace: true });
-      } else if (currentRole === "player") {
-        navigate("/player", { replace: true });
-      } else {
-        // Fallback an toàn nếu role lạ
-        navigate("/login", { replace: true });
-      }
-    }
-  }, [accessToken, role, navigate]);
-
-  // 🚨 CHỐNG CHỚP MÀN HÌNH: Nếu phát hiện có Token, trả về null (không vẽ giao diện)
+  // ĐÃ ĐĂNG NHẬP THÌ BỊ CẤM QUAY LẠI TRANG CHỦ & LOGIN
   if (accessToken) {
-    return null;
+    if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
+    if (role === "judge" || role === "teacher")
+      return <Navigate to="/judge" replace />;
+
+    // Ép cứng Player về lại /player để cấm quay lùi về Gateway hoặc Landing
+    if (role === "player") return <Navigate to="/player" replace />;
+
+    return <Navigate to="/login" replace />;
   }
 
-  // Chắc chắn 100% KHÔNG có token thì mới cho hiện trang (Outlet)
+  // Chưa đăng nhập thì thoải mái xem Landing, Login
   return <Outlet />;
 };
 

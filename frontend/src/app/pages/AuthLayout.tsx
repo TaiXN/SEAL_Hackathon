@@ -110,11 +110,10 @@ export function AuthLayout() {
       if (!data) throw new Error("No data received from server.");
 
       const actualToken = data.accessToken;
-      const actualRefreshToken = data.refreshToken || "dummy-refresh-token";
-
-      setTokens(actualToken, actualRefreshToken, role);
+      setTokens(actualToken, role);
 
       toast.success("Login successful! Redirecting...", { id: loadingToastId });
+
       navigate(navigateTo, { replace: true });
     } catch (error: any) {
       const errorMsg =
@@ -486,7 +485,7 @@ export function AuthLayout() {
                       placeholder="••••••••"
                       className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regConfirmPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)} // <-- ĐÃ SỬA LẠI CHỖ NÀY
                     />
                   </div>
                 </div>

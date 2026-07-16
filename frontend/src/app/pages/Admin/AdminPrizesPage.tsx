@@ -27,76 +27,61 @@ const isInactiveRecord = (obj: any): boolean => {
   if (statusStr === "deleted" || statusStr === "inactive") return true;
   return false;
 };
-// create new page for admin to show & manage prizes
+
 export function AdminPrizesPage() {
   const [prizes, setPrizes] = useState<PrizeData[]>([]);
   const [events, setEvents] = useState<any[]>([]);
-
-  // State phục vụ cho Bộ lọc và Tìm kiếm
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
-
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Tải danh sách Sự kiện (Chỉ chạy 1 lần lúc mở trang)
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const eventsData = await eventApi.getAllEvents();
         setEvents(eventsData || []);
       } catch (err) {
-        console.error("Lỗi tải sự kiện:", err);
+        console.error("Error loading events:", err);
       }
     };
     fetchEvents();
   }, []);
 
-  // 2. Tải danh sách Giải thưởng (Chạy mỗi khi đổi Event hoặc F5)
   const fetchPrizes = async () => {
     try {
       setIsLoading(true);
       setError(null);
       let prizesData;
-
-      // LOGIC XÀI API MỚI NHƯ BÀ YÊU CẦU NÈ:
       if (selectedEventId) {
         prizesData = await prizeApi.getPrizesByEvent(selectedEventId);
       } else {
         prizesData = await prizeApi.getAllPrizes();
       }
-
       setPrizes(prizesData || []);
     } catch (err: any) {
-      console.error("Lỗi tải dữ liệu:", err);
-      setError("Không thể tải danh sách Giải thưởng. Vui lòng thử lại!");
+      setError("Unable to load the Prize list. Please try again!");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Lắng nghe sự thay đổi của Dropdown Event để gọi lại API
   useEffect(() => {
     fetchPrizes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEventId]);
 
-  // Lọc dữ liệu hiển thị (kết hợp Tìm kiếm chữ)
   const filteredPrizes = prizes.filter((p) =>
     p.prizeName?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
   const activePrizes = filteredPrizes.filter((p) => !isInactiveRecord(p));
   const deletedPrizes = filteredPrizes.filter((p) => isInactiveRecord(p));
 
-  // ==========================================
-  // CÁC HÀM CRUD BÊN DƯỚI GIỮ NGUYÊN NHƯ CŨ
-  // ==========================================
-
   const handleCreatePrize = async () => {
     if (events.length === 0) {
       return Swal.fire(
-        "Khoan đã!",
-        "Hệ thống chưa có Sự kiện nào. Hãy tạo Sự kiện trước khi tạo Giải thưởng.",
+        "Wait a moment!",
+        "There are no Events in the system. Please create an Event before creating a Prize.",
         "warning",
       );
     }
@@ -109,20 +94,32 @@ export function AdminPrizesPage() {
       .join("");
 
     const { value: formValues } = await Swal.fire({
-      title: "Tạo Giải Thưởng Mới",
+      title: "Create New Prize",
       html: `
-        <input id="sw-name" class="swal2-input" placeholder="Tên Giải Thưởng (VD: Giải Nhất)">
-        <input id="sw-desc" class="swal2-input" placeholder="Mô tả / Phần thưởng">
-        <select id="sw-event" class="swal2-input" style="display:flex; width: 275px; font-size: 16px;">
-          <option value="" disabled selected>-- Chọn Sự Kiện --</option>
-          ${eventOptions}
-        </select>
+        <div style="text-align: left; padding: 0 10px;">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Prize Name</label>
+          <input id="sw-name" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="e.g., First Prize">
+          
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Description / Reward</label>
+          <input id="sw-desc" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="Details about the prize...">
+          
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Target Event</label>
+          <select id="sw-event" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 10px; border-radius: 12px; font-size: 14px; cursor: pointer;">
+            <option value="" disabled selected>-- Select an Event --</option>
+            ${eventOptions}
+          </select>
+        </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: "Tạo mới",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0f172a",
+      confirmButtonText: "Create",
+      cancelButtonText: "Cancel",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-8 py-3 bg-[#0a192f]",
+        cancelButton:
+          "rounded-xl font-bold px-8 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
+      },
       preConfirm: () => {
         const name = (document.getElementById("sw-name") as HTMLInputElement)
           .value;
@@ -132,7 +129,9 @@ export function AdminPrizesPage() {
           document.getElementById("sw-event") as HTMLSelectElement
         ).value;
         if (!name || !eventId) {
-          Swal.showValidationMessage("Vui lòng nhập Tên giải và chọn Sự kiện!");
+          Swal.showValidationMessage(
+            "Please provide a Prize Name and select an Event!",
+          );
           return false;
         }
         return { prizeName: name, description: desc, eventId };
@@ -144,15 +143,15 @@ export function AdminPrizesPage() {
         await prizeApi.createPrize(formValues);
         Swal.fire({
           icon: "success",
-          title: "Thành công!",
+          title: "Created!",
           timer: 1200,
           showConfirmButton: false,
         });
-        fetchPrizes(); // Gọi lại để load data mới
+        fetchPrizes();
       } catch (err: any) {
         Swal.fire(
-          "Lỗi",
-          "Không thể tạo giải thưởng. " + (err.response?.data?.message || ""),
+          "Error",
+          "Failed to create prize. " + (err.response?.data?.message || ""),
           "error",
         );
       }
@@ -164,23 +163,32 @@ export function AdminPrizesPage() {
     if (!pId) return;
 
     const { value: formValues } = await Swal.fire({
-      title: "Cập nhật Giải Thưởng",
+      title: "Update Prize",
       html: `
-        <input id="sw-name" class="swal2-input" placeholder="Tên Giải" value="${prize.prizeName || ""}">
-        <input id="sw-desc" class="swal2-input" placeholder="Mô tả" value="${prize.description || ""}">
+        <div style="text-align: left; padding: 0 10px;">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Prize Name</label>
+          <input id="sw-name" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="Prize Name" value="${prize.prizeName || ""}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Description</label>
+          <input id="sw-desc" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 10px; border-radius: 12px; font-size: 14px;" placeholder="Description" value="${prize.description || ""}">
+        </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: "Lưu",
-      cancelButtonText: "Hủy",
-      confirmButtonColor: "#0f172a",
+      confirmButtonText: "Save Changes",
+      cancelButtonText: "Cancel",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-8 py-3 bg-[#0a192f]",
+        cancelButton:
+          "rounded-xl font-bold px-8 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
+      },
       preConfirm: () => {
         const name = (document.getElementById("sw-name") as HTMLInputElement)
           .value;
         const desc = (document.getElementById("sw-desc") as HTMLInputElement)
           .value;
         if (!name) {
-          Swal.showValidationMessage("Tên giải không được để trống!");
+          Swal.showValidationMessage("Prize name cannot be empty!");
           return false;
         }
         return { prizeName: name, description: desc };
@@ -192,15 +200,15 @@ export function AdminPrizesPage() {
         await prizeApi.updatePrize(pId, formValues);
         Swal.fire({
           icon: "success",
-          title: "Đã lưu!",
+          title: "Saved!",
           timer: 1200,
           showConfirmButton: false,
         });
         fetchPrizes();
       } catch (err: any) {
         Swal.fire(
-          "Lỗi",
-          "Không thể cập nhật. " + (err.response?.data?.message || ""),
+          "Error",
+          "Failed to update. " + (err.response?.data?.message || ""),
           "error",
         );
       }
@@ -212,13 +220,19 @@ export function AdminPrizesPage() {
     if (!pId) return;
 
     const result = await Swal.fire({
-      title: "Xóa giải thưởng?",
-      text: `Bạn có chắc muốn xóa "${prize.prizeName}"?`,
+      title: "Delete prize?",
+      text: `Are you sure you want to delete "${prize.prizeName}"?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Xóa ngay",
-      cancelButtonText: "Hủy",
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-8 py-3",
+        cancelButton:
+          "rounded-xl font-bold px-8 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
+      },
     });
 
     if (result.isConfirmed) {
@@ -226,15 +240,15 @@ export function AdminPrizesPage() {
         await prizeApi.deletePrize(pId);
         Swal.fire({
           icon: "success",
-          title: "Đã xóa!",
+          title: "Deleted!",
           timer: 1200,
           showConfirmButton: false,
         });
         fetchPrizes();
       } catch (err: any) {
         Swal.fire(
-          "Lỗi",
-          "Không thể xóa. " + (err.response?.data?.message || ""),
+          "Error",
+          "Deletion failed. " + (err.response?.data?.message || ""),
           "error",
         );
       }
@@ -248,15 +262,15 @@ export function AdminPrizesPage() {
       await prizeApi.restorePrize(pId);
       Swal.fire({
         icon: "success",
-        title: "Đã khôi phục!",
+        title: "Restored!",
         timer: 1200,
         showConfirmButton: false,
       });
       fetchPrizes();
     } catch (err: any) {
       Swal.fire(
-        "Lỗi",
-        "Khôi phục thất bại. " + (err.response?.data?.message || ""),
+        "Error",
+        "Restore failed. " + (err.response?.data?.message || ""),
         "error",
       );
     }
@@ -268,23 +282,19 @@ export function AdminPrizesPage() {
 
     if (!pId || !eventId) {
       return Swal.fire(
-        "Lỗi",
-        "Giải thưởng này chưa được gắn với sự kiện nào hợp lệ!",
+        "Error",
+        "This prize is not linked to a valid event!",
         "error",
       );
     }
 
     try {
-      // 1. Bật loading vì phải gọi chuỗi API hơi dài
       Swal.fire({
-        title: "Đang tải danh sách Đội thi...",
+        title: "Loading Teams...",
         allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
+        didOpen: () => Swal.showLoading(),
       });
 
-      // 2. Lấy danh sách tất cả các vòng (Rounds) và lọc ra các vòng thuộc Sự kiện này
       const allRounds = await roundApi.getAllRounds();
       const eventRounds = allRounds.filter(
         (r: any) => String(r.eventID || r.eventId) === String(eventId),
@@ -292,13 +302,12 @@ export function AdminPrizesPage() {
 
       if (eventRounds.length === 0) {
         return Swal.fire(
-          "Khoan đã",
-          "Sự kiện của giải thưởng này chưa có vòng thi nào được thiết lập!",
+          "Wait",
+          "The event for this prize does not have any configured rounds!",
           "warning",
         );
       }
 
-      // 3. Gọi API TeamInRound cho từng vòng để gom danh sách các Đội
       let allTeams: any[] = [];
       await Promise.all(
         eventRounds.map(async (r: any) => {
@@ -307,86 +316,79 @@ export function AdminPrizesPage() {
             const res = await apiClient.get(
               `/api/TeamInRound/details/round/${rId}`,
             );
-            // Dựa theo ảnh postman, kết quả trả về là một mảng các object
-            if (res.data && Array.isArray(res.data)) {
+            if (res.data && Array.isArray(res.data))
               allTeams = [...allTeams, ...res.data];
-            }
-          } catch (error) {
-            console.warn(`Không thể lấy danh sách đội cho vòng ${rId}`);
-          }
+          } catch (error) {}
         }),
       );
 
-      // 4. Lọc trùng lặp (Vì 1 đội có thể thi từ Sơ khảo vào Chung kết nên sẽ bị trùng teamId)
       const uniqueTeamsMap = new Map();
       allTeams.forEach((t) => {
-        // Gom teamId làm key để loại bỏ trùng. Có thể loại luôn các đội isBanned = true nếu muốn
-        if (t.teamId && !uniqueTeamsMap.has(t.teamId)) {
+        if (t.teamId && !uniqueTeamsMap.has(t.teamId))
           uniqueTeamsMap.set(t.teamId, t);
-        }
       });
       const displayTeams = Array.from(uniqueTeamsMap.values());
 
       if (displayTeams.length === 0) {
         return Swal.fire(
-          "Lưu ý",
-          "Không tìm thấy đội thi nào hợp lệ trong sự kiện này!",
+          "Notice",
+          "No eligible teams found in this event!",
           "info",
         );
       }
 
-      // 5. Build HTML Option (Hiện Tên cho Admin xem - Giấu ID bên dưới)
       const teamOptions = displayTeams
         .map((t: any) => `<option value="${t.teamId}">${t.teamName}</option>`)
         .join("");
-
-      // Tắt loading và mở Popup Dropdown
       Swal.close();
+
       const { value: selectedTeamId } = await Swal.fire({
-        title: "Trao giải cho đội",
+        title: "Award Prize to Team",
         html: `
-          <p style="margin-bottom: 15px; font-size: 14px; color: #475569;">
-            Sự kiện: <b>${events.find((e) => (e.id || e.eventID) === eventId)?.name || "N/A"}</b><br/>
-            Chọn đội thi xứng đáng nhận giải <b>"${prize.prizeName}"</b>:
+          <p style="margin-bottom: 20px; font-size: 14px; color: #475569; line-height: 1.5;">
+            Select a deserving team to receive:<br/><strong style="color: #0a192f; font-size: 16px;">"${prize.prizeName}"</strong>
           </p>
-          <select id="sw-team" class="swal2-input" style="display:flex; width: 85%; margin: 0 auto; font-size: 15px; cursor: pointer;">
-            <option value="" disabled selected>-- Bấm để chọn Tên Đội --</option>
+          <select id="sw-team" class="swal2-input" style="width: 85%; margin: 0 auto; border-radius: 12px; font-size: 14px; cursor: pointer;">
+            <option value="" disabled selected>-- Click to select Team --</option>
             ${teamOptions}
           </select>
         `,
         showCancelButton: true,
-        confirmButtonText: "Xác nhận Trao giải",
-        confirmButtonColor: "#10b981",
-        cancelButtonText: "Hủy",
+        confirmButtonText: "Confirm Assignment",
+        confirmButtonColor: "#059669",
+        cancelButtonText: "Cancel",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-3",
+          cancelButton:
+            "rounded-xl font-bold px-6 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
+        },
         preConfirm: () => {
           const selectEl = document.getElementById(
             "sw-team",
           ) as HTMLSelectElement;
           if (!selectEl.value) {
-            Swal.showValidationMessage(
-              "Vui lòng chọn một đội thi từ danh sách!",
-            );
+            Swal.showValidationMessage("Please select a team from the list!");
             return false;
           }
-          return selectEl.value; // Trả về cái teamId ẩn
+          return selectEl.value;
         },
       });
 
-      // 6. GỌI API TRAO GIẢI GỬI LÊN SERVER (API PUT manual-assign y như cũ)
       if (selectedTeamId) {
         await prizeApi.manualAssign({ prizeId: pId, teamId: selectedTeamId });
         Swal.fire({
           icon: "success",
-          title: "Đã trao giải thành công!",
+          title: "Successfully Awarded!",
           timer: 1500,
           showConfirmButton: false,
         });
-        fetchPrizes(); // Tự động load lại để hiện chữ "ĐÃ TRAO"
+        fetchPrizes();
       }
     } catch (err: any) {
       Swal.fire(
-        "Lỗi",
-        "Có lỗi xảy ra trong quá trình lấy dữ liệu. " +
+        "Error",
+        "An error occurred while fetching data. " +
           (err.response?.data?.message || err.message),
         "error",
       );
@@ -394,40 +396,37 @@ export function AdminPrizesPage() {
   };
 
   return (
-    <main className="w-full bg-[#f8f9fa] min-h-screen p-8 animate-in fade-in duration-300">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-6">
+    <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex justify-between items-end mb-6">
           <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-              <Trophy size={32} className="text-amber-500" />
-              Quản lý Giải thưởng
+            <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight flex items-center gap-3">
+              <Trophy size={36} className="text-amber-500" strokeWidth={2.5} />
+              Prize Management
             </h2>
-            <p className="text-slate-500 font-medium mt-1">
-              Khởi tạo và trao giải cho các đội xuất sắc nhất.
+            <p className="text-slate-500 font-medium mt-2 text-base">
+              Create and assign awards to outstanding teams.
             </p>
           </div>
           <button
             onClick={handleCreatePrize}
-            className="flex items-center gap-2 px-6 py-3 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all"
           >
-            <Plus size={18} /> Thêm Giải Thưởng
+            <Plus size={20} strokeWidth={2.5} /> Add Prize
           </button>
         </div>
 
-        {/* THANH CÔNG CỤ FILTER VÀ SEARCH */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6">
-          {/* Filter Dropdown */}
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-              <Filter size={18} />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+              <Filter size={20} />
             </div>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-800 text-sm font-bold rounded-lg px-4 py-2.5 outline-none focus:border-blue-500 min-w-[250px] w-full cursor-pointer transition-colors"
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 min-w-[280px] w-full cursor-pointer transition-all"
             >
-              <option value="">🏆 Tất cả Sự kiện</option>
+              <option value="">🏆 All Events</option>
               {events.map((e) => (
                 <option key={e.id || e.eventID} value={e.id || e.eventID}>
                   {e.name || e.eventName}
@@ -436,49 +435,52 @@ export function AdminPrizesPage() {
             </select>
           </div>
 
-          {/* Search Box */}
-          <div className="flex items-center relative w-full sm:w-72">
-            <Search size={16} className="text-slate-400 absolute left-3" />
+          <div className="flex items-center relative w-full sm:w-80">
+            <Search size={18} className="text-slate-400 absolute left-4" />
             <input
               type="text"
-              placeholder="Tìm tên giải thưởng..."
+              placeholder="Search prize name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-lg pl-9 pr-4 py-2.5 outline-none focus:border-blue-500 transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-xl pl-12 pr-5 py-3 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
             />
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-center gap-3">
-            <AlertCircle size={20} />
-            <p className="font-semibold text-sm flex-1">{error}</p>
+          <div className="bg-red-50 border border-red-200 text-red-600 p-5 rounded-2xl flex items-center gap-3">
+            <AlertCircle size={24} />
+            <p className="font-bold text-sm flex-1">{error}</p>
             <button
               onClick={fetchPrizes}
-              className="px-3 py-1.5 bg-red-100 rounded-lg hover:bg-red-200 text-xs font-bold transition"
+              className="px-4 py-2 bg-white text-red-600 rounded-xl hover:bg-red-100 text-xs font-bold transition shadow-sm border border-red-200"
             >
-              <RefreshCw size={14} className="inline mr-1" /> Thử lại
+              <RefreshCw size={14} className="inline mr-1" /> Retry
             </button>
           </div>
         )}
 
-        {/* LOADING STATE */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 text-slate-500">
-            <Loader2 size={30} className="animate-spin text-blue-500" />
-            <p className="font-medium">Đang tải danh sách giải thưởng...</p>
+          <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-slate-400">
+            <Loader2 size={36} className="animate-spin text-[#0a192f]" />
+            <p className="font-bold text-base tracking-wide">
+              Loading prize database...
+            </p>
           </div>
         ) : (
           <>
-            {/* DANH SÁCH GIẢI THƯỞNG ACTIVE */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activePrizes.length === 0 && !error ? (
-                <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-300 rounded-2xl">
-                  <Gift size={40} className="mx-auto text-slate-300 mb-3" />
-                  <p className="text-slate-500 font-medium">
+                <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-[2rem] bg-white">
+                  <Gift
+                    size={56}
+                    className="mx-auto text-slate-300 mb-4"
+                    strokeWidth={1.5}
+                  />
+                  <p className="text-slate-500 font-medium text-lg">
                     {searchTerm || selectedEventId
-                      ? "Không tìm thấy giải thưởng nào khớp với bộ lọc."
-                      : "Chưa có giải thưởng nào. Hãy tạo mới nhé!"}
+                      ? "No prizes match your filter criteria."
+                      : "No prizes have been created yet. Add one above!"}
                   </p>
                 </div>
               ) : (
@@ -489,57 +491,64 @@ export function AdminPrizesPage() {
                   return (
                     <div
                       key={idx}
-                      className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col h-full"
+                      className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group flex flex-col h-full"
                     >
                       {prize.teamId && (
-                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1 z-10 shadow-sm">
-                          <CheckCircle size={12} /> ĐÃ TRAO
+                        <div className="absolute top-0 right-0 bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-4 py-2 rounded-bl-2xl flex items-center gap-1.5 shadow-sm border-b border-l border-emerald-100">
+                          <CheckCircle size={14} strokeWidth={2.5} /> AWARDED
                         </div>
                       )}
 
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg text-slate-800 mb-2 mt-1 pr-16 leading-tight">
+                      <div className="flex-1 mt-2">
+                        <h3 className="font-extrabold text-2xl text-[#0a192f] mb-3 pr-20 leading-tight">
                           {prize.prizeName}
                         </h3>
-                        <p className="text-sm text-slate-500 line-clamp-2 mb-4 h-10">
-                          {prize.description || "Không có mô tả"}
+                        <p className="text-sm text-slate-500 line-clamp-2 mb-6 h-10 font-medium">
+                          {prize.description || "No description provided."}
                         </p>
 
-                        <div className="bg-slate-50 rounded-lg p-3 text-xs font-medium text-slate-600 mb-4 border border-slate-100">
-                          <div className="mb-1 truncate" title={eventName}>
-                            <strong>Sự kiện:</strong> {eventName}
+                        <div className="bg-slate-50/80 rounded-2xl p-4 text-xs font-bold text-slate-500 mb-6 border border-slate-100">
+                          <div className="mb-1.5 truncate" title={eventName}>
+                            <span className="uppercase tracking-widest text-[9px] text-slate-400 block mb-0.5">
+                              Event
+                            </span>
+                            <span className="text-[#0a192f] text-sm">
+                              {eventName}
+                            </span>
                           </div>
                           {prize.teamId && (
-                            <div>
-                              <strong className="text-emerald-600">
-                                Team ID:
-                              </strong>{" "}
-                              {prize.teamId}
+                            <div className="mt-3">
+                              <span className="uppercase tracking-widest text-[9px] text-emerald-500 block mb-0.5">
+                                Recipient Team ID
+                              </span>
+                              <span className="text-emerald-700 text-sm font-mono">
+                                {prize.teamId}
+                              </span>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex gap-2 mt-auto">
+                      <div className="flex gap-3 mt-auto">
                         <button
                           onClick={() => handleManualAssign(prize)}
-                          className="flex-1 bg-emerald-50 text-emerald-700 font-bold text-xs py-2 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition"
+                          className="flex-1 bg-white text-[#0a192f] font-bold text-sm py-2.5 rounded-xl border-2 border-slate-100 hover:border-[#0a192f] hover:bg-slate-50 transition-all"
                         >
-                          {prize.teamId ? "Đổi đội" : "Trao giải"}
+                          {prize.teamId ? "Change Recipient" : "Award Prize"}
                         </button>
                         <button
                           onClick={() => handleEditPrize(prize)}
-                          className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-100 transition"
-                          title="Sửa giải thưởng"
+                          className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                          title="Edit Prize"
                         >
-                          <Pencil size={16} />
+                          <Pencil size={18} />
                         </button>
                         <button
                           onClick={() => handleDeletePrize(prize)}
-                          className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition"
-                          title="Xóa giải thưởng"
+                          className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Delete Prize"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
@@ -548,21 +557,20 @@ export function AdminPrizesPage() {
               )}
             </div>
 
-            {/* THÙNG RÁC - GIẢI THƯỞNG ĐÃ XÓA */}
             {deletedPrizes.length > 0 && (
-              <div className="mt-12 pt-6 border-t-2 border-dashed border-slate-200">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <RotateCcw size={16} /> Các giải thưởng đã xóa
+              <div className="mt-12 pt-8 border-t border-slate-200">
+                <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <RotateCcw size={16} /> Deleted Prizes Archive
                 </h3>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-4">
                   {deletedPrizes.map((prize, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-3 bg-white border border-slate-200 pl-4 pr-2 py-2 rounded-xl shadow-sm opacity-70"
+                      className="flex items-center gap-3 bg-white border border-slate-200 pl-5 pr-2 py-2.5 rounded-2xl shadow-sm opacity-60 hover:opacity-100 transition-opacity"
                     >
                       <div>
                         <p
-                          className="text-sm font-bold text-slate-600 line-through max-w-[200px] truncate"
+                          className="text-sm font-bold text-slate-500 line-through max-w-[200px] truncate"
                           title={prize.prizeName}
                         >
                           {prize.prizeName}
@@ -570,10 +578,10 @@ export function AdminPrizesPage() {
                       </div>
                       <button
                         onClick={() => handleRestorePrize(prize)}
-                        title="Khôi phục giải thưởng"
-                        className="p-2 bg-slate-100 text-emerald-600 rounded-lg hover:bg-emerald-50 transition shrink-0"
+                        title="Restore Prize"
+                        className="p-2.5 bg-slate-100 text-emerald-600 rounded-xl hover:bg-emerald-100 transition shrink-0"
                       >
-                        <RotateCcw size={16} />
+                        <RotateCcw size={18} />
                       </button>
                     </div>
                   ))}

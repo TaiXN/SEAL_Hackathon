@@ -37,11 +37,9 @@ const formatDate = (d: any): string => {
   });
 };
 
-// Lấy id sự kiện an toàn
 const eventId = (e: any): string =>
   String(e?.id || e?.eventId || e?.eventID || "");
 
-// Chuẩn hóa field round (backend đặt tên lẫn lộn hoa/thường)
 const roundIdx = (r: any): number =>
   Number(r?.roundIndex ?? r?.RoundIndex ?? r?.roundindex ?? 0);
 const roundTopN = (r: any): number =>
@@ -80,7 +78,6 @@ export function Dashboard() {
       const allEvents = getList(allEventsRaw);
       const allRounds = getList(allRoundsRaw);
 
-      // Gom round theo từng sự kiện (đã sort theo thứ tự vòng)
       const roundsByEvent: Record<string, any[]> = {};
       allRounds.forEach((r: any) => {
         const eid = String(r.eventID || r.eventId);
@@ -104,7 +101,6 @@ export function Dashboard() {
         else if (cur >= (numRounds || 2)) status = "ended";
         else status = "ongoing";
 
-        // Vòng hiện tại (theo vị trí) — dùng để hiển thị tóm tắt
         const pos = cur >= 0 && cur < numRounds ? cur : numRounds > 0 ? 0 : -1;
         const curRound = pos >= 0 ? rounds[pos] : null;
 
@@ -125,7 +121,7 @@ export function Dashboard() {
 
       setEvents(enriched);
     } catch (err) {
-      console.error("Lỗi tải Dashboard:", err);
+      console.error("Error loading Dashboard:", err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -140,7 +136,10 @@ export function Dashboard() {
   if (isLoading) {
     return (
       <div className="p-10 flex items-center justify-center min-h-[60vh] text-slate-400">
-        <RefreshCw size={20} className="animate-spin mr-2" /> Loading overview...
+        <RefreshCw size={24} className="animate-spin mr-3 text-[#0a192f]" />
+        <span className="font-bold tracking-widest uppercase text-sm">
+          Loading Overview...
+        </span>
       </div>
     );
   }
@@ -152,79 +151,80 @@ export function Dashboard() {
     {
       label: "Ongoing",
       value: ongoing.length,
-      icon: <Activity size={22} />,
+      icon: <Activity size={24} />,
       color: "text-emerald-600",
-      bg: "bg-emerald-50",
+      bg: "bg-emerald-50 border-emerald-100",
     },
-
     {
       label: "Ended",
       value: ended.length,
-      icon: <CheckCircle2 size={22} />,
+      icon: <CheckCircle2 size={24} />,
       color: "text-slate-500",
-      bg: "bg-slate-100",
+      bg: "bg-slate-50 border-slate-200",
     },
     {
       label: "Total Events",
       value: events.length,
-      icon: <LayoutGrid size={22} />,
+      icon: <LayoutGrid size={24} />,
       color: "text-blue-600",
-      bg: "bg-blue-50",
+      bg: "bg-blue-50 border-blue-100",
     },
   ];
 
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
+    <div className="p-10 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            Event Overview
+          <h1 className="text-4xl font-black text-[#0a192f] tracking-tight flex items-center gap-4">
+            Dashboard
             <button
               onClick={() => fetchData(true)}
               disabled={isRefreshing}
               title="Refresh"
-              className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-full shadow-sm transition-all"
+              className="p-2.5 bg-white border-2 border-slate-200 text-slate-400 hover:text-[#0a192f] hover:border-[#0a192f] rounded-xl shadow-sm transition-all active:translate-y-1"
             >
               <RefreshCw
-                size={18}
-                className={isRefreshing ? "animate-spin text-blue-600" : ""}
+                size={20}
+                className={isRefreshing ? "animate-spin text-[#0a192f]" : ""}
+                strokeWidth={2.5}
               />
             </button>
           </h1>
-          <p className="text-slate-500 mt-2 text-sm font-medium flex items-center gap-2">
+          <p className="text-slate-500 mt-2 text-base font-medium flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             {ongoing.length > 0
-              ? `${ongoing.length} event(s) currently ongoing`
-              : "No events are currently ongoing"}
+              ? `${ongoing.length} event(s) currently active in the system`
+              : "No events are currently active"}
           </p>
         </div>
 
+        {/* NÚT BẤM 3D VẬT LÝ */}
         <button
           onClick={() => navigate("/admin/events/create")}
-          className="flex items-center gap-2 px-6 py-2.5 bg-black text-white font-bold rounded-xl shadow-sm hover:bg-slate-800"
+          className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-black rounded-2xl border-2 border-[#0a192f] border-b-[6px] hover:bg-slate-800 hover:border-b-black active:border-b-[2px] active:translate-y-[4px] transition-all"
         >
-          <Plus size={18} /> Create New Event
+          <Plus size={20} strokeWidth={3} /> Create New Event
         </button>
       </div>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+      {/* STAT CARDS - MINIMALIST */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {stats.map((s) => (
           <div
             key={s.label}
-            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4"
+            className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow"
           >
             <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center ${s.bg} ${s.color}`}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${s.bg} ${s.color}`}
             >
               {s.icon}
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                 {s.label}
               </p>
-              <h3 className="text-3xl font-black text-slate-900 mt-0.5">
+              <h3 className="text-4xl font-black text-[#0a192f] mt-1 tracking-tight">
                 {s.value}
               </h3>
             </div>
@@ -232,95 +232,108 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* DANH SÁCH SỰ KIỆN ĐANG DIỄN RA */}
+      {/* ONGOING EVENTS LIST */}
       <div>
-        <h2 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
-          <Activity size={20} className="text-emerald-500" />
-          Ongoing Events
+        <h2 className="text-2xl font-black text-[#0a192f] mb-6 flex items-center gap-2">
+          <Activity size={24} className="text-emerald-500" strokeWidth={3} />
+          Active Events
         </h2>
 
         {ongoing.length === 0 ? (
-          <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center">
-            <AlertCircle size={44} className="mx-auto text-slate-300 mb-3" />
-            <h3 className="text-lg font-bold text-slate-700">
-              No ongoing events
+          <div className="bg-white p-16 rounded-[2rem] border-2 border-dashed border-slate-200 text-center flex flex-col items-center">
+            <AlertCircle
+              size={48}
+              className="text-slate-300 mb-4"
+              strokeWidth={1.5}
+            />
+            <h3 className="text-xl font-bold text-slate-700">
+              No Active Tournaments
             </h3>
-            <p className="text-slate-500 mt-1 text-sm">
-              Previous events have ended, or no new event has been created yet.
+            <p className="text-slate-500 mt-2 text-base max-w-sm">
+              All previous events have concluded, or no new event has been
+              initiated yet.
             </p>
             <button
               onClick={() => navigate("/admin/events/create")}
-              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white font-bold rounded-xl hover:bg-slate-800"
+              className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0a192f] border-2 border-slate-200 border-b-[4px] font-black rounded-xl hover:border-slate-300 hover:bg-slate-50 active:border-b-[2px] active:translate-y-[2px] transition-all"
             >
-              <Plus size={16} /> Create Event
+              <Plus size={18} strokeWidth={2.5} /> Initialize Event
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {ongoing.map((e) => (
               <div
                 key={e.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                className="bg-white rounded-[2rem] border border-slate-200 border-b-[6px] hover:border-b-[#0a192f] hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group"
               >
-                {/* Thanh trên: tên + kỳ/năm */}
-                <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+                {/* Header Card */}
+                <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
                   <div>
-                    <h3 className="text-xl font-black text-slate-900">
+                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-blue-600 transition-colors">
                       {e.name}
                     </h3>
-                    <p className="text-xs font-semibold text-slate-400 mt-1">
+                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
                       {e.semester} {e.year}
                     </p>
                   </div>
-                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Ongoing
-                    </span>
+                  <span className="text-[10px] px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live
+                  </span>
                 </div>
 
-                {/* Vòng hiện tại */}
-                <div className="p-5 space-y-4">
+                {/* Body Card */}
+                <div className="p-6 flex-1 flex flex-col">
                   {e.curRound ? (
                     <>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold">
+                          <span className="px-3 py-1.5 bg-[#0a192f] text-white rounded-lg text-sm font-bold shadow-sm">
                             {e.curRound.roundName || "Round"}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold uppercase">
+                          <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-bold uppercase tracking-widest border border-slate-200">
                             Round {e.curRound._displayIndex}
                           </span>
                         </div>
-                        <span className="text-xs text-slate-400 font-medium">
-                          {e.numRounds} round(s)
+                        <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                          {e.numRounds} Total Round(s)
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                        <Clock size={14} />
-                        {formatDate(e.curRound.startDate)} →{" "}
+                      <div className="flex items-center gap-2 text-xs text-slate-500 font-bold bg-slate-50 w-fit px-3 py-1.5 rounded-lg border border-slate-100 mb-5">
+                        <Clock size={14} className="text-blue-500" />
+                        {formatDate(e.curRound.startDate)}{" "}
+                        <ArrowRight size={12} className="text-slate-300" />{" "}
                         {formatDate(e.curRound.endDate)}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2.5">
-                          <Users size={18} className="text-blue-500" />
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm rounded-2xl p-4">
+                          <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                            <Users size={20} />
+                          </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">
-                              Team Limit
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              Capacity
                             </p>
-                            <p className="text-base font-black text-slate-800">
-                              {e.curRound.maxTeam ?? "—"}
+                            <p className="text-xl font-black text-[#0a192f]">
+                              {e.curRound.maxTeam ?? "—"}{" "}
+                              <span className="text-sm text-slate-400 font-bold">
+                                teams
+                              </span>
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2.5">
-                          <Target size={18} className="text-purple-500" />
+                        <div className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm rounded-2xl p-4">
+                          <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                            <Target size={20} />
+                          </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">
-                              Advance to Next Round
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              Advancing
                             </p>
-                            <p className="text-base font-black text-slate-800">
+                            <p className="text-xl font-black text-[#0a192f]">
                               Top {e.curRound._topN}
                             </p>
                           </div>
@@ -328,16 +341,17 @@ export function Dashboard() {
                       </div>
                     </>
                   ) : (
-                    <p className="text-sm text-slate-400 italic py-2">
-                      No rounds have been configured for this event.
+                    <p className="text-sm text-slate-400 italic py-6 flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl mb-6">
+                      Rounds configuration is missing.
                     </p>
                   )}
 
+                  {/* Nút bấm 3D mềm mại cho Card */}
                   <button
                     onClick={() => navigate(`/admin/events/${e.id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-slate-100 text-[#0a192f] border-2 border-slate-100 border-b-[4px] hover:border-slate-300 hover:bg-slate-200 text-sm font-black rounded-xl active:border-b-[0px] active:translate-y-[4px] transition-all mt-auto"
                   >
-                    View Details <ArrowRight size={16} />
+                    Manage Event <ArrowRight size={18} strokeWidth={2.5} />
                   </button>
                 </div>
               </div>

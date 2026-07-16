@@ -5,40 +5,33 @@ const RequireAuth = () => {
   const { accessToken, role } = useAuthStore();
   const location = useLocation();
 
+  // 1. Chưa đăng nhập -> Đá về Login
   if (!accessToken) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // BẢO VỆ TUYỆT ĐỐI CHỐNG LỌT ROLE (Ngăn vụ bấm Nút Back)
+  // 2. PHÂN LUỒNG ROLE TUYỆT ĐỐI (Chống Nút Back đi lạc sang Role khác)
   const currentPath = location.pathname.toLowerCase();
   const currentRole = role?.toLowerCase()?.trim();
 
-  // Admin lọt vào Player/Judge? Đá về Admin!
-  if (
-    (currentPath.startsWith("/player") ||
-      currentPath.startsWith("/judge") ||
-      currentPath.startsWith("/gateway")) &&
-    currentRole === "admin"
-  ) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-
-  // Player lọt vào Admin/Judge? Đá về Player!
-  if (
-    (currentPath.startsWith("/admin") || currentPath.startsWith("/judge")) &&
-    currentRole === "player"
-  ) {
-    return <Navigate to="/player" replace />;
-  }
-
-  // Judge lọt vào Admin/Player? Đá về Judge!
-  if (
-    (currentPath.startsWith("/admin") ||
-      currentPath.startsWith("/player") ||
-      currentPath.startsWith("/gateway")) &&
-    (currentRole === "judge" || currentRole === "teacher")
-  ) {
-    return <Navigate to="/judge" replace />;
+  if (currentRole === "admin") {
+    // Admin không được lọt vào player, judge, gateway
+    if (!currentPath.startsWith("/admin")) {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+  } else if (currentRole === "judge" || currentRole === "teacher") {
+    // Judge không được lọt vào admin, player, gateway
+    if (!currentPath.startsWith("/judge")) {
+      return <Navigate to="/judge" replace />;
+    }
+  } else if (currentRole === "player") {
+    // Player không được lọt vào admin, judge
+    if (currentPath.startsWith("/admin") || currentPath.startsWith("/judge")) {
+      return <Navigate to="/player" replace />;
+    }
+  } else {
+    // Lạ lạ thì kick ra login
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

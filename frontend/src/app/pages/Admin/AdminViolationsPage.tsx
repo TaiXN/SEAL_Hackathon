@@ -11,12 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Swal from "sweetalert2";
-
 import apiClient from "../../lib/api/apiClient";
-
-// ============================================================
-// Helpers thuần (không phụ thuộc state của component)
-// ============================================================
 
 const getList = (res: any): any[] => {
   if (Array.isArray(res)) return res;
@@ -28,33 +23,24 @@ const getList = (res: any): any[] => {
 
 const getEventId = (round: any): string =>
   String(round?.eventId ?? round?.eventID ?? "");
-
 const getEventName = (event: any): string =>
-  event?.eventName || event?.name || "Sự kiện chưa đặt tên";
-
+  event?.eventName || event?.name || "Unnamed Event";
 const getRoundId = (round: any): string =>
   String(round?.roundId ?? round?.id ?? "");
-
 const getRoundName = (round: any): string =>
-  round?.roundName || round?.name || "Vòng thi chưa đặt tên";
+  round?.roundName || round?.name || "Unnamed Round";
 
-// Trạng thái đội trong vòng: banned | approved | pending
-// - pending  = chưa duyệt (isCheck=false) -> admin cần DUYỆT để đội được nộp bài
-// - approved = đã duyệt (isCheck=true)     -> đội được phép nộp bài
-// - banned   = bị loại (isBanned=true)
 const deriveStatus = (t: any): "banned" | "approved" | "pending" => {
   const raw = String(
     t.status || t.state || t.approvalStatus || t.teamStatus || "",
   ).toLowerCase();
-
   const isBanned =
     t.isBanned === true ||
     raw.includes("ban") ||
     raw.includes("loại") ||
     raw.includes("disqualif");
-
   const isApproved =
-    t.isCheck === true || // field THẬT của backend: đội đã được duyệt
+    t.isCheck === true ||
     t.isApproved === true ||
     t.approved === true ||
     raw.includes("approve") ||
@@ -66,43 +52,38 @@ const deriveStatus = (t: any): "banned" | "approved" | "pending" => {
   return "pending";
 };
 
-// Badge trạng thái đội — tách khỏi component vì không đụng tới state
 const StatusBadge = ({ status }: { status: string }) => {
   if (status === "banned")
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 rounded-full text-[11px] font-bold border border-red-100">
-        <Ban size={12} /> Đã loại
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[11px] font-extrabold border border-red-100 uppercase tracking-widest">
+        <Ban size={12} strokeWidth={2.5} /> Disqualified
       </span>
     );
   if (status === "approved")
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-bold border border-emerald-100">
-        <CheckCircle2 size={12} /> Đã duyệt
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[11px] font-extrabold border border-emerald-100 uppercase tracking-widest">
+        <CheckCircle2 size={12} strokeWidth={2.5} /> Approved
       </span>
     );
   if (status === "pending")
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
-        <Clock size={12} /> Chờ duyệt
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[11px] font-extrabold border border-amber-200 uppercase tracking-widest">
+        <Clock size={12} strokeWidth={2.5} /> Pending
       </span>
     );
   return null;
 };
 
 export function AdminViolationsPage() {
-  // Dữ liệu gốc: TOÀN BỘ Sự kiện + Vòng thi trong hệ thống (lấy 1 lần khi vào trang)
   const [events, setEvents] = useState<any[]>([]);
   const [rounds, setRounds] = useState<any[]>([]);
-
-  // Lựa chọn theo tầng: chọn Sự kiện trước, rồi mới chọn Vòng thi trong Sự kiện đó
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedRoundId, setSelectedRoundId] = useState("");
-
   const [teams, setTeams] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Tất cả tình trạng");
+  const [statusFilter, setStatusFilter] = useState("All Status");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<{
@@ -111,21 +92,17 @@ export function AdminViolationsPage() {
   } | null>(null);
   const [violationReason, setViolationReason] = useState("");
 
-  // 1. Lấy toàn bộ Sự kiện + Vòng thi ngay khi vào trang
   useEffect(() => {
     apiClient
       .get("/api/Event")
       .then((res) => setEvents(getList(res.data)))
-      .catch((err) => console.error("Lỗi lấy danh sách Sự kiện:", err));
-
+      .catch(() => {});
     apiClient
       .get("/api/Round")
       .then((res) => setRounds(getList(res.data)))
-      .catch((err) => console.error("Lỗi lấy danh sách Vòng thi:", err));
+      .catch(() => {});
   }, []);
 
-  // Danh sách Sự kiện đổ vào dropdown tầng 1 — chỉ hiện Sự kiện nào thật sự có Vòng thi,
-  // kèm số vòng thi để admin hình dung trước khi bấm vào
   const eventOptions = useMemo(() => {
     const roundCountByEvent = new Map<string, number>();
     rounds.forEach((r) => {
@@ -141,7 +118,6 @@ export function AdminViolationsPage() {
       }))
       .filter((e) => e.id && roundCountByEvent.has(e.id));
 
-    // Fallback: nếu /api/Event chưa trả về đủ, tự suy Sự kiện từ chính Vòng thi
     const list =
       fromEventApi.length > 0
         ? fromEventApi
@@ -149,30 +125,27 @@ export function AdminViolationsPage() {
             const sample = rounds.find((r) => getEventId(r) === id);
             return {
               id,
-              name: getEventName(sample?.event) || `Sự kiện #${id.slice(0, 8)}`,
+              name: getEventName(sample?.event) || `Event #${id.slice(0, 8)}`,
             };
           });
 
     return list
       .map((e) => ({ ...e, roundCount: roundCountByEvent.get(e.id) || 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [events, rounds]);
 
-  // Danh sách Vòng thi đổ vào dropdown tầng 2 — chỉ những vòng thuộc Sự kiện đang chọn
   const roundsInSelectedEvent = useMemo(() => {
     return rounds
       .filter((r) => getEventId(r) === selectedEventId)
       .sort((a, b) => (a.roundIndex ?? 0) - (b.roundIndex ?? 0));
   }, [rounds, selectedEventId]);
 
-  // Đổi Sự kiện -> reset Vòng thi + danh sách đội đang hiển thị
   const handleSelectEvent = (eventId: string) => {
     setSelectedEventId(eventId);
     setSelectedRoundId("");
     setTeams([]);
   };
 
-  // 2. Khi chọn Vòng thi -> lấy danh sách đội trong vòng đó
   const fetchTeams = async (roundId: string) => {
     if (!roundId) {
       setTeams([]);
@@ -183,19 +156,15 @@ export function AdminViolationsPage() {
       const res = await apiClient.get(
         `/api/TeamInRound/details/round/${roundId}`,
       );
-      const list = getList(res.data);
-
       setTeams(
-        list.map((t: any) => ({
-          // id này là teamInRoundID -> dùng cho approve/ban/unban
+        getList(res.data).map((t: any) => ({
           id: t.teamInRoundID || t.teamInRoundId || t.id,
-          name: t.teamName || t.name || `Đội ${t.teamId || ""}`,
+          name: t.teamName || t.name || `Team ${t.teamId || ""}`,
           status: deriveStatus(t),
           reason: t.banReason || t.reason || t.note || "-",
         })),
       );
     } catch (error) {
-      console.error("Lỗi lấy danh sách đội:", error);
       setTeams([]);
     } finally {
       setIsLoading(false);
@@ -204,7 +173,6 @@ export function AdminViolationsPage() {
 
   useEffect(() => {
     fetchTeams(selectedRoundId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoundId]);
 
   const filteredTeams = useMemo(() => {
@@ -213,10 +181,10 @@ export function AdminViolationsPage() {
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
       const matchStatus =
-        statusFilter === "Tất cả tình trạng" ||
-        (statusFilter === "Chờ duyệt" && team.status === "pending") ||
-        (statusFilter === "Đã duyệt" && team.status === "approved") ||
-        (statusFilter === "Đã loại" && team.status === "banned");
+        statusFilter === "All Status" ||
+        (statusFilter === "Pending" && team.status === "pending") ||
+        (statusFilter === "Approved" && team.status === "approved") ||
+        (statusFilter === "Disqualified" && team.status === "banned");
       return matchSearch && matchStatus;
     });
   }, [teams, searchTerm, statusFilter]);
@@ -230,34 +198,38 @@ export function AdminViolationsPage() {
     [teams],
   );
 
-  // 3. DUYỆT ĐỘI -> đội được phép nộp bài
   const handleApprove = async (id: string, name: string) => {
     const result = await Swal.fire({
-      title: "Duyệt đội này?",
-      text: `Sau khi duyệt, đội "${name}" mới được phép nộp bài.`,
+      title: "Approve this team?",
+      text: `Once approved, "${name}" will be allowed to submit their project.`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Duyệt ngay",
+      confirmButtonText: "Approve",
       confirmButtonColor: "#059669",
-      cancelButtonText: "Hủy",
+      cancelButtonText: "Cancel",
+      customClass: {
+        confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        cancelButton:
+          "rounded-xl font-bold px-6 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200",
+      },
     });
     if (!result.isConfirmed) return;
 
     try {
-      Swal.fire({ title: "Đang duyệt...", didOpen: () => Swal.showLoading() });
+      Swal.fire({ title: "Approving...", didOpen: () => Swal.showLoading() });
       await apiClient.put(`/api/TeamInRound/approve/${id}`);
       Swal.fire({
         icon: "success",
-        title: "Đã duyệt!",
-        text: `Đội "${name}" giờ đã có thể nộp bài.`,
+        title: "Approved!",
+        text: `"${name}" can now submit.`,
         timer: 1600,
         showConfirmButton: false,
       });
       fetchTeams(selectedRoundId);
     } catch (error: any) {
       Swal.fire(
-        "Lỗi",
-        error?.response?.data || "Không thể duyệt đội lúc này!",
+        "Error",
+        error?.response?.data || "Unable to approve team at this time!",
         "error",
       );
     }
@@ -274,13 +246,12 @@ export function AdminViolationsPage() {
     setSelectedTeam(null);
   };
 
-  // 4. LOẠI (BAN)
   const handleConfirmDisqualify = async () => {
     if (!violationReason.trim()) {
       return Swal.fire(
-        "Thiếu thông tin",
-        "Vui lòng nhập lý do loại đội thi!",
-        "error",
+        "Required",
+        "Please provide a reason for disqualification!",
+        "warning",
       );
     }
     try {
@@ -290,74 +261,78 @@ export function AdminViolationsPage() {
       closeModal();
       Swal.fire({
         icon: "success",
-        title: "Đã xử lý!",
-        text: `Đội ${selectedTeam?.name} đã bị loại khỏi vòng thi.`,
+        title: "Processed!",
+        text: `${selectedTeam?.name} has been disqualified.`,
         timer: 1500,
         showConfirmButton: false,
       });
       fetchTeams(selectedRoundId);
     } catch (error: any) {
       Swal.fire(
-        "Lỗi",
-        error?.response?.data || "Không thể loại đội thi này!",
+        "Error",
+        error?.response?.data || "Unable to disqualify this team!",
         "error",
       );
     }
   };
 
-  // 5. GỠ CẤM (UNBAN)
   const handleUnbanTeam = async (id: string, name: string) => {
     const result = await Swal.fire({
-      title: "Gỡ lệnh cấm?",
-      text: `Đội ${name} sẽ được phép tiếp tục thi đấu.`,
+      title: "Revoke Disqualification?",
+      text: `${name} will be allowed to continue competing.`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Đồng ý Gỡ cấm",
+      confirmButtonText: "Yes, Revoke",
+      confirmButtonColor: "#0f172a",
+      customClass: {
+        confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        cancelButton:
+          "rounded-xl font-bold px-6 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200",
+      },
     });
     if (result.isConfirmed) {
       try {
         await apiClient.put(`/api/TeamInRound/unban/${id}`);
         Swal.fire({
           icon: "success",
-          title: "Thành công!",
+          title: "Restored!",
           timer: 1500,
           showConfirmButton: false,
         });
         fetchTeams(selectedRoundId);
       } catch (error) {
-        Swal.fire("Lỗi", "Không thể gỡ cấm đội thi này!", "error");
+        Swal.fire("Error", "Unable to lift the ban on this team!", "error");
       }
     }
   };
 
   return (
-    <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300 relative">
-      <div className="mb-8">
-        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          Duyệt bài & Kỷ luật
+    <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 relative font-sans selection:bg-slate-200">
+      <div className="mb-10">
+        <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight">
+          Approvals & Disciplinary
         </h2>
-        <p className="text-slate-500 text-sm mt-1">
-          Duyệt bài nộp của đội để mở cho Giám khảo chấm, và xử lý vi phạm quy
-          chế.
+        <p className="text-slate-500 font-medium text-base mt-2">
+          Review team submissions to open grading access, and handle rule
+          violations.
         </p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6">
-        {/* CHỌN THEO TẦNG: SỰ KIỆN -> VÒNG THI */}
-        <div className="mb-8 pb-6 border-b border-slate-100">
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-            Chọn Sự kiện & Vòng thi để kiểm soát
+      <div className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-8">
+        <div className="mb-8 pb-8 border-b border-slate-100">
+          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+            Filter by Event & Round
           </label>
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-5 flex-wrap">
             <select
               value={selectedEventId}
               onChange={(e) => handleSelectEvent(e.target.value)}
-              className="w-[280px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
             >
-              <option value="">-- Chọn Sự kiện --</option>
+              <option value="">-- Select Event --</option>
               {eventOptions.map((ev) => (
                 <option key={ev.id} value={ev.id}>
-                  {ev.name} ({ev.roundCount} vòng)
+                  {ev.name} ({ev.roundCount} rounds)
                 </option>
               ))}
             </select>
@@ -366,10 +341,12 @@ export function AdminViolationsPage() {
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-[280px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <option value="">
-                {selectedEventId ? "-- Chọn Vòng thi --" : "Chọn Sự kiện trước"}
+                {selectedEventId
+                  ? "-- Select Round --"
+                  : "Select an Event first"}
               </option>
               {roundsInSelectedEvent.map((r) => (
                 <option key={getRoundId(r)} value={getRoundId(r)}>
@@ -379,15 +356,18 @@ export function AdminViolationsPage() {
             </select>
 
             {selectedRoundId && (
-              <div className="flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1.5 font-bold text-amber-600">
-                  <Clock size={15} /> {counts.pending} chờ duyệt
+              <div className="flex items-center gap-5 ml-4 bg-slate-50 py-2.5 px-6 rounded-2xl border border-slate-100">
+                <span className="flex items-center gap-2 text-[13px] font-bold text-amber-600 uppercase tracking-wide">
+                  <Clock size={16} strokeWidth={2.5} /> {counts.pending} Pending
                 </span>
-                <span className="flex items-center gap-1.5 font-bold text-emerald-600">
-                  <ShieldCheck size={15} /> {counts.approved} đã duyệt
+                <div className="w-px h-4 bg-slate-300"></div>
+                <span className="flex items-center gap-2 text-[13px] font-bold text-emerald-600 uppercase tracking-wide">
+                  <ShieldCheck size={16} strokeWidth={2.5} /> {counts.approved}{" "}
+                  Approved
                 </span>
-                <span className="flex items-center gap-1.5 font-bold text-red-500">
-                  <Ban size={15} /> {counts.banned} đã loại
+                <div className="w-px h-4 bg-slate-300"></div>
+                <span className="flex items-center gap-2 text-[13px] font-bold text-red-500 uppercase tracking-wide">
+                  <Ban size={16} strokeWidth={2.5} /> {counts.banned} Banned
                 </span>
               </div>
             )}
@@ -398,39 +378,39 @@ export function AdminViolationsPage() {
           className={`transition-all duration-300 ${!selectedRoundId ? "opacity-30 pointer-events-none" : ""}`}
         >
           <div className="flex justify-between items-center mb-6">
-            <div className="relative w-[400px]">
+            <div className="relative w-[450px]">
               <Search
-                size={16}
-                className="absolute left-3 top-2.5 text-slate-400"
+                size={18}
+                className="absolute left-4 top-3 text-slate-400"
               />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tên đội thi..."
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500"
+                placeholder="Search team name..."
+                className="w-full pl-11 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 outline-none"
+              className="px-5 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-600 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
             >
-              <option value="Tất cả tình trạng">Tất cả tình trạng</option>
-              <option value="Chờ duyệt">Chờ duyệt</option>
-              <option value="Đã duyệt">Đã duyệt</option>
-              <option value="Đã loại">Đã loại</option>
+              <option value="All Status">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Disqualified">Disqualified</option>
             </select>
           </div>
 
-          <div className="border border-slate-100 rounded-xl overflow-hidden">
+          <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
+              <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-extrabold tracking-widest border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4">Tên Đội</th>
-                  <th className="px-6 py-4 text-center">Tình trạng</th>
-                  <th className="px-6 py-4">Lý do vi phạm</th>
-                  <th className="px-6 py-4 text-right">Hành động</th>
+                  <th className="px-8 py-5">Team Name</th>
+                  <th className="px-6 py-5 text-center">Status</th>
+                  <th className="px-6 py-5">Violation Reason</th>
+                  <th className="px-8 py-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -438,76 +418,78 @@ export function AdminViolationsPage() {
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-6 py-12 text-center text-slate-500"
+                      className="px-6 py-16 text-center text-slate-500 font-bold uppercase tracking-widest text-xs"
                     >
                       <Activity
-                        className="animate-spin inline mr-2 mb-1"
-                        size={18}
+                        className="animate-spin inline mr-2 text-[#0a192f]"
+                        size={20}
                       />{" "}
-                      Đang tải dữ liệu...
+                      Loading teams...
                     </td>
                   </tr>
                 ) : filteredTeams.length === 0 ? (
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-6 py-12 text-center text-slate-500 font-medium"
+                      className="px-6 py-16 text-center text-slate-500 font-medium text-base"
                     >
                       {!selectedEventId
-                        ? "Vui lòng chọn Sự kiện."
+                        ? "Please select an Event."
                         : !selectedRoundId
-                          ? "Vui lòng chọn Vòng thi."
-                          : "Không tìm thấy đội thi nào phù hợp."}
+                          ? "Please select a Round."
+                          : "No teams found matching criteria."}
                     </td>
                   </tr>
                 ) : (
                   filteredTeams.map((team) => (
                     <tr
                       key={team.id}
-                      className="hover:bg-slate-50/50 transition-colors"
+                      className="hover:bg-slate-50 transition-colors"
                     >
-                      <td className="px-6 py-5 font-bold text-slate-900">
+                      <td className="px-8 py-6 font-extrabold text-[#0a192f] text-base">
                         {team.name}
                       </td>
-                      <td className="px-6 py-5 text-center">
+                      <td className="px-6 py-6 text-center">
                         <StatusBadge status={team.status} />
                       </td>
                       <td
-                        className={`px-6 py-5 font-medium text-xs ${!team.reason || team.reason === "-" ? "text-slate-400" : "text-slate-700"}`}
+                        className={`px-6 py-6 font-medium text-sm ${!team.reason || team.reason === "-" ? "text-slate-400 italic" : "text-slate-700"}`}
                       >
                         {team.reason || "-"}
                       </td>
-                      <td className="px-6 py-5 text-right">
+                      <td className="px-8 py-6 text-right">
                         {team.status === "banned" ? (
                           <button
                             onClick={() => handleUnbanTeam(team.id, team.name)}
-                            className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-black flex items-center gap-1 ml-auto"
+                            className="px-5 py-2.5 bg-white border border-slate-200 text-[#0a192f] text-xs font-bold rounded-xl hover:bg-slate-50 flex items-center gap-1.5 ml-auto transition-colors shadow-sm"
                           >
-                            <Unlock size={14} /> Gỡ cấm
+                            <Unlock size={16} strokeWidth={2.5} /> Revoke Ban
                           </button>
                         ) : (
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-3">
                             {team.status === "pending" ? (
                               <button
                                 onClick={() =>
                                   handleApprove(team.id, team.name)
                                 }
-                                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 flex items-center gap-1"
+                                className="px-5 py-2.5 bg-[#0a192f] text-white text-xs font-extrabold rounded-xl hover:bg-slate-800 flex items-center gap-1.5 transition-all shadow-md shadow-slate-900/10"
                               >
-                                <CheckCircle2 size={14} /> Duyệt đội
+                                <CheckCircle2 size={16} strokeWidth={2.5} />{" "}
+                                Approve
                               </button>
                             ) : (
-                              <span className="px-3 py-2 text-emerald-600 text-xs font-bold flex items-center gap-1">
-                                <ShieldCheck size={14} /> Đã duyệt
+                              <span className="px-5 py-2.5 text-emerald-600 text-xs font-extrabold flex items-center gap-1.5">
+                                <ShieldCheck size={16} strokeWidth={2.5} />{" "}
+                                Authorized
                               </span>
                             )}
                             <button
                               onClick={() =>
                                 openDisqualifyModal(team.id, team.name)
                               }
-                              className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 flex items-center gap-1"
+                              className="px-5 py-2.5 bg-red-50 text-red-600 text-xs font-extrabold rounded-xl hover:bg-red-100 flex items-center gap-1.5 transition-colors"
                             >
-                              <Ban size={14} /> Loại
+                              <Ban size={16} strokeWidth={2.5} /> Disqualify
                             </button>
                           </div>
                         )}
@@ -522,53 +504,59 @@ export function AdminViolationsPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-3 text-red-500">
-                <div className="bg-red-50 p-2 rounded-full">
-                  <AlertTriangle size={20} className="text-red-600" />
+                <div className="bg-red-100 p-2.5 rounded-xl">
+                  <AlertTriangle
+                    size={22}
+                    className="text-red-600"
+                    strokeWidth={2.5}
+                  />
                 </div>
-                <h3 className="font-bold text-slate-900 text-lg">
-                  Xác nhận loại đội thi {selectedTeam?.name}
+                <h3 className="font-extrabold text-[#0a192f] text-xl">
+                  Confirm Disqualification
                 </h3>
               </div>
               <button
                 onClick={closeModal}
-                className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                className="text-slate-400 hover:text-slate-700 transition-colors p-2 bg-white rounded-xl shadow-sm border border-slate-200"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={2.5} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Hành động này sẽ cấm đội <b>{selectedTeam?.name}</b> tiếp tục
-                thi đấu.
+            <div className="p-8 space-y-6">
+              <p className="text-base text-slate-600 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                This action will permanently revoke submission access for{" "}
+                <strong className="text-[#0a192f]">{selectedTeam?.name}</strong>
+                .
               </p>
               <div>
-                <label className="text-sm font-bold text-slate-900 flex gap-1 items-center">
-                  Lý do loại <span className="text-red-500">*</span>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex gap-1 items-center mb-3">
+                  Reason for Disqualification{" "}
+                  <span className="text-red-500 text-lg leading-none">*</span>
                 </label>
                 <textarea
                   value={violationReason}
                   onChange={(e) => setViolationReason(e.target.value)}
-                  className="w-full mt-2 border border-slate-200 rounded-xl p-4 text-sm focus:border-red-500 outline-none resize-none h-28"
-                  placeholder="Nhập lý do vi phạm quy chế..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm font-medium focus:bg-white focus:border-red-400 focus:ring-4 focus:ring-red-500/10 outline-none resize-none h-32 transition-all"
+                  placeholder="Enter detailed reason here..."
                 ></textarea>
               </div>
             </div>
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
               <button
                 onClick={closeModal}
-                className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50"
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleConfirmDisqualify}
-                className="px-5 py-2.5 bg-[#ef4444] text-white text-sm font-bold rounded-xl hover:bg-red-600"
+                className="px-8 py-3 bg-red-600 text-white text-sm font-extrabold rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all"
               >
-                Xác nhận Loại
+                Confirm Disqualification
               </button>
             </div>
           </div>
