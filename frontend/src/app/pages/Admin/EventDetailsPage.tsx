@@ -807,7 +807,9 @@ export function EventDetailsPage() {
   };
 
   // ===== #6: Round phụ =====
+  // @ts-expect-error
   const [loadingExtraSets, setLoadingExtraSets] = useState(false);
+  // @ts-expect-error
   const [extraSetsError, setExtraSetsError] = useState<string | null>(null);
 
   const openAddRound = async () => {
