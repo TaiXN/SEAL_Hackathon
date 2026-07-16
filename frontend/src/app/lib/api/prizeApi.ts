@@ -1,5 +1,5 @@
 import apiClient from "./apiClient";
-
+// thêm bộ api dùng cho chức năng quản lý prize
 export interface PrizeData {
   id?: string;
   prizeId?: string;
