@@ -16,6 +16,7 @@ import {
 import Swal from "sweetalert2";
 import { eventApi } from "../../lib/api/eventApi";
 import { prizeApi, type PrizeData } from "../../lib/api/prizeApi";
+import { roundApi } from "../../lib/api/roundApi";
 import apiClient from "../../lib/api/apiClient";
 
 const isInactiveRecord = (obj: any): boolean => {
@@ -263,42 +264,89 @@ export function AdminPrizesPage() {
 
   const handleManualAssign = async (prize: PrizeData) => {
     const pId = prize.id || prize.prizeId;
-    if (!pId) return;
+    const eventId = prize.eventId;
+
+    if (!pId || !eventId) {
+      return Swal.fire(
+        "Lỗi",
+        "Giải thưởng này chưa được gắn với sự kiện nào hợp lệ!",
+        "error",
+      );
+    }
 
     try {
-      // 1. GỌI API LẤY DANH SÁCH ĐỘI THI (TEAM)
-      // 🚨 Lưu ý: Check lại với Backend xem endpoint lấy danh sách Team có đúng là "/api/Team" không nha!
-      const teamRes = await apiClient.get("/api/Team");
-      const teams = teamRes.data || [];
+      // 1. Bật loading vì phải gọi chuỗi API hơi dài
+      Swal.fire({
+        title: "Đang tải danh sách Đội thi...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
 
-      // Lọc danh sách đội thi thuộc về Sự kiện của giải thưởng này (nếu dữ liệu team có eventId)
-      // Để tránh Dropdown hiện ra cả ngàn đội của các mùa giải cũ.
-      const eventTeams = teams.filter(
-        (t: any) => (t.eventId || t.eventID) === prize.eventId,
+      // 2. Lấy danh sách tất cả các vòng (Rounds) và lọc ra các vòng thuộc Sự kiện này
+      const allRounds = await roundApi.getAllRounds();
+      const eventRounds = allRounds.filter(
+        (r: any) => String(r.eventID || r.eventId) === String(eventId),
       );
-      const displayTeams = eventTeams.length > 0 ? eventTeams : teams;
 
-      if (displayTeams.length === 0) {
+      if (eventRounds.length === 0) {
         return Swal.fire(
           "Khoan đã",
-          "Hệ thống chưa có Đội thi nào để trao giải!",
+          "Sự kiện của giải thưởng này chưa có vòng thi nào được thiết lập!",
           "warning",
         );
       }
 
-      // 2. TẠO HTML DROPDOWN TỪ DANH SÁCH TEAM (Ẩn ID, Hiện Tên)
+      // 3. Gọi API TeamInRound cho từng vòng để gom danh sách các Đội
+      let allTeams: any[] = [];
+      await Promise.all(
+        eventRounds.map(async (r: any) => {
+          const rId = r.roundID || r.roundId || r.id;
+          try {
+            const res = await apiClient.get(
+              `/api/TeamInRound/details/round/${rId}`,
+            );
+            // Dựa theo ảnh postman, kết quả trả về là một mảng các object
+            if (res.data && Array.isArray(res.data)) {
+              allTeams = [...allTeams, ...res.data];
+            }
+          } catch (error) {
+            console.warn(`Không thể lấy danh sách đội cho vòng ${rId}`);
+          }
+        }),
+      );
+
+      // 4. Lọc trùng lặp (Vì 1 đội có thể thi từ Sơ khảo vào Chung kết nên sẽ bị trùng teamId)
+      const uniqueTeamsMap = new Map();
+      allTeams.forEach((t) => {
+        // Gom teamId làm key để loại bỏ trùng. Có thể loại luôn các đội isBanned = true nếu muốn
+        if (t.teamId && !uniqueTeamsMap.has(t.teamId)) {
+          uniqueTeamsMap.set(t.teamId, t);
+        }
+      });
+      const displayTeams = Array.from(uniqueTeamsMap.values());
+
+      if (displayTeams.length === 0) {
+        return Swal.fire(
+          "Lưu ý",
+          "Không tìm thấy đội thi nào hợp lệ trong sự kiện này!",
+          "info",
+        );
+      }
+
+      // 5. Build HTML Option (Hiện Tên cho Admin xem - Giấu ID bên dưới)
       const teamOptions = displayTeams
-        .map(
-          (t: any) =>
-            `<option value="${t.teamId || t.id}">${t.teamName || t.name}</option>`,
-        )
+        .map((t: any) => `<option value="${t.teamId}">${t.teamName}</option>`)
         .join("");
 
-      // 3. HIỂN THỊ POPUP VỚI DROPDOWN
+      // Tắt loading và mở Popup Dropdown
+      Swal.close();
       const { value: selectedTeamId } = await Swal.fire({
         title: "Trao giải cho đội",
         html: `
           <p style="margin-bottom: 15px; font-size: 14px; color: #475569;">
+            Sự kiện: <b>${events.find((e) => (e.id || e.eventID) === eventId)?.name || "N/A"}</b><br/>
             Chọn đội thi xứng đáng nhận giải <b>"${prize.prizeName}"</b>:
           </p>
           <select id="sw-team" class="swal2-input" style="display:flex; width: 85%; margin: 0 auto; font-size: 15px; cursor: pointer;">
@@ -320,11 +368,11 @@ export function AdminPrizesPage() {
             );
             return false;
           }
-          return selectEl.value; // Trả về cái value ẩn (chính là teamId)
+          return selectEl.value; // Trả về cái teamId ẩn
         },
       });
 
-      // 4. GỌI API TRAO GIẢI GỬI LÊN SERVER
+      // 6. GỌI API TRAO GIẢI GỬI LÊN SERVER (API PUT manual-assign y như cũ)
       if (selectedTeamId) {
         await prizeApi.manualAssign({ prizeId: pId, teamId: selectedTeamId });
         Swal.fire({
@@ -333,12 +381,13 @@ export function AdminPrizesPage() {
           timer: 1500,
           showConfirmButton: false,
         });
-        fetchPrizes(); // Tự động load lại danh sách để hiện chữ "ĐÃ TRAO"
+        fetchPrizes(); // Tự động load lại để hiện chữ "ĐÃ TRAO"
       }
     } catch (err: any) {
       Swal.fire(
         "Lỗi",
-        "Trao giải thất bại. " + (err.response?.data?.message || err.message),
+        "Có lỗi xảy ra trong quá trình lấy dữ liệu. " +
+          (err.response?.data?.message || err.message),
         "error",
       );
     }
