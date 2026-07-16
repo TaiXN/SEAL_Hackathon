@@ -129,8 +129,8 @@ export function Submit() {
 
     if (!canSubmitProject) {
       Swal.fire(
-        "Không có quyền submit",
-        "Chỉ Team Leader mới được submit project.",
+        "Permission Denied",
+        "Only the Team Leader can submit the project.",
         "warning",
       );
       return;
@@ -138,50 +138,50 @@ export function Submit() {
 
     if (!teamId) {
       Swal.fire(
-        "Thiếu teamId",
-        "Không xác định được team hiện tại để submit.",
+        "Missing Team",
+        "Unable to identify the current team for submission.",
         "warning",
       );
       return;
     }
 
     if (!githubUrl.trim()) {
-      Swal.fire("Thiếu GitHub URL", "Vui lòng nhập link GitHub.", "warning");
+      Swal.fire("Missing GitHub URL", "Please enter the GitHub link.", "warning");
       return;
     }
 
     if (!githubUrl.trim().startsWith("https://github.com/")) {
       Swal.fire(
-        "GitHub URL chưa hợp lệ",
-        "Link GitHub nên bắt đầu bằng https://github.com/",
+        "Invalid GitHub URL",
+        "GitHub link must start with https://github.com/",
         "warning",
       );
       return;
     }
 
     if (!demoUrl.trim()) {
-      Swal.fire("Thiếu Demo URL", "Vui lòng nhập link demo.", "warning");
+      Swal.fire("Missing Demo URL", "Please enter the demo link.", "warning");
       return;
     }
 
     if (!isValidUrl(demoUrl.trim())) {
       Swal.fire(
-        "Demo URL chưa hợp lệ",
-        "Link demo phải bắt đầu bằng http:// hoặc https://.",
+        "Invalid Demo URL",
+        "Demo link must start with http:// or https://.",
         "warning",
       );
       return;
     }
 
     if (!slideUrl.trim()) {
-      Swal.fire("Thiếu Slide URL", "Vui lòng nhập link slide.", "warning");
+      Swal.fire("Missing Slide URL", "Please enter the slide link.", "warning");
       return;
     }
 
     if (!isValidUrl(slideUrl.trim())) {
       Swal.fire(
-        "Slide URL chưa hợp lệ",
-        "Link slide phải bắt đầu bằng http:// hoặc https://.",
+        "Invalid Slide URL",
+        "Slide link must start with http:// or https://.",
         "warning",
       );
       return;
@@ -203,18 +203,18 @@ export function Submit() {
 
       Swal.fire({
         icon: "success",
-        title: "Submit thành công",
-        text: "Bài nộp của team đã được gửi lên hệ thống.",
+        title: "Submission Successful",
+        text: "Your team's project has been submitted successfully.",
       });
     } catch (error: any) {
       console.error("Submit project failed:", error);
 
       Swal.fire({
         icon: "error",
-        title: "Submit thất bại",
+        title: "Submission Failed",
         html: `<pre style="white-space:pre-wrap;text-align:left;font-size:12px">${getErrorMessage(
           error,
-          "Không thể submit project lúc này.",
+          "Unable to submit project at this time.",
         )}</pre>`,
       });
     } finally {
@@ -230,13 +230,13 @@ export function Submit() {
             Submit Project
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Đang kiểm tra quyền submit...
+            Checking submit permission...
           </p>
         </header>
 
         <div className="bg-card border border-border rounded-radius-lg p-6 shadow-sm">
           <p className="text-sm text-muted-foreground font-medium">
-            Vui lòng chờ trong giây lát.
+            Please wait a moment.
           </p>
         </div>
       </div>
@@ -251,7 +251,7 @@ export function Submit() {
             Submit Project
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Chỉ Team Leader mới được submit project.
+            Only Team Leaders can submit the project.
           </p>
         </header>
 
@@ -261,13 +261,13 @@ export function Submit() {
 
             <div>
               <h2 className="text-lg font-bold text-foreground">
-                Bạn chưa có quyền submit
+                You do not have submit permission
               </h2>
 
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                Tài khoản hiện tại đang là Team Member hoặc chưa có team. Sau
-                khi bạn tạo team thành công, hệ thống sẽ xem bạn là Team Leader
-                và mở chức năng Submit Project.
+                Your current account is a Team Member or has no team. Once you
+                successfully create a team, the system will recognize you as Team Leader
+                and enable the Submit Project feature.
               </p>
             </div>
           </div>
@@ -342,7 +342,7 @@ export function Submit() {
             />
 
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              * Link demo deploy hoặc video demo
+              * Deployed demo link or demo video
             </p>
           </div>
 
@@ -376,7 +376,7 @@ export function Submit() {
               className="w-full bg-primary text-primary-foreground py-5 rounded-radius-md font-bold text-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-3 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />
-              {isSubmitting ? "Đang submit..." : "Submit Project"}
+              {isSubmitting ? "Submitting..." : "Submit Project"}
             </button>
           </div>
         </form>
@@ -387,7 +387,7 @@ export function Submit() {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={executeSubmit}
         title="Confirm Final Submission"
-        description="Bạn có chắc muốn submit GitHub link, demo link và slide link này không?"
+        description="Are you sure you want to submit this GitHub link, demo link, and slide link?"
         confirmText="Yes, Submit Project"
         isDestructive={false}
       />

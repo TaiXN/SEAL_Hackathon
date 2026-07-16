@@ -26,11 +26,11 @@ export function ProfilePage() {
     e.preventDefault();
 
     if (newPassword !== confirmPassword) {
-      toast.error("Hai mật khẩu không khớp nhau!");
+      toast.error("The two passwords do not match!");
       return;
     }
 
-    const loadingToastId = toast.loading("Đang gửi yêu cầu đổi mật khẩu...");
+    const loadingToastId = toast.loading("Sending password change request...");
 
     try {
       // call API qua authApi (data tự động được chuẩn hóa)
@@ -40,7 +40,7 @@ export function ProfilePage() {
         rePassword: confirmPassword,
       });
 
-      toast.success("Đổi mật khẩu thành công!", {
+      toast.success("Password changed successfully!", {
         id: loadingToastId,
       });
 
@@ -52,7 +52,7 @@ export function ProfilePage() {
       // Axios tự động bắt lỗi như: 400 (sai mật khẩu cũ) ném xuống đây
       console.error("Lỗi đổi mật khẩu:", error);
       toast.error(
-        "Đổi mật khẩu thất bại! Kiểm tra lại mật khẩu cũ chính xác chưa.",
+        "Password change failed! Please verify your current password is correct.",
         {
           id: loadingToastId,
         },
@@ -63,9 +63,9 @@ export function ProfilePage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Thông tin Cá nhân</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Personal Information</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Quản lý thông tin tài khoản và bảo mật của bạn.
+          Manage your account information and security.
         </p>
       </div>
 
@@ -79,10 +79,10 @@ export function ProfilePage() {
               Nguyễn Quang Trí
             </h3>
             <p className="text-emerald-600 font-bold text-sm mt-1">
-              Admin Hệ thống
+              System Admin
             </p>
             <div className="mt-4 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-              <Shield size={14} /> Thành viên Ban Tổ Chức
+              <Shield size={14} /> Organizing Committee Member
             </div>
           </div>
         </div>
@@ -90,12 +90,12 @@ export function ProfilePage() {
         <div className="col-span-2 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-6 text-lg">
-              Chi tiết tài khoản
+              Account Details
             </h3>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <User size={14} /> Họ và tên
+                  <User size={14} /> Full Name
                 </label>
                 <input
                   type="text"
@@ -105,7 +105,7 @@ export function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Mail size={14} /> Email FPTU
+                  <Mail size={14} /> FPTU Email
                 </label>
                 <input
                   type="email"
@@ -115,7 +115,7 @@ export function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Building size={14} /> Đơn vị / CLB
+                  <Building size={14} /> Department / Club
                 </label>
                 <input
                   type="text"
@@ -125,7 +125,7 @@ export function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Phone size={14} /> Số điện thoại
+                  <Phone size={14} /> Phone Number
                 </label>
                 <input
                   type="text"
@@ -136,20 +136,20 @@ export function ProfilePage() {
             </div>
             <div className="mt-8 flex justify-end">
               <button className="px-6 py-2.5 bg-[#0f172a] text-white text-sm font-bold rounded-lg hover:bg-black transition-colors shadow-sm">
-                Cập nhật thông tin
+                Update Information
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="font-bold text-slate-900 mb-6 text-lg flex items-center gap-2">
-              <Key size={18} className="text-slate-600" /> Đổi mật khẩu
+              <Key size={18} className="text-slate-600" /> Change Password
             </h3>
             <div className="space-y-4">
               <div className="relative">
                 <input
                   type={showOldPassword ? "text" : "password"}
-                  placeholder="Mật khẩu hiện tại"
+                  placeholder="Current password"
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   className="w-full p-2.5 pr-10 rounded-lg border border-slate-300 focus:border-slate-900 outline-none transition-colors"
@@ -165,7 +165,7 @@ export function ProfilePage() {
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
-                  placeholder="Mật khẩu mới"
+                  placeholder="New password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full p-2.5 pr-10 rounded-lg border border-slate-300 focus:border-slate-900 outline-none transition-colors"
@@ -181,7 +181,7 @@ export function ProfilePage() {
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Xác nhận mật khẩu"
+                  placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full p-2.5 pr-10 rounded-lg border border-slate-300 focus:border-slate-900 outline-none transition-colors"
@@ -204,11 +204,11 @@ export function ProfilePage() {
                   onClick={handleChangePassword}
                   className="px-6 py-2 border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Lưu mật khẩu
+                  Save Password
                 </button>
                 {showSuccessMessage && (
                   <span className="text-sm font-bold text-emerald-600 flex items-center gap-1.5 animate-in slide-in-from-left-2">
-                    <CheckCircle2 size={16} /> Cập nhật thành công!
+                    <CheckCircle2 size={16} /> Updated successfully!
                   </span>
                 )}
               </div>

@@ -29,7 +29,7 @@ const formatDate = (d: any): string => {
   if (!d) return "—";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return "—";
-  return dt.toLocaleString("vi-VN", {
+  return dt.toLocaleString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -112,7 +112,7 @@ export function Dashboard() {
         return {
           raw: e,
           id,
-          name: e.name || e.eventName || "(Sự kiện)",
+          name: e.name || e.eventName || "(Event)",
           semester: e.semester || e.season || "—",
           year: e.year || e.Year || "",
           cur: Number.isNaN(cur) ? 0 : cur,
@@ -141,8 +141,7 @@ export function Dashboard() {
   if (isLoading) {
     return (
       <div className="p-10 flex items-center justify-center min-h-[60vh] text-slate-400">
-        <RefreshCw size={20} className="animate-spin mr-2" /> Đang tải tổng
-        quan...
+        <RefreshCw size={20} className="animate-spin mr-2" /> Loading overview...
       </div>
     );
   }
@@ -153,7 +152,7 @@ export function Dashboard() {
 
   const stats = [
     {
-      label: "Đang diễn ra",
+      label: "Ongoing",
       value: ongoing.length,
       icon: <Activity size={22} />,
       color: "text-emerald-600",
@@ -161,14 +160,14 @@ export function Dashboard() {
     },
 
     {
-      label: "Đã kết thúc",
+      label: "Ended",
       value: ended.length,
       icon: <CheckCircle2 size={22} />,
       color: "text-slate-500",
       bg: "bg-slate-100",
     },
     {
-      label: "Tổng sự kiện",
+      label: "Total Events",
       value: events.length,
       icon: <LayoutGrid size={22} />,
       color: "text-blue-600",
@@ -182,11 +181,11 @@ export function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            Tổng quan Sự kiện
+            Event Overview
             <button
               onClick={() => fetchData(true)}
               disabled={isRefreshing}
-              title="Làm mới"
+              title="Refresh"
               className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 rounded-full shadow-sm transition-all"
             >
               <RefreshCw
@@ -198,8 +197,8 @@ export function Dashboard() {
           <p className="text-slate-500 mt-2 text-sm font-medium flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             {ongoing.length > 0
-              ? `Có ${ongoing.length} sự kiện đang diễn ra đồng thời`
-              : "Hiện không có sự kiện nào đang diễn ra"}
+              ? `${ongoing.length} event(s) currently ongoing`
+              : "No events are currently ongoing"}
           </p>
         </div>
 
@@ -207,7 +206,7 @@ export function Dashboard() {
           onClick={() => navigate("/admin/events/create")}
           className="flex items-center gap-2 px-6 py-2.5 bg-black text-white font-bold rounded-xl shadow-sm hover:bg-slate-800"
         >
-          <Plus size={18} /> Tạo sự kiện mới
+          <Plus size={18} /> Create New Event
         </button>
       </div>
 
@@ -239,24 +238,23 @@ export function Dashboard() {
       <div>
         <h2 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
           <Activity size={20} className="text-emerald-500" />
-          Sự kiện đang diễn ra
+          Ongoing Events
         </h2>
 
         {ongoing.length === 0 ? (
           <div className="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center">
             <AlertCircle size={44} className="mx-auto text-slate-300 mb-3" />
             <h3 className="text-lg font-bold text-slate-700">
-              Không có sự kiện đang diễn ra
+              No ongoing events
             </h3>
             <p className="text-slate-500 mt-1 text-sm">
-              Các sự kiện trước đó đã kết thúc, hoặc bạn chưa khởi tạo sự kiện
-              mới.
+              Previous events have ended, or no new event has been created yet.
             </p>
             <button
               onClick={() => navigate("/admin/events/create")}
               className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white font-bold rounded-xl hover:bg-slate-800"
             >
-              <Plus size={16} /> Khởi tạo sự kiện
+              <Plus size={16} /> Create Event
             </button>
           </div>
         ) : (
@@ -276,10 +274,10 @@ export function Dashboard() {
                       {e.semester} {e.year}
                     </p>
                   </div>
-                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Đang diễn ra
-                  </span>
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Ongoing
+                    </span>
                 </div>
 
                 {/* Vòng hiện tại */}
@@ -289,14 +287,14 @@ export function Dashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold">
-                            {e.curRound.roundName || "Vòng thi"}
+                            {e.curRound.roundName || "Round"}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold uppercase">
                             Round {e.curRound._displayIndex}
                           </span>
                         </div>
                         <span className="text-xs text-slate-400 font-medium">
-                          {e.numRounds} vòng
+                          {e.numRounds} round(s)
                         </span>
                       </div>
 
@@ -311,7 +309,7 @@ export function Dashboard() {
                           <Users size={18} className="text-blue-500" />
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase">
-                              Giới hạn đội
+                              Team Limit
                             </p>
                             <p className="text-base font-black text-slate-800">
                               {e.curRound.maxTeam ?? "—"}
@@ -322,7 +320,7 @@ export function Dashboard() {
                           <Target size={18} className="text-purple-500" />
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase">
-                              Vào vòng sau
+                              Advance to Next Round
                             </p>
                             <p className="text-base font-black text-slate-800">
                               Top {e.curRound._topN}
@@ -333,7 +331,7 @@ export function Dashboard() {
                     </>
                   ) : (
                     <p className="text-sm text-slate-400 italic py-2">
-                      Sự kiện chưa thiết lập vòng thi nào.
+                      No rounds have been configured for this event.
                     </p>
                   )}
 
@@ -341,7 +339,7 @@ export function Dashboard() {
                     onClick={() => navigate(`/admin/events/${e.id}`)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition-colors"
                   >
-                    Xem chi tiết <ArrowRight size={16} />
+                    View Details <ArrowRight size={16} />
                   </button>
                 </div>
               </div>

@@ -39,4 +39,44 @@ export const judgeApi = {
     const res = await apiClient.put(`/api/Evaluation/${teacherId}`, payload);
     return res.data;
   },
+
+  // 5. Lấy chi tiết Evaluation theo ID
+  async getEvaluationById(evaluationId: string) {
+    const res = await apiClient.get(`/api/Evaluation/${evaluationId}`);
+    return res.data;
+  },
+
+  // 6. Lấy tất cả Evaluation (Cho Admin/Manager)
+  async getAllEvaluations() {
+    const res = await apiClient.get(`/api/Evaluation`);
+    return res.data;
+  },
+
+  // 7. API MỚI: Xóa điểm (Delete Evaluation)
+  async deleteEvaluation(evaluationId: string) {
+    const res = await apiClient.delete(`/api/Evaluation/${evaluationId}`);
+    return res.data;
+  },
+
+  // ==========================================
+  // API PHÂN CÔNG GIÁM KHẢO VÀO TRACK (MỚI)
+  // ==========================================
+  async assignJudgeToTrack(trackId: string, judgeId: string) {
+    const res = await apiClient.post(
+      `/api/Judge/track/${trackId}/teacher/${judgeId}`,
+    );
+    return res.data;
+  },
+
+  async removeJudgeFromTrack(trackId: string, judgeId: string) {
+    const res = await apiClient.delete(
+      `/api/Judge/track/${trackId}/teacher/${judgeId}`,
+    );
+    return res.data;
+  },
+
+  async getJudgesByTrack(trackId: string) {
+    const res = await apiClient.get(`/api/Judge/track/${trackId}`);
+    return res.data;
+  },
 };

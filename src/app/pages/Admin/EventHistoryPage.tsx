@@ -34,7 +34,7 @@ export function EventHistoryPage() {
 
       setEvents(enrichedData);
     } catch (error) {
-      Swal.fire("Lỗi", "Không tải được danh sách sự kiện", "error");
+      Swal.fire("Error", "Failed to load event list", "error");
     } finally {
       setIsLoading(false);
     }
@@ -43,32 +43,32 @@ export function EventHistoryPage() {
   if (isLoading) {
     return (
       <div className="p-10 text-center font-medium text-slate-500">
-        Đang tải danh sách...
+        Loading list...
       </div>
     );
   }
 
   const handleDeleteEvent = async (id: string, name: string) => {
     const result = await Swal.fire({
-      title: "Xóa sự kiện?",
-      html: `Bạn có chắc chắn muốn xóa sự kiện <b>${name}</b>?`,
+      title: "Delete event?",
+      html: `Are you sure you want to delete event <b>${name}</b>?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#cbd5e1",
-      confirmButtonText: "Xóa",
-      cancelButtonText: "Hủy",
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
     });
 
     if (result.isConfirmed) {
       try {
         await eventApi.deleteEvent(id);
-        Swal.fire("Đã xóa!", "Sự kiện đã được xóa.", "success");
+        Swal.fire("Deleted!", "The event has been deleted.", "success");
         setEvents((prevEvents) =>
           prevEvents.filter((event) => event.id !== id),
         );
       } catch (error) {
-        Swal.fire("Lỗi", "Xóa thất bại, check lại mạng hoặc quyền.", "error");
+        Swal.fire("Error", "Deletion failed. Please check your connection or permissions.", "error");
       }
     }
   };
@@ -78,10 +78,10 @@ export function EventHistoryPage() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-            Quản lý Sự kiện
+            Event Management
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            Xem lịch sử lưu trữ các kỳ thi trước hoặc khởi tạo kỳ thi mới.
+            View archived past competitions or create a new one.
           </p>
         </div>
         {/* [NEW] ĐÃ MỞ KHÓA TẠO SỰ KIỆN TỰ DO */}
@@ -89,7 +89,7 @@ export function EventHistoryPage() {
           onClick={() => navigate("create")}
           className="px-6 py-3 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2 bg-black hover:bg-slate-800"
         >
-          <Plus size={18} /> Tạo sự kiện mới
+          <Plus size={18} /> Create New Event
         </button>
       </div>
 
@@ -98,11 +98,11 @@ export function EventHistoryPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 w-1/3">Tên sự kiện</th>
-                <th className="px-6 py-4">Học kỳ</th>
-                <th className="px-6 py-4 text-center">Năm</th>
-                <th className="px-6 py-4 text-center">Trạng thái</th>
-                <th className="px-6 py-4 text-right">Hành động</th>
+                <th className="px-6 py-4 w-1/3">Event Name</th>
+                <th className="px-6 py-4">Semester</th>
+                <th className="px-6 py-4 text-center">Year</th>
+                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -112,7 +112,7 @@ export function EventHistoryPage() {
                     colSpan={5}
                     className="px-6 py-12 text-center text-slate-500 font-medium"
                   >
-                    Chưa có sự kiện nào.
+                    No events found.
                   </td>
                 </tr>
               ) : (
@@ -134,20 +134,20 @@ export function EventHistoryPage() {
                       {event.currentRound < 0 && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[11px] font-bold border border-amber-200">
                           <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                          Sắp diễn ra
+                          Upcoming
                         </span>
                       )}
                       {event.currentRound >= 0 &&
                         event.currentRound < (event.maxRounds || 2) && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[11px] font-bold border border-blue-200">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                            Đang diễn ra
+                            Ongoing
                           </span>
                         )}
                       {event.currentRound >= (event.maxRounds || 2) && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[11px] font-bold border border-purple-200">
                           <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
-                          Đã kết thúc
+                          Ended
                         </span>
                       )}
                     </td>
@@ -167,7 +167,7 @@ export function EventHistoryPage() {
                         onClick={() => navigate(`/admin/events/${event.id}`)}
                         className="flex items-center gap-1.5 text-slate-400 hover:text-blue-600 text-xs font-bold transition-colors p-1.5"
                       >
-                        <Eye size={16} /> Xem chi tiết
+                        <Eye size={16} /> View Details
                       </button>
                     </td>
                   </tr>

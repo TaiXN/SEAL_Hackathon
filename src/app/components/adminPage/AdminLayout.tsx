@@ -24,35 +24,35 @@ export function AdminLayout() {
     },
 
     {
-      name: "Sự kiện & Vòng thi",
+      name: "Events & Rounds",
       icon: <CalendarDays size={20} />,
       path: "/admin/events",
     },
 
     {
-      name: "Người dùng & Phân công",
+      name: "Users & Assignments",
       icon: <Users size={20} />,
       path: "/admin/users",
     },
 
     {
-      name: "Vi phạm & Kỷ luật",
+      name: "Violations & Discipline",
       icon: <ShieldAlert size={20} />,
       path: "/admin/violations",
     },
   ];
 
   const handleLogout = async () => {
-    const loadingToastId = toast.loading("Đang đăng xuất khỏi hệ thống...");
+    const loadingToastId = toast.loading("Logging out...");
     try {
       await authApi.logout(); //xóa cookie & token
 
-      toast.success("Đăng xuất thành công! Hẹn gặp lại.", {
+      toast.success("Logged out successfully! See you next time.", {
         id: loadingToastId,
       });
     } catch (error) {
       console.error("Lỗi BE khi logout nhưng vẫn xóa FE:", error);
-      toast.error("Hệ thống có chút sự cố, nhưng vẫn đăng xuất thành công!", {
+      toast.error("A system error occurred, but you have been logged out successfully!", {
         id: loadingToastId,
       });
     } finally {
@@ -109,14 +109,14 @@ export function AdminLayout() {
               }`
             }
           >
-            <User size={20} /> Trang cá nhân
+            <User size={20} /> My Profile
           </NavLink>
 
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-semibold text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
           >
-            <LogOut size={20} /> Đăng xuất
+            <LogOut size={20} /> Log Out
           </button>
         </div>
       </aside>

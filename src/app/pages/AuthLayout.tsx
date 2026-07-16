@@ -40,19 +40,19 @@ export function AuthLayout() {
   const universitiesList = [
     { id: "9cc4a00d-e012-4bda-ac97-482fbbaacc8d", name: "THU THEM UNIVERSITY" },
     { id: "UNI_FPT", name: "FPT University HCM" },
-    { id: "UNI_HCMUS", name: "Đại học Khoa học Tự nhiên - ĐHQG TP.HCM" },
-    { id: "UNI_HCMUT", name: "Đại học Bách Khoa - ĐHQG TP.HCM" },
-    { id: "UNI_HCMUTE", name: "Đại học Sư phạm Kỹ thuật TP.HCM" },
-    { id: "UNI_IU", name: "Đại học Quốc tế - ĐHQG TP.HCM" },
+    { id: "UNI_HCMUS", name: "HCMC University of Science - VNU-HCM" },
+    { id: "UNI_HCMUT", name: "HCMC University of Technology - VNU-HCM" },
+    { id: "UNI_HCMUTE", name: "HCMC University of Technology and Education" },
+    { id: "UNI_IU", name: "International University - VNU-HCM" },
     {
       id: "UNI_KHTN",
-      name: "Đại học Khoa học Xã hội và Nhân văn - ĐHQG TP.HCM",
+      name: "HCMC University of Social Sciences & Humanities - VNU-HCM",
     },
-    { id: "UNI_OTHER", name: "Trường Đại học Khác" },
-    { id: "UNI_RMIT", name: "Đại học RMIT Nam Sài Gòn" },
-    { id: "UNI_TDTU", name: "Đại học Tôn Đức Thắng" },
-    { id: "UNI_UEH", name: "Đại học Kinh tế TP.HCM" },
-    { id: "UNI_UIT", name: "Đại học Công nghệ Thông tin - ĐHQG TP.HCM" },
+    { id: "UNI_OTHER", name: "Other University" },
+    { id: "UNI_RMIT", name: "RMIT University Vietnam" },
+    { id: "UNI_TDTU", name: "Ton Duc Thang University" },
+    { id: "UNI_UEH", name: "University of Economics HCMC" },
+    { id: "UNI_UIT", name: "University of Information Technology - VNU-HCM" },
   ];
 
   // ================= STATE CHO FORGOT / RESET PASSWORD =================
@@ -63,7 +63,7 @@ export function AuthLayout() {
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const loadingToastId = toast.loading("Đang kiểm tra thông tin...");
+    const loadingToastId = toast.loading("Verifying credentials...");
     const credentials = { email: loginEmail, password: loginPassword };
     console.log("Dữ liệu chuẩn bị gửi đi là:", credentials);
 
@@ -83,7 +83,7 @@ export function AuthLayout() {
       }
 
       if (!data) {
-        throw new Error("Không nhận được dữ liệu từ Server");
+        throw new Error("No data received from the server");
       }
 
       console.log("Data API trả về nè: ", data);
@@ -91,7 +91,7 @@ export function AuthLayout() {
       const actualToken = data.accessToken;
       setTokens(actualToken, role);
 
-      toast.success("Đăng nhập thành công! Đang chuyển hướng...", {
+      toast.success("Login successful! Redirecting...", {
         id: loadingToastId,
       });
 
@@ -101,9 +101,9 @@ export function AuthLayout() {
 
       const errorMsg =
         error.response?.data?.message ||
-        "Có lỗi xảy ra trong quá trình đăng nhập!";
+        "An error occurred during login!";
 
-      Swal.fire("Lỗi", errorMsg, "error");
+      Swal.fire("Error", errorMsg, "error");
     }
   };
 
@@ -111,16 +111,16 @@ export function AuthLayout() {
     e.preventDefault();
 
     if (regPassword !== regConfirmPassword) {
-      Swal.fire("Lỗi", "Mật khẩu xác nhận không khớp!", "error");
+      Swal.fire("Error", "Passwords do not match!", "error");
       return;
     }
 
     if (!regUniversityId) {
-      Swal.fire("Lỗi", "Vui lòng chọn trường Đại học!", "warning");
+      Swal.fire("Error", "Please select a university!", "warning");
       return;
     }
 
-    const loadingToastId = toast.loading("Đang tạo tài khoản sinh viên...");
+    const loadingToastId = toast.loading("Creating student account...");
 
     try {
       await playerApi.register({
@@ -133,7 +133,7 @@ export function AuthLayout() {
         universityId: regUniversityId.trim(),
       });
 
-      toast.success("Đăng ký thành công! Đăng nhập để tiếp tục.", {
+      toast.success("Registration successful! Sign in to continue.", {
         id: loadingToastId,
       });
 
@@ -146,13 +146,13 @@ export function AuthLayout() {
       const errorMsg =
         error.response?.data?.message ||
         error.response?.data ||
-        "Không thể đăng ký tài khoản sinh viên.";
+        "Unable to register the student account.";
 
       toast.error(errorMsg, {
         id: loadingToastId,
       });
 
-      Swal.fire("Lỗi", errorMsg, "error");
+      Swal.fire("Error", errorMsg, "error");
     }
   };
 
@@ -165,11 +165,11 @@ export function AuthLayout() {
   const handleResetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
-      alert("Hai mật khẩu mới không khớp nhau!");
+      alert("The two new passwords do not match!");
       return;
     }
     console.log("[RESET PWD] Mật khẩu mới cập nhật là:", newPassword);
-    alert("Đổi mật khẩu thành công! Chuyển về trang Login.");
+    alert("Password changed successfully! Redirecting to Login.");
     setView("login");
   };
 
