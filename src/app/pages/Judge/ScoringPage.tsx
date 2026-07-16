@@ -56,7 +56,7 @@ export function ScoringPage() {
     } catch {}
   }
 
-  // SỬA LỖI 1: Bổ sung đầy đủ các trường ánh xạ token như bên Dashboard
+  // Đảm bảo Token Mapper y như bên JudgeDashboard
   const currentTeacherId =
     user?.id ||
     user?.Id ||
@@ -67,7 +67,7 @@ export function ScoringPage() {
     decodedUser?.sub ||
     decodedUser?.nameid ||
     decodedUser?.userId ||
-    decodedUser?.UserId || // <-- Thêm nameid
+    decodedUser?.UserId ||
     decodedUser?.teacherId ||
     decodedUser?.teacherID ||
     decodedUser?.TeacherId ||
@@ -92,7 +92,7 @@ export function ScoringPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // SỬA LỖI 2: State lưu trữ ID Bài Nộp CHUẨN XÁC để gửi xuống DB lúc chấm
+  // State lưu trữ ID Bài Nộp CHUẨN XÁC để gửi xuống DB lúc chấm
   const [actualSubmissionId, setActualSubmissionId] = useState(
     teamFromList?.submissionId || teamFromList?.submissionID || teamId || "",
   );
@@ -294,11 +294,12 @@ export function ScoringPage() {
               isCriteriaLoaded = true;
             }
           } catch (error: any) {
+            // FIX 404 ERROR WHEN CRITERIA SET IS EMPTY
             if (error.response?.status === 404) {
               Swal.fire({
                 icon: "warning",
-                title: "Bộ tiêu chí rỗng",
-                text: "Vòng thi này đã được gán Bộ Tiêu Chí, nhưng Bộ này hiện chưa được Admin thêm câu hỏi/thang điểm nào vào bên trong.",
+                title: "Empty Criteria Set",
+                text: "This round has a Criteria Set assigned, but no scoring items have been added to it yet. Please contact your Admin.",
               });
               isCriteriaLoaded = true;
             }
@@ -308,16 +309,15 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "Lỗi cấu hình thang điểm",
-            text: "Không thể nạp dữ liệu barem điểm cho đội thi này. Vui lòng kiểm tra lại cấu hình bộ tiêu chí!",
+            title: "Scoring Configuration Error",
+            text: "Unable to load the scoring rubric for this team. Please check the criteria set configuration!",
           });
         }
 
         // ==========================================
-        // BƯỚC 4: TẢI ĐIỂM SỐ ĐÃ LƯU TRƯỚC ĐÓ
+        // STEP 4: LOAD PREVIOUSLY SAVED SCORES
         // ==========================================
         try {
-          // Lấy đúng ID Bài nộp mới load ra được điểm
           const currentSubId = actualSubmissionId;
           if (currentSubId) {
             const evalRes =
@@ -341,10 +341,10 @@ export function ScoringPage() {
             }
           }
         } catch (e) {
-          console.log("ℹ️ Đội thi hiện tại chưa được lưu điểm cũ.");
+          console.log("ℹ️ This team has not been scored yet.");
         }
       } catch (e) {
-        console.error("Lỗi hệ thống tổng thể:", e);
+        console.error("General system error:", e);
       } finally {
         setIsLoading(false);
       }
@@ -353,7 +353,7 @@ export function ScoringPage() {
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
 
-  // Tính toán tổng điểm tự động
+  // Automated total score calculation
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
     0,
@@ -381,8 +381,8 @@ export function ScoringPage() {
     if (!currentTeacherId) {
       Swal.fire({
         icon: "error",
-        title: "Lỗi xác thực",
-        text: "Hệ thống không nhận diện được ID Giám khảo. Vui lòng F5 hoặc đăng nhập lại!",
+        title: "Authentication Error",
+        text: "The system cannot identify your Judge ID. Please refresh (F5) or log in again!",
       });
       return;
     }
@@ -390,8 +390,8 @@ export function ScoringPage() {
     if (criteriaList.length === 0) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu barem điểm",
-        text: "Không có bộ tiêu chí nào để chấm điểm. Vui lòng liên hệ Admin!",
+        title: "No Scoring Rubric",
+        text: "No criteria set found for scoring. Please contact your Admin!",
       });
       return;
     }
@@ -399,8 +399,8 @@ export function ScoringPage() {
     if (displayScore === 0) {
       Swal.fire({
         icon: "warning",
-        title: "Điểm số không hợp lệ",
-        text: "Vui lòng nhập điểm đánh giá lớn hơn 0 trước khi tiến hành chốt kết quả!",
+        title: "Invalid Score",
+        text: "Please enter a score greater than 0 before submitting the result!",
       });
       return;
     }
@@ -408,8 +408,8 @@ export function ScoringPage() {
     if (!feedback.trim()) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu nhận xét",
-        text: "Vui lòng nhập nội dung nhận xét & góp ý (Feedback) dành cho đội thi!",
+        title: "Missing Feedback",
+        text: "Please enter your feedback and suggestions for the team!",
       });
       return;
     }
@@ -417,8 +417,8 @@ export function ScoringPage() {
     if (!actualSubmissionId) {
       Swal.fire({
         icon: "error",
-        title: "Lỗi dữ liệu",
-        text: "Không tìm thấy mã số bài nộp hợp lệ của đội thi này!",
+        title: "Data Error",
+        text: "No valid submission ID found for this team!",
       });
       return;
     }
@@ -436,7 +436,6 @@ export function ScoringPage() {
           evaluationID: evaluationId,
         });
       } else {
-        // Gửi ĐÚNG actualSubmissionId
         await judgeApi.createEvaluation(currentTeacherId, {
           ...basePayload,
           submissionID: actualSubmissionId,
@@ -445,19 +444,19 @@ export function ScoringPage() {
 
       Swal.fire({
         icon: "success",
-        title: "Lưu điểm thành công!",
-        text: `Đội thi đã được ghi nhận tổng số điểm là: ${displayScore} điểm.`,
+        title: "Score saved successfully!",
+        text: `The team has been recorded with a total score of: ${displayScore} points.`,
         timer: 2000,
         showConfirmButton: false,
       }).then(() => navigate("/judge"));
     } catch (error: any) {
-      console.error("Lỗi khi gửi dữ liệu chấm điểm lên hệ thống:", error);
+      console.error("Error saving score:", error);
       Swal.fire({
         icon: "error",
-        title: "Lưu kết quả thất bại",
+        title: "Failed to Save Score",
         text:
           error.response?.data?.message ||
-          "Hệ thống từ chối ghi nhận điểm số lúc này.",
+          "The system refused to record the score at this time.",
       });
     } finally {
       setIsSaving(false);
@@ -468,7 +467,7 @@ export function ScoringPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-400 font-bold animate-pulse">
-          Đang nạp dữ liệu bài thi và bộ tiêu chí đánh giá thật...
+          Loading submission data and evaluation criteria...
         </p>
       </div>
     );
@@ -506,7 +505,7 @@ export function ScoringPage() {
       </header>
 
       <main className="max-w-6xl mx-auto mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
-        {/* ================= CỘT TRÁI: THÔNG TIN BÀI NỘP ================= */}
+        {/* ================= LEFT COLUMN: SUBMISSION INFO ================= */}
         <div className="lg:col-span-5 space-y-6">
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6">
             <div className="flex items-center justify-between mb-6">
@@ -514,12 +513,12 @@ export function ScoringPage() {
                 <Activity className="w-6 h-6 text-blue-600" />
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Đội đang chấm
+                    Currently Scoring
                   </p>
                   <h2 className="text-xl font-extrabold text-slate-900">
                     {teamFromList?.teamName ||
                       teamFromList?.name ||
-                      "Đội ẩn danh"}
+                      "Anonymous Team"}
                   </h2>
                 </div>
               </div>
@@ -530,11 +529,11 @@ export function ScoringPage() {
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-emerald-800 text-sm">
-                    Đã có điểm hệ thống
+                    Score Already Recorded
                   </p>
                   <p className="text-xs text-emerald-600 mt-1">
-                    Đội này đã được chấm <b>{savedScore} điểm</b>. Bạn có thể
-                    nhập lại điểm để cập nhật kết quả mới.
+                    This team has been scored <b>{savedScore} pts</b>. You can
+                    re-enter scores to update the result.
                   </p>
                 </div>
               </div>
@@ -543,7 +542,7 @@ export function ScoringPage() {
             <div className="space-y-4">
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <GitBranch size={14} /> Mã nguồn (Github)
+                  <GitBranch size={14} /> Source Code (Github)
                 </p>
                 {submissionData.githubUrl ? (
                   <a
@@ -555,7 +554,7 @@ export function ScoringPage() {
                     {submissionData.githubUrl}
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm text-slate-400 italic">Not yet submitted</p>
                 )}
               </div>
 
@@ -573,13 +572,13 @@ export function ScoringPage() {
                     {submissionData.demoUrl}
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm text-slate-400 italic">Not yet submitted</p>
                 )}
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <Download size={14} /> Tài liệu (Slide)
+                  <Download size={14} /> Document (Slide)
                 </p>
                 {submissionData.slideUrl ? (
                   <a
@@ -588,35 +587,33 @@ export function ScoringPage() {
                     rel="noreferrer"
                     className="text-sm font-semibold text-blue-600 hover:underline break-all"
                   >
-                    Xem Slide Thuyết trình
+                    View Presentation Slide
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm text-slate-400 italic">Not yet submitted</p>
                 )}
               </div>
             </div>
           </section>
         </div>
 
-        {/* ================= CỘT PHẢI: BẢNG TIÊU CHÍ CHẤM ================= */}
+        {/* ================= RIGHT COLUMN: SCORING RUBRIC ================= */}
         <div className="lg:col-span-7">
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 lg:p-8">
             <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-              <FileText className="text-blue-600" /> Rubric Đánh Giá
+              <FileText className="text-blue-600" /> Scoring Rubric
             </h3>
             <p className="text-sm text-slate-500 mb-6 font-medium">
-              Vui lòng nhập điểm số cho từng tiêu chí, hệ thống sẽ tự động tính
-              tổng điểm để gửi xuống Backend.
+              Please enter a score for each criterion. The system will automatically calculate the total to submit.
             </p>
 
             {criteriaList.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <p className="text-slate-500 font-medium text-lg">
-                  Bộ tiêu chí trống
+                  Empty Criteria Set
                 </p>
                 <p className="text-slate-400 mt-2 text-sm">
-                  Vòng thi này hiện chưa được thiết lập các câu hỏi chấm điểm.
-                  Hãy nhắc Admin thêm nội dung vào bộ tiêu chí!
+                  This round has no scoring questions set up yet. Please ask your Admin to add content to the criteria set!
                 </p>
               </div>
             ) : (
@@ -633,7 +630,7 @@ export function ScoringPage() {
                         </p>
                       )}
                       <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                        Điểm tối đa:{" "}
+                        Max Score:{" "}
                         <span className="text-blue-600">{crit.maxScore}</span>
                       </p>
                     </div>
@@ -664,14 +661,14 @@ export function ScoringPage() {
 
             <div className="pt-6 mt-6 border-t border-slate-100">
               <label className="block text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">
-                Nhận xét & Góp ý (Feedback){" "}
+                Comments &amp; Feedback{" "}
                 <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 className="w-full h-36 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
-                placeholder="Nhập nhận xét chi tiết, điểm mạnh, điểm yếu và các góp ý xây dựng cho đội thi..."
+                placeholder="Enter detailed feedback, strengths, weaknesses, and constructive suggestions for the team..."
               ></textarea>
             </div>
 
@@ -683,10 +680,10 @@ export function ScoringPage() {
               >
                 <Save size={18} />
                 {isSaving
-                  ? "Đang lưu hệ thống..."
+                  ? "Saving..."
                   : evaluationId
-                    ? "Cập nhật Điểm"
-                    : "Chốt Điểm"}
+                    ? "Update Score"
+                    : "Submit Score"}
               </button>
             </div>
           </section>

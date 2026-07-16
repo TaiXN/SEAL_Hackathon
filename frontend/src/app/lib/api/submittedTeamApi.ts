@@ -16,4 +16,10 @@ export const submittedTeamApi = {
 
     return res.data;
   },
+
+  // THÊM API MỚI: Lấy tất cả danh sách bài đã nộp
+  async getAllSubmissions() {
+    const res = await apiClient.get("/api/Submission");
+    return res.data;
+  },
 };

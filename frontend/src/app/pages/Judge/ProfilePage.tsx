@@ -30,16 +30,16 @@ export function ProfilePage() {
   const clearTokens = useAuthStore((state) => state.clearTokens);
 
   const handleLogout = async () => {
-    const loadingToastId = toast.loading("Đang đăng xuất khỏi hệ thống...");
+    const loadingToastId = toast.loading("Logging out...");
     try {
       await authApi.logout();
 
-      toast.success("Đăng xuất thành công! Hẹn gặp lại.", {
+      toast.success("Logged out successfully! See you again.", {
         id: loadingToastId,
       });
     } catch (error) {
       console.error("Lỗi BE khi logout nhưng vẫn clear FE:", error);
-      toast.error("Hệ thống có chút sự cố, nhưng vẫn đăng xuất cho bà nha!", {
+      toast.error("Something went wrong, but you have been logged out.", {
         id: loadingToastId,
       });
     } finally {
@@ -53,10 +53,10 @@ export function ProfilePage() {
     e.preventDefault();
 
     if (newPassword !== confirmPassword) {
-      toast.error("Hai mật khẩu không khớp nhau!");
+      toast.error("The two passwords do not match!");
       return;
     }
-    const loadingToastId = toast.loading("Đang gửi yêu cầu đổi mật khẩu...");
+    const loadingToastId = toast.loading("Sending password change request...");
     console.log("Tao đang gửi cái này đi nè:", {
       oldPassword,
       newPassword,
@@ -69,7 +69,7 @@ export function ProfilePage() {
         rePassword: confirmPassword,
       });
 
-      toast.success("Đổi mật khẩu thành công!", {
+      toast.success("Password changed successfully!", {
         id: loadingToastId,
       });
 
@@ -79,7 +79,7 @@ export function ProfilePage() {
     } catch (error) {
       console.error("Lỗi đổi mật khẩu:", error);
       toast.error(
-        "Đổi mật khẩu thất bại! Kiểm tra lại mật khẩu cũ chính xác chưa.",
+        "Password change failed! Please check that your old password is correct.",
         {
           id: loadingToastId,
         },
@@ -106,12 +106,12 @@ export function ProfilePage() {
             onClick={() => navigate("/judge")}
             className="text-sm font-semibold text-slate-500 hover:text-black transition-colors flex items-center gap-2"
           >
-            <ArrowLeft size={16} /> Trở về Tổng quan
+            <ArrowLeft size={16} /> Back to Dashboard
           </button>
           <div className="w-px h-8 bg-slate-200"></div>
           <div
             className="flex items-center gap-3 cursor-pointer"
-            title="Bạn đang ở trang cá nhân"
+            title="You are on your profile page"
           >
             <div className="text-right">
               <h2 className="text-sm font-bold text-slate-900">
@@ -128,10 +128,10 @@ export function ProfilePage() {
       <main className="max-w-5xl mx-auto mt-10 px-4 animate-in fade-in duration-300">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-slate-900">
-            Thông tin Cá nhân
+            Personal Information
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            Quản lý thông tin tài khoản và bảo mật của bạn.
+            Manage your account information and security.
           </p>
         </div>
 
@@ -143,11 +143,11 @@ export function ProfilePage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900">Nguyễn Văn A</h3>
               <p className="text-blue-600 font-bold text-sm mt-1">
-                Hội đồng Giám khảo
+                Judging Panel
               </p>
 
               <div className="mt-4 px-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                <Shield size={14} /> Chuyên môn: Web App
+                <Shield size={14} /> Expertise: Web App
               </div>
             </div>
 
@@ -155,19 +155,19 @@ export function ProfilePage() {
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold hover:bg-red-100 hover:border-red-200 transition-colors shadow-sm"
             >
-              <LogOut size={18} /> Đăng xuất khỏi hệ thống
+              <LogOut size={18} /> Sign Out
             </button>
           </div>
 
           <div className="col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-6 text-lg">
-                Chi tiết tài khoản
+                Account Details
               </h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <User size={14} /> Họ và tên
+                    <User size={14} /> Full Name
                   </label>
                   <input
                     type="text"
@@ -187,7 +187,7 @@ export function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Building size={14} /> Đơn vị / CLB
+                    <Building size={14} /> Organization / Club
                   </label>
                   <input
                     type="text"
@@ -197,7 +197,7 @@ export function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Phone size={14} /> Số điện thoại
+                    <Phone size={14} /> Phone Number
                   </label>
                   <input
                     type="text"
@@ -208,24 +208,24 @@ export function ProfilePage() {
               </div>
               <div className="mt-8 flex justify-end">
                 <button
-                  onClick={() => alert("Đã cập nhật thông tin cá nhân!")}
+                  onClick={() => alert("Personal information updated!")}
                   className="px-6 py-2.5 bg-[#0f172a] text-white text-sm font-bold rounded-lg hover:bg-black transition-colors shadow-sm"
                 >
-                  Cập nhật thông tin
+                  Update Information
                 </button>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-6 text-lg flex items-center gap-2">
-                <Key size={18} className="text-slate-600" /> Đổi mật khẩu
+                <Key size={18} className="text-slate-600" /> Change Password
               </h3>
               <div className="space-y-4">
                 {/* Ô Mật khẩu hiện tại */}
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? "text" : "password"}
-                    placeholder="Mật khẩu hiện tại"
+                    placeholder="Current Password"
                     value={oldPassword}
                     onChange={(e) => setOldPassword(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
@@ -247,7 +247,7 @@ export function ProfilePage() {
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}
-                    placeholder="Mật khẩu mới"
+                    placeholder="New Password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
@@ -265,7 +265,7 @@ export function ProfilePage() {
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Xác nhận mật khẩu mới"
+                    placeholder="Confirm New Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
@@ -289,7 +289,7 @@ export function ProfilePage() {
                   onClick={handleChangePassword}
                   className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                 >
-                  Lưu mật khẩu
+                  Save Password
                 </button>
               </div>
             </div>

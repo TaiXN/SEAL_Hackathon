@@ -60,7 +60,7 @@ export function ManageUsersAndAssign() {
   ) => {
     try {
       Swal.fire({
-        title: isApprove ? "Đang duyệt..." : "Đang từ chối...",
+        title: isApprove ? "Approving..." : "Rejecting...",
         didOpen: () => Swal.showLoading(),
       });
       if (isApprove) await apiClient.put(`/api/Player/${studentId}/approve`);
@@ -68,15 +68,15 @@ export function ManageUsersAndAssign() {
 
       Swal.fire({
         icon: "success",
-        title: isApprove ? "Đã duyệt!" : "Đã từ chối!",
+        title: isApprove ? "Approved!" : "Rejected!",
         showConfirmButton: false,
         timer: 1200,
       });
       fetchPendingStudents();
     } catch (error: any) {
       Swal.fire(
-        "Thất bại",
-        error?.response?.data?.message || "Lỗi xử lý!",
+        "Failed",
+        error?.response?.data?.message || "Processing error!",
         "error",
       );
     }
@@ -96,10 +96,10 @@ export function ManageUsersAndAssign() {
 
   const handleCreateTeacher = async () => {
     if (!newTeacher.fullName || !newTeacher.email || !newTeacher.password)
-      return Swal.fire("Lỗi", "Vui lòng nhập đủ thông tin!", "error");
+      return Swal.fire("Error", "Please fill in all required fields!", "error");
     try {
       Swal.fire({
-        title: "Đang tạo tài khoản...",
+        title: "Creating account...",
         didOpen: () => Swal.showLoading(),
       });
 
@@ -107,8 +107,8 @@ export function ManageUsersAndAssign() {
 
       Swal.fire({
         icon: "success",
-        title: "Tạo thành công!",
-        html: "Chuyển sang trang Phân công.<br/><i>Lưu ý: Nếu qua Tab Phân công chưa thấy tên, hãy bấm nút <b>Tải lại danh sách</b> để đồng bộ với Server!</i>",
+        title: "Created successfully!",
+        html: "Redirecting to the Assignment tab.<br/><i>Note: If you switch to the Assignment tab and do not see the name, click <b>Reload list</b> to sync with the Server!</i>",
       }).then(() => {
         setActiveTab("assign");
       });
@@ -123,8 +123,8 @@ export function ManageUsersAndAssign() {
       });
     } catch (error: any) {
       Swal.fire(
-        "Lỗi",
-        error.response?.data || "Tạo tài khoản thất bại!",
+        "Error",
+        error.response?.data || "Account creation failed!",
         "error",
       );
     }
@@ -235,14 +235,14 @@ export function ManageUsersAndAssign() {
   const handleAssignTeacher = async () => {
     if (!assignForm.teacherId || !trackIdToManage)
       return Swal.fire(
-        "Lỗi",
-        "Vui lòng chọn Track và chọn Nhân sự!",
+        "Error",
+        "Please select a Track and a Person!",
         "warning",
       );
 
     try {
       Swal.fire({
-        title: "Đang phân công...",
+        title: "Assigning...",
         didOpen: () => Swal.showLoading(),
       });
 
@@ -253,26 +253,26 @@ export function ManageUsersAndAssign() {
         : `/api/Judge/track/${trackIdToManage}/teacher/${cleanId}`;
 
       await apiClient.post(endpoint);
-      Swal.fire("Thành công!", "Đã gán nhân sự.", "success");
+      Swal.fire("Success!", "Personnel assigned.", "success");
       setAssignForm({ ...assignForm, teacherId: "" });
 
       loadAllTeachers();
       loadAssignedTeachers(trackIdToManage);
     } catch (error: any) {
-      Swal.fire("Thất bại", error.response?.data || "Lỗi phân công!", "error");
+      Swal.fire("Failed", error.response?.data || "Assignment error!", "error");
     }
   };
 
   const handleRemoveTeacher = async (teacherId: string, isMentor: boolean) => {
     const result = await Swal.fire({
-      title: "Gỡ nhân sự?",
+      title: "Remove personnel?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Xóa",
+      confirmButtonText: "Remove",
     });
     if (result.isConfirmed) {
       try {
-        Swal.fire({ title: "Đang xóa...", didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: "Removing...", didOpen: () => Swal.showLoading() });
         const endpoint = isMentor
           ? `/api/Mentor/track/${trackIdToManage}/teacher/${teacherId}`
           : `/api/Judge/track/${trackIdToManage}/teacher/${teacherId}`;
@@ -280,7 +280,7 @@ export function ManageUsersAndAssign() {
         await apiClient.delete(endpoint);
         Swal.fire({
           icon: "success",
-          title: "Đã gỡ",
+          title: "Removed",
           showConfirmButton: false,
           timer: 1000,
         });
@@ -288,7 +288,7 @@ export function ManageUsersAndAssign() {
         loadAllTeachers();
         loadAssignedTeachers(trackIdToManage);
       } catch (error) {
-        Swal.fire("Lỗi", "Không thể xóa!", "error");
+        Swal.fire("Error", "Cannot remove!", "error");
       }
     }
   };
@@ -308,7 +308,7 @@ export function ManageUsersAndAssign() {
         String(t.teacherId),
         {
           id: t.teacherId,
-          name: t.teacherName || t.fullName || "Tài khoản mới",
+          name: t.teacherName || t.fullName || "New Account",
         },
       ]),
     ).values(),
@@ -411,7 +411,7 @@ export function ManageUsersAndAssign() {
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
       <div className="mb-8">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-          Người dùng & Phân công
+          Users & Assignments
         </h2>
       </div>
 
@@ -421,35 +421,35 @@ export function ManageUsersAndAssign() {
             onClick={() => setActiveTab("approve")}
             className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "approve" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
-            Phê duyệt sinh viên
+            Approve Students
           </button>
           <button
             onClick={() => setActiveTab("provide")}
             className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "provide" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
-            Cấp tài khoản Teacher
+            Create Teacher Account
           </button>
           <button
             onClick={() => setActiveTab("assign")}
             className={`whitespace-nowrap px-6 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "assign" ? "border-black text-black" : "border-transparent text-slate-400"}`}
           >
-            Phân công Mentor/Judge
+            Assign Mentor/Judge
           </button>
         </div>
 
         <div className="p-6">
           {/* TAB 1: PHÊ DUYỆT */}
+          {/* TAB 1: APPROVAL */}
           {activeTab === "approve" && (
             <div className="space-y-6 animate-in fade-in">
               <table className="w-full text-left text-sm border border-slate-100 rounded-xl overflow-hidden">
                 <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="px-6 py-4">Họ tên</th>
-                    <th className="px-6 py-4">Số điện thoại</th>
+                    <th className="px-6 py-4">Full Name</th>
+                    <th className="px-6 py-4">Phone Number</th>
                     <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Trường</th>
-
-                    <th className="px-6 py-4 text-right">Hành động</th>
+                    <th className="px-6 py-4">School/Organization</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -474,7 +474,7 @@ export function ManageUsersAndAssign() {
                           }
                           className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 font-bold text-xs"
                         >
-                          <CheckCircle size={14} /> Duyệt
+                          <CheckCircle size={14} /> Approve
                         </button>
                         <button
                           onClick={() =>
@@ -482,7 +482,7 @@ export function ManageUsersAndAssign() {
                           }
                           className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold text-xs"
                         >
-                          <XCircle size={14} /> Từ chối
+                          <XCircle size={14} /> Reject
                         </button>
                       </td>
                     </tr>
@@ -493,7 +493,7 @@ export function ManageUsersAndAssign() {
                         colSpan={4}
                         className="text-center py-8 text-slate-400"
                       >
-                        Không có tài khoản nào đang chờ duyệt.
+                        No accounts waiting for approval.
                       </td>
                     </tr>
                   )}
@@ -502,14 +502,14 @@ export function ManageUsersAndAssign() {
             </div>
           )}
 
-          {/* TAB 2: CẤP TÀI KHOẢN */}
+          {/* TAB 2: CREATE ACCOUNT */}
           {activeTab === "provide" && (
             <div className="space-y-8 animate-in fade-in">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Họ và tên
+                      Full Name
                     </label>
                     <input
                       type="text"
@@ -525,7 +525,7 @@ export function ManageUsersAndAssign() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Email truy cập
+                      Login Email
                     </label>
                     <input
                       type="email"
@@ -538,7 +538,7 @@ export function ManageUsersAndAssign() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Số điện thoại
+                      Phone Number
                     </label>
                     <input
                       type="text"
@@ -553,7 +553,7 @@ export function ManageUsersAndAssign() {
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Mật khẩu
+                      Password
                     </label>
                     <input
                       type="text"
@@ -569,7 +569,7 @@ export function ManageUsersAndAssign() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Đơn vị công tác
+                      Organization / Department
                     </label>
                     <input
                       type="text"
@@ -585,7 +585,7 @@ export function ManageUsersAndAssign() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500">
-                      Loại tài khoản (isGuest)
+                      Account Type (isGuest)
                     </label>
                     <div className="flex bg-slate-100 p-1 rounded-xl h-[42px]">
                       <button
@@ -595,7 +595,7 @@ export function ManageUsersAndAssign() {
                         }
                         className={`flex-1 text-xs font-bold rounded-lg ${!newTeacher.isGuest ? "bg-white shadow" : "text-slate-500"}`}
                       >
-                        Nội bộ
+                        Internal
                       </button>
                       <button
                         type="button"
@@ -604,7 +604,7 @@ export function ManageUsersAndAssign() {
                         }
                         className={`flex-1 text-xs font-bold rounded-lg ${newTeacher.isGuest ? "bg-white shadow text-blue-600" : "text-slate-500"}`}
                       >
-                        Khách mời
+                        Guest
                       </button>
                     </div>
                   </div>
@@ -615,19 +615,19 @@ export function ManageUsersAndAssign() {
                     onClick={handleCreateTeacher}
                     className="px-6 py-3 bg-black text-white text-sm font-bold rounded-xl hover:bg-slate-800 flex items-center gap-2"
                   >
-                    <Plus size={16} /> Cấp tài khoản
+                    <Plus size={16} /> Create Account
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 3: PHÂN CÔNG */}
+          {/* TAB 3: ASSIGNMENT */}
           {activeTab === "assign" && (
             <div className="space-y-8 animate-in fade-in">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                  1. CHỌN SỰ KIỆN ĐỂ PHÂN CÔNG
+                  1. SELECT EVENT FOR ASSIGNMENT
                 </h3>
                 <select
                   value={selectedEventId}
@@ -636,15 +636,15 @@ export function ManageUsersAndAssign() {
                 >
                   <option value="">
                     {ongoingEvents.length === 0
-                      ? "-- Chưa có sự kiện --"
-                      : "-- Chọn sự kiện --"}
+                      ? "-- No events available --"
+                      : "-- Select event --"}
                   </option>
                   {ongoingEvents.map((ev: any) => (
                     <option
                       key={ev.id || ev.eventId}
                       value={ev.id || ev.eventId}
                     >
-                      {(ev.name || ev.eventName) ?? "Sự kiện"}
+                      {(ev.name || ev.eventName) ?? "Event"}
                     </option>
                   ))}
                 </select>
@@ -655,7 +655,7 @@ export function ManageUsersAndAssign() {
               >
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                    2. CHỌN HẠNG MỤC (TRACK)
+                    2. SELECT TRACK
                   </h3>
                   <select
                     value={trackIdToManage}
@@ -664,10 +664,10 @@ export function ManageUsersAndAssign() {
                   >
                     <option value="" disabled>
                       {!selectedEventId
-                        ? "-- Hãy chọn sự kiện trước --"
+                        ? "-- Please select an event first --"
                         : tracks.length === 0
-                          ? `-- Chưa có track --`
-                          : `-- Chọn Track --`}
+                          ? `-- No tracks available --`
+                          : `-- Select Track --`}
                     </option>
                     {tracks.map((t: any) => (
                       <option key={t.id || t.trackId} value={t.id || t.trackId}>
@@ -683,13 +683,13 @@ export function ManageUsersAndAssign() {
               >
                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-8">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                    3. PHÂN CÔNG NHÂN SỰ VÀO TRACK
+                    3. ASSIGN PERSONNEL TO TRACK
                   </h3>
                   <div className="flex gap-4 items-end">
                     <div className="flex-1 space-y-2 relative">
                       <div className="flex justify-between items-center">
                         <label className="text-[11px] font-bold text-slate-500">
-                          Chọn Tài khoản Teacher
+                          Select Teacher Account
                         </label>
                         <button
                           onClick={loadAllTeachers}
@@ -700,7 +700,7 @@ export function ManageUsersAndAssign() {
                             size={12}
                             className={isRefreshing ? "animate-spin" : ""}
                           />{" "}
-                          Tải lại danh sách
+                          Reload list
                         </button>
                       </div>
                       <select
@@ -714,7 +714,7 @@ export function ManageUsersAndAssign() {
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none cursor-pointer appearance-none"
                       >
                         <option value="" disabled>
-                          -- Chọn tài khoản chưa phân công vai trò nào --
+                          -- Select an unassigned account --
                         </option>
                         {availableTeachers.map((t: any) => (
                           <option key={`opt-${t.id}`} value={t.id}>
@@ -730,7 +730,7 @@ export function ManageUsersAndAssign() {
 
                     <div className="w-1/3 space-y-2">
                       <label className="text-[11px] font-bold text-slate-500">
-                        Vai trò
+                        Role
                       </label>
                       <div className="flex bg-slate-100 p-1 rounded-xl h-[46px]">
                         <button
@@ -758,23 +758,23 @@ export function ManageUsersAndAssign() {
                       onClick={handleAssignTeacher}
                       className="px-8 py-3 bg-black text-white font-bold rounded-xl hover:bg-slate-800 h-[46px] mb-0.5"
                     >
-                      Gán quyền
+                      Assign Role
                     </button>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-lg font-black text-slate-900 mb-4">
-                    Danh sách Nhân sự đang phụ trách
+                    Currently Assigned Personnel
                   </h3>
                   <table className="w-full text-left text-sm border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                     <thead className="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold">
                       <tr>
-                        <th className="px-6 py-4">Tên Nhân sự</th>
-                        <th className="px-6 py-4">Sự kiện</th>
-                        <th className="px-6 py-4">Hạng mục (Track)</th>
-                        <th className="px-6 py-4 text-center">Vai trò</th>
-                        <th className="px-6 py-4 text-right">Thao tác</th>
+                        <th className="px-6 py-4">Personnel Name</th>
+                        <th className="px-6 py-4">Event</th>
+                        <th className="px-6 py-4">Track</th>
+                        <th className="px-6 py-4 text-center">Role</th>
+                        <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -821,7 +821,7 @@ export function ManageUsersAndAssign() {
                             colSpan={5}
                             className="px-6 py-12 text-center text-slate-500 font-medium"
                           >
-                            Chưa có ai được phân công.
+                            No one has been assigned yet.
                           </td>
                         </tr>
                       )}

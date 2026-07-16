@@ -15,6 +15,9 @@ export interface SubmitRegistrationPayload {
 }
 
 export const teamApi = {
+  // ===============================================
+  // QUẢN LÝ THÔNG TIN TEAM
+  // ===============================================
   async getMyTeamsHistory() {
     const res = await apiClient.get("/api/Team/my-teams-history");
     return res.data;
@@ -24,7 +27,6 @@ export const teamApi = {
     const res = await apiClient.post("/api/Team/create-team", {
       teamName: payload.teamName,
     });
-
     return res.data;
   },
 
@@ -34,7 +36,8 @@ export const teamApi = {
   },
 
   async getTeamDashboard(teamId: string) {
-    const res = await apiClient.get(`/api/Team/${teamId}/dashboard`);
+    // Đã sửa lại chuẩn theo Swagger: /info thay vì /dashboard
+    const res = await apiClient.get(`/api/Team/${teamId}/info`);
     return res.data;
   },
 
@@ -43,6 +46,19 @@ export const teamApi = {
     return res.data;
   },
 
+  async updateTeamInfo(teamId: string, payload: UpdateTeamInfoPayload) {
+    const res = await apiClient.put(`/api/Team/${teamId}/update-info`, payload);
+    return res.data;
+  },
+
+  async leaveTeam(teamId: string) {
+    const res = await apiClient.delete(`/api/Team/${teamId}/leave`);
+    return res.data;
+  },
+
+  // ===============================================
+  // QUẢN LÝ THÀNH VIÊN TRONG TEAM
+  // ===============================================
   async getTeamMembers(teamId: string) {
     const res = await apiClient.get(`/api/Team/${teamId}/members`);
     return res.data;
@@ -62,11 +78,9 @@ export const teamApi = {
     return res.data;
   },
 
-  async updateTeamInfo(teamId: string, payload: UpdateTeamInfoPayload) {
-    const res = await apiClient.put(`/api/Team/${teamId}/update-info`, payload);
-    return res.data;
-  },
-
+  // ===============================================
+  // DROPDOWN APIS (Lấy list Sự kiện, Hạng mục, Đề tài để đăng ký)
+  // ===============================================
   async getActiveEvents() {
     const res = await apiClient.get("/api/Dropdown/active-events");
     return res.data;
@@ -82,23 +96,39 @@ export const teamApi = {
     return res.data;
   },
 
+  // ===============================================
+  // TEAM IN ROUND APIS (Đăng ký vòng thi và Trạng thái)
+  // ===============================================
   async submitRegistration(teamId: string, payload: SubmitRegistrationPayload) {
     const res = await apiClient.post(`/api/TeamInRound/${teamId}/create`, {
       eventId: payload.eventId,
       trackId: payload.trackId,
       topicId: payload.topicId,
     });
-
     return res.data;
   },
 
-  async leaveTeam(teamId: string) {
-    const res = await apiClient.delete(`/api/Team/${teamId}/leave`);
+  async approveTeamInRound(teamInRoundId: string) {
+    const res = await apiClient.put(
+      `/api/TeamInRound/approve/${teamInRoundId}`,
+    );
     return res.data;
   },
 
-  async getLeaderboard(roundId: string, trackId: string) {
-    const res = await apiClient.get(`/api/LeaderBoard/${roundId}/${trackId}`);
+  async banTeamInRound(teamInRoundId: string) {
+    const res = await apiClient.put(`/api/TeamInRound/ban/${teamInRoundId}`);
+    return res.data;
+  },
+
+  async unbanTeamInRound(teamInRoundId: string) {
+    const res = await apiClient.put(`/api/TeamInRound/unban/${teamInRoundId}`);
+    return res.data;
+  },
+
+  async getTeamDetailsInRound(roundId: string) {
+    const res = await apiClient.get(
+      `/api/TeamInRound/details/round/${roundId}`,
+    );
     return res.data;
   },
 };
