@@ -25,7 +25,7 @@ const isInactiveRecord = (obj: any): boolean => {
   if (statusStr === "deleted" || statusStr === "inactive") return true;
   return false;
 };
-
+// create new page for admin to show & manage prizes
 export function AdminPrizesPage() {
   const [prizes, setPrizes] = useState<PrizeData[]>([]);
   const [events, setEvents] = useState<any[]>([]);
