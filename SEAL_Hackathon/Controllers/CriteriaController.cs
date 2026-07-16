@@ -124,10 +124,10 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPut("set/{id}")]
-        public async Task<IActionResult> UpdateSet(string id, UpdateSetAPIViewModel info)
+        [HttpPut("set/{setID}")]
+        public async Task<IActionResult> UpdateSet(string setID, UpdateSetAPIViewModel info)
         {
-            bool isSuccess = await _criteria.UpdateSetAsync(id, info);
+            bool isSuccess = await _criteria.UpdateSetAsync(setID, info);
             if (isSuccess)
             {
                 return Ok("Set update successful!");
