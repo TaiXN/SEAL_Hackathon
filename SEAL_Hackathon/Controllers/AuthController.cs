@@ -235,7 +235,7 @@ namespace SEAL_Hackathon.Controllers
 
         [AllowAnonymous]
         [HttpPost("player/login")]
-        public async Task<IActionResult> Login(LoginAPIViewModel info)
+        public async Task<IActionResult> PlayerLogin(LoginAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
