@@ -81,7 +81,7 @@ function RubricPanel({
                 value={r.name}
                 onChange={(e) => updateItem(r.id, { name: e.target.value })}
                 className="flex-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none font-semibold focus:border-black"
-                placeholder="Tên tiêu chí"
+                placeholder="Criterion Name"
               />
               <div className="relative w-20">
                 <input
@@ -99,7 +99,7 @@ function RubricPanel({
               <button
                 onClick={() => removeItem(r.id)}
                 className="text-slate-300 hover:text-red-500 p-1"
-                title="Xóa tiêu chí"
+                title="Delete criterion"
               >
                 <Trash2 size={16} />
               </button>
@@ -111,7 +111,7 @@ function RubricPanel({
                 updateItem(r.id, { description: e.target.value })
               }
               className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg outline-none text-slate-600 focus:border-black"
-              placeholder="Mô tả tiêu chí (không bắt buộc)"
+              placeholder="Criterion description (optional)"
             />
           </div>
         ))}
@@ -119,18 +119,18 @@ function RubricPanel({
           onClick={addItem}
           className="text-xs font-bold text-slate-500 hover:text-black mt-2 flex items-center gap-1"
         >
-          <Plus size={12} /> Thêm tiêu chí
+          <Plus size={12} /> Add criterion
         </button>
       </div>
       <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between font-bold text-sm">
-        <span className="text-slate-500">Tổng trọng số:</span>
+        <span className="text-slate-500">Total weight:</span>
         <span className={isValid ? "text-emerald-600" : "text-red-500"}>
           {total}%
         </span>
       </div>
       {!isValid && (
         <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1">
-          <AlertCircle size={12} /> Tổng trọng số phải đúng 100% mới lưu được.
+          <AlertCircle size={12} /> Total weight must be exactly 100% to save.
         </p>
       )}
     </div>
@@ -167,10 +167,10 @@ export function CreateEvents() {
     final: RubricItem[];
   }>({
     prelim: [
-      { id: 1, name: "Tính sáng tạo", description: "", weight: 50 },
-      { id: 2, name: "Tính thực tế", description: "", weight: 50 },
+      { id: 1, name: "Creativity", description: "", weight: 50 },
+      { id: 2, name: "Practicality", description: "", weight: 50 },
     ],
-    final: [{ id: 3, name: "Tính hoàn thiện", description: "", weight: 100 }],
+    final: [{ id: 3, name: "Completeness", description: "", weight: 100 }],
   });
   const [isSavingRubrics, setIsSavingRubrics] = useState(false);
 
@@ -197,7 +197,7 @@ export function CreateEvents() {
         .map((s: any) => ({
           // ⚠️ Backend trả ID set dưới nhiều tên; phải lấy đúng GUID, KHÔNG được để undefined
           setId: grabSetId(s),
-          setName: s.setName || s.SetName || "Bộ tiêu chí",
+          setName: s.setName || s.SetName || "Rubric Set",
         }))
         // Bỏ những set không lấy được ID (tránh dùng nhầm tên bộ làm value)
         .filter((s): s is { setId: string; setName: string } => !!s.setId);
@@ -213,8 +213,8 @@ export function CreateEvents() {
       setAvailableSets(enriched);
     } catch (e) {
       console.error("Lỗi tải bộ tiêu chí có sẵn:", e);
-      setLoadSetsError("Không tải được danh sách bộ tiêu chí có sẵn.");
-      Swal.fire("Lỗi", "Không tải được danh sách bộ tiêu chí có sẵn.", "error");
+      setLoadSetsError("Failed to load available rubric sets.");
+      Swal.fire("Error", "Failed to load available rubric sets.", "error");
     } finally {
       setLoadingSets(false);
     }
@@ -240,12 +240,12 @@ export function CreateEvents() {
   // TAB 1: SỰ KIỆN
   const handleSaveEvent = async () => {
     if (!eventForm.eventName.trim())
-      return Swal.fire("Lỗi", "Vui lòng nhập tên sự kiện!", "warning");
+      return Swal.fire("Error", "Please enter the event name!", "warning");
 
     setIsSavingEvent(true);
     try {
       Swal.fire({
-        title: "Đang lưu Sự kiện...",
+        title: "Saving Event...",
         didOpen: () => Swal.showLoading(),
       });
 
@@ -267,7 +267,7 @@ export function CreateEvents() {
         try {
           const res: any = await eventApi.createEvent(payload as any);
           let eventId = extractId(res);
-          if (!eventId) throw new Error("Chưa lấy được ID");
+          if (!eventId) throw new Error("Failed to get ID");
           setSavedEventId(eventId);
         } catch (error) {
           // Bị lỗi (có thể do trùng tên) -> Gọi GET tìm lại
@@ -283,13 +283,13 @@ export function CreateEvents() {
 
       Swal.fire({
         icon: "success",
-        title: "Thành công!",
+        title: "Success!",
         showConfirmButton: false,
         timer: 1000,
       });
       setActiveTab(2);
     } catch (error) {
-      Swal.fire("Lỗi", "Lỗi lưu sự kiện!", "error");
+      Swal.fire("Error", "Failed to save event!", "error");
     } finally {
       setIsSavingEvent(false);
     }
@@ -298,12 +298,12 @@ export function CreateEvents() {
   // TAB 2: HẠNG MỤC (TRACKS & TOPICS)
   const handleSaveTracks = async () => {
     if (!savedEventId)
-      return Swal.fire("Lỗi", "Vui lòng lưu Sự kiện ở Tab 1 trước!", "error");
+      return Swal.fire("Error", "Please save the Event in Tab 1 first!", "error");
 
     setIsSavingTracks(true);
     try {
       Swal.fire({
-        title: "Đang đồng bộ Hạng mục...",
+        title: "Syncing Tracks...",
         didOpen: () => Swal.showLoading(),
       });
       const topicFails: string[] = [];
@@ -415,15 +415,15 @@ export function CreateEvents() {
 
       if (topicFails.length > 0) {
         Swal.fire(
-          "Một số chủ đề KHÔNG tạo được",
-          `Backend từ chối ${topicFails.length} chủ đề (thường do trùng tên đã tồn tại trong hệ thống):<br><br>` +
+          "Some topics could NOT be created",
+          `Backend rejected ${topicFails.length} topics (usually due to existing names in the system):<br><br>` +
             topicFails.join("<br>"),
           "warning",
         );
       } else {
         Swal.fire({
           icon: "success",
-          title: "Đã lưu Hạng mục!",
+          title: "Tracks saved!",
           showConfirmButton: false,
           timer: 1000,
         });
@@ -431,7 +431,7 @@ export function CreateEvents() {
       setActiveTab(3);
     } catch (error) {
       console.error(error);
-      Swal.fire("Lỗi", "Quá trình lưu Hạng mục có lỗi!", "error");
+      Swal.fire("Error", "Error saving tracks!", "error");
     } finally {
       setIsSavingTracks(false);
     }
@@ -442,8 +442,8 @@ export function CreateEvents() {
     if (rubricMode === "reuse") {
       if (!reusePrelimSetId || !reuseFinalSetId)
         return Swal.fire(
-          "Lỗi",
-          "Hãy chọn bộ tiêu chí có sẵn cho cả Sơ khảo và Chung kết!",
+          "Error",
+          "Please select an available rubric set for both Prelim and Final!",
           "warning",
         );
       // 🔒 ÉP BUỘC: dù là bộ có sẵn, tổng trọng số bên trong vẫn phải đúng 100%
@@ -457,9 +457,9 @@ export function CreateEvents() {
       const finalTotal = sumWeight(finalSet?.items || []);
       if (prelimTotal !== 100 || finalTotal !== 100)
         return Swal.fire(
-          "Chưa đủ 100%",
-          `Bộ Sơ khảo đang là ${prelimTotal}% và bộ Chung kết đang là ${finalTotal}%. ` +
-            `Hãy vào trang "Chi tiết sự kiện" của bộ tương ứng để chỉnh trọng số đủ 100% trước, hoặc chọn bộ khác.`,
+          "Not exactly 100%",
+          `Prelim set is ${prelimTotal}% and Final set is ${finalTotal}%. ` +
+            `Please go to the "Event Details" page of the corresponding set to adjust the weight to 100% first, or choose another set.`,
           "error",
         );
     } else {
@@ -468,17 +468,17 @@ export function CreateEvents() {
         rubrics.final.some((r) => !r.name.trim())
       )
         return Swal.fire(
-          "Lỗi",
-          "Vui lòng nhập đầy đủ tên cho tất cả tiêu chí!",
+          "Error",
+          "Please enter names for all criteria!",
           "warning",
         );
       const prelimTotal = sumWeight(rubrics.prelim);
       const finalTotal = sumWeight(rubrics.final);
       if (prelimTotal !== 100 || finalTotal !== 100)
         return Swal.fire(
-          "Chưa đủ 100%",
-          `Tổng trọng số Sơ khảo đang là ${prelimTotal}% và Chung kết đang là ${finalTotal}%. ` +
-            `Tổng trọng số mỗi vòng phải đúng 100% mới lưu được.`,
+          "Not exactly 100%",
+          `Total Prelim weight is ${prelimTotal}% and Final is ${finalTotal}%. ` +
+            `Total weight of each round must be exactly 100% to save.`,
           "error",
         );
     }
@@ -486,7 +486,7 @@ export function CreateEvents() {
     setIsSavingRubrics(true);
     try {
       Swal.fire({
-        title: "Đang lưu Bộ Tiêu Chí...",
+        title: "Saving Rubric Sets...",
         didOpen: () => Swal.showLoading(),
       });
 
@@ -614,13 +614,13 @@ export function CreateEvents() {
 
       Swal.fire({
         icon: "success",
-        title: "Đã lưu Tiêu chí!",
+        title: "Criteria saved!",
         showConfirmButton: false,
         timer: 1000,
       });
       setActiveTab(4);
     } catch (error) {
-      Swal.fire("Lỗi", "Không thể lưu Bộ tiêu chí!", "error");
+      Swal.fire("Error", "Cannot save Rubric Sets!", "error");
     } finally {
       setIsSavingRubrics(false);
     }
@@ -629,13 +629,13 @@ export function CreateEvents() {
   // TAB 4: VÒNG THI (ROUNDS)
   const handleSaveRounds = async () => {
     if (!savedEventId || !savedPrelimSetId || !savedFinalSetId)
-      return Swal.fire("Lỗi", "Bà chưa lưu các Tab trước kìa!", "error");
+      return Swal.fire("Error", "You haven't saved the previous Tabs!", "error");
     if (
       !rounds.prelim.startDate ||
       !rounds.prelim.endDate ||
       !rounds.final.endDate
     )
-      return Swal.fire("Lỗi", "Vui lòng nhập đầy đủ ngày giờ!", "warning");
+      return Swal.fire("Error", "Please enter all dates and times!", "warning");
 
     // 🚦 KIỂM TRA THỨ TỰ NGÀY GIỜ (nguyên nhân hay gặp khiến backend từ chối round)
     const dStart = new Date(rounds.prelim.startDate);
@@ -646,31 +646,31 @@ export function CreateEvents() {
       isNaN(dPrelimEnd.getTime()) ||
       isNaN(dFinalEnd.getTime())
     )
-      return Swal.fire("Lỗi", "Ngày giờ không hợp lệ.", "warning");
+      return Swal.fire("Error", "Invalid dates and times.", "warning");
     if (dPrelimEnd <= dStart)
       return Swal.fire(
-        "Sai mốc thời gian",
-        "Ngày ĐÓNG cổng Sơ khảo phải SAU ngày MỞ cổng Sơ khảo.",
+        "Invalid timeline",
+        "Prelim END date must be AFTER Prelim START date.",
         "warning",
       );
     if (dFinalEnd <= dPrelimEnd)
       return Swal.fire(
-        "Sai mốc thời gian",
-        "Ngày Công bố Quán quân (đóng Chung kết) phải SAU ngày đóng cổng Sơ khảo.",
+        "Invalid timeline",
+        "Final END date must be AFTER Prelim END date.",
         "warning",
       );
 
     setIsSavingRounds(true);
     try {
       Swal.fire({
-        title: "Đang chốt Sổ Vòng Thi...",
+        title: "Finalizing Rounds...",
         didOpen: () => Swal.showLoading(),
       });
       const toIso = (dateStr: string) => new Date(dateStr).toISOString();
 
       const prelimPayload = {
         eventID: savedEventId,
-        roundName: "Vòng Sơ khảo",
+        roundName: "Preliminary Round",
         startDate: toIso(rounds.prelim.startDate),
         endDate: toIso(rounds.prelim.endDate),
         topNPromotion: Number(rounds.prelim.topAdvance),
@@ -680,7 +680,7 @@ export function CreateEvents() {
       };
       const finalPayload = {
         eventID: savedEventId,
-        roundName: "Vòng Chung kết",
+        roundName: "Final Round",
         startDate: toIso(rounds.prelim.endDate),
         endDate: toIso(rounds.final.endDate),
         topNPromotion: 1,
@@ -694,8 +694,8 @@ export function CreateEvents() {
 
       Swal.fire({
         icon: "success",
-        title: "Hoàn tất Mỹ mãn!",
-        text: "Hệ thống sự kiện đã lên sóng thành công 100%.",
+        title: "Completed Successfully!",
+        text: "The event system is now 100% live.",
         confirmButtonColor: "#0f172a",
       }).then(() => navigate("/admin/events"));
     } catch (error: any) {
@@ -713,7 +713,7 @@ export function CreateEvents() {
         error?.response?.status,
         error?.response?.data || error,
       );
-      Swal.fire("Lỗi tạo Vòng thi", `Backend báo: ${serverMsg}`, "error");
+      Swal.fire("Error creating round", `Backend response: ${serverMsg}`, "error");
     } finally {
       setIsSavingRounds(false);
     }
@@ -727,17 +727,17 @@ export function CreateEvents() {
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-            Khởi tạo Sự kiện
+            Create Event
           </h2>
           <p className="text-slate-500 text-sm mt-1">
-            Thiết lập cấu trúc kỳ thi mới theo từng bước.
+            Set up the structure for a new competition step by step.
           </p>
         </div>
         <button
           onClick={() => navigate("/admin/events")}
           className="px-5 py-2.5 bg-white border border-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-50 text-slate-700 shadow-sm transition-colors"
         >
-          Hủy & Quay lại
+          Cancel & Go Back
         </button>
       </div>
 
@@ -745,14 +745,14 @@ export function CreateEvents() {
         {/* THANH MENU TABS */}
         <div className="flex border-b border-slate-100 px-2 bg-slate-50/50">
           {[
-            { id: 1, name: "1. Sự kiện", isSaved: !!savedEventId },
-            { id: 2, name: "2. Hạng mục (Track)", isSaved: false },
+            { id: 1, name: "1. Event", isSaved: !!savedEventId },
+            { id: 2, name: "2. Track", isSaved: false },
             {
               id: 3,
-              name: "3. Bộ tiêu chí (Rubric)",
+              name: "3. Rubric",
               isSaved: !!savedPrelimSetId,
             },
-            { id: 4, name: "4. Vòng thi (Round)", isSaved: false },
+            { id: 4, name: "4. Round", isSaved: false },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -784,12 +784,12 @@ export function CreateEvents() {
             <div className="space-y-6 max-w-2xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
-                  THÔNG TIN CƠ BẢN
+                  BASIC INFORMATION
                 </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-slate-500 uppercase">
-                      Tên hiển thị sự kiện
+                      Event Display Name
                     </label>
                     <input
                       type="text"
@@ -807,7 +807,7 @@ export function CreateEvents() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase">
-                        Học kỳ (Season)
+                        Season
                       </label>
                       <select
                         value={eventForm.season}
@@ -824,7 +824,7 @@ export function CreateEvents() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase">
-                        Năm (Year)
+                        Year
                       </label>
                       <input
                         type="number"
@@ -851,7 +851,7 @@ export function CreateEvents() {
                     ) : (
                       <Save size={16} />
                     )}
-                    {isSavingEvent ? "Đang lưu..." : "Lưu & Đi tiếp"}
+                    {isSavingEvent ? "Saving..." : "Save & Continue"}
                     {!isSavingEvent && <ArrowRight size={16} />}
                   </button>
                 </div>
@@ -864,7 +864,7 @@ export function CreateEvents() {
             <div className="space-y-6 max-w-3xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-slate-900">
-                  Thiết lập Hạng mục (Tracks)
+                  Set Up Tracks
                 </h3>
                 <button
                   onClick={() =>
@@ -875,7 +875,7 @@ export function CreateEvents() {
                   }
                   className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-slate-200"
                 >
-                  <Plus size={14} /> Thêm Hạng mục
+                  <Plus size={14} /> Add Track
                 </button>
               </div>
 
@@ -896,7 +896,7 @@ export function CreateEvents() {
 
                     <div className="mb-4 w-2/3">
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
-                        Tên Hạng mục {idx + 1}
+                        Track {idx + 1} Name
                       </label>
                       <input
                         type="text"
@@ -911,13 +911,13 @@ export function CreateEvents() {
                           )
                         }
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-black shadow-sm"
-                        placeholder="VD: Web App, Data Science..."
+                        placeholder="e.g. Web App, Data Science..."
                       />
                     </div>
 
                     <div>
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-2">
-                        Các chủ đề con (Topics)
+                        Subtopics
                       </label>
                       <div className="flex flex-wrap gap-2 mb-3">
                         {t.topics.map((topic: string, i: number) => (
@@ -979,7 +979,7 @@ export function CreateEvents() {
                               setTopicInputs({ ...topicInputs, [t.id]: "" });
                             }
                           }}
-                          placeholder="Nhập tên chủ đề con và ấn Enter..."
+                          placeholder="Enter subtopic name and press Enter..."
                           className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-black shadow-sm"
                         />
                       </div>
@@ -993,7 +993,7 @@ export function CreateEvents() {
                   onClick={() => setActiveTab(1)}
                   className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                 >
-                  ← Quay lại
+                  ← Go Back
                 </button>
                 <button
                   onClick={handleSaveTracks}
@@ -1005,7 +1005,7 @@ export function CreateEvents() {
                   ) : (
                     <Save size={16} />
                   )}
-                  {isSavingTracks ? "Đang lưu..." : "Lưu Hạng mục & Đi tiếp"}
+                  {isSavingTracks ? "Saving..." : "Save Tracks & Continue"}
                   {!isSavingTracks && <ArrowRight size={16} />}
                 </button>
               </div>
@@ -1016,7 +1016,7 @@ export function CreateEvents() {
           {activeTab === 3 && (
             <div className="space-y-6 max-w-4xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <h3 className="text-lg font-bold text-slate-900 text-center mb-6">
-                Trọng số Đánh giá (Rubric)
+                Evaluation Rubric
               </h3>
 
               {/* #3A: Chọn chế độ tạo mới / dùng bộ có sẵn */}
@@ -1029,7 +1029,7 @@ export function CreateEvents() {
                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  Tạo bộ tiêu chí mới
+                  Create New Rubric Set
                 </button>
                 <button
                   onClick={() => switchRubricMode("reuse")}
@@ -1039,21 +1039,21 @@ export function CreateEvents() {
                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  Dùng bộ có sẵn
+                  Use Existing Rubric Set
                 </button>
               </div>
 
               {rubricMode === "new" && (
                 <div className="grid grid-cols-2 gap-6">
                   <RubricPanel
-                    title="Sơ Khảo (Prelim)"
+                    title="Preliminary (Prelim)"
                     items={rubrics.prelim}
                     onChange={(items) =>
                       setRubrics((prev) => ({ ...prev, prelim: items }))
                     }
                   />
                   <RubricPanel
-                    title="Chung Kết (Final)"
+                    title="Final Round (Final)"
                     items={rubrics.final}
                     onChange={(items) =>
                       setRubrics((prev) => ({ ...prev, final: items }))
@@ -1068,7 +1068,7 @@ export function CreateEvents() {
                   {loadingSets && (
                     <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
                       <Loader2 size={16} className="animate-spin" />
-                      Đang tải danh sách bộ tiêu chí...
+                      Loading rubric sets...
                     </div>
                   )}
 
@@ -1083,7 +1083,7 @@ export function CreateEvents() {
                         onClick={loadAvailableSets}
                         className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
                       >
-                        <RefreshCw size={13} /> Thử lại
+                        <RefreshCw size={13} /> Retry
                       </button>
                     </div>
                   )}
@@ -1094,8 +1094,7 @@ export function CreateEvents() {
                     availableSets.length === 0 && (
                       <div className="text-center py-10">
                         <p className="text-sm text-slate-400 italic">
-                          Chưa có bộ tiêu chí nào trong hệ thống. Hãy chuyển
-                          sang "Tạo bộ tiêu chí mới" ở trên.
+                          No rubric sets found in the system. Please switch to "Create New Rubric Set" above.
                         </p>
                       </div>
                     )}
@@ -1126,15 +1125,15 @@ export function CreateEvents() {
                             >
                               <h4 className="font-black text-slate-800 mb-4 pb-2 border-b border-slate-100">
                                 {isPrelim
-                                  ? "Sơ Khảo (Prelim)"
-                                  : "Chung Kết (Final)"}
+                                  ? "Preliminary (Prelim)"
+                                  : "Final Round (Final)"}
                               </h4>
                               <select
                                 value={selectedId}
                                 onChange={(e) => setSel(e.target.value)}
                                 className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-black"
                               >
-                                <option value="">-- Chọn bộ tiêu chí --</option>
+                                <option value="">-- Select a Rubric Set --</option>
                                 {availableSets.map((s) => (
                                   <option key={s.setId} value={s.setId}>
                                     {s.setName}
@@ -1146,7 +1145,7 @@ export function CreateEvents() {
                                   <div className="mt-4 space-y-2">
                                     {picked.items.length === 0 ? (
                                       <p className="text-xs text-slate-400 italic">
-                                        Bộ này chưa có tiêu chí.
+                                        This set has no criteria.
                                       </p>
                                     ) : (
                                       picked.items.map((it: any, i: number) => (
@@ -1174,7 +1173,7 @@ export function CreateEvents() {
                                   {picked.items.length > 0 && (
                                     <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between font-bold text-sm">
                                       <span className="text-slate-500">
-                                        Tổng trọng số:
+                                        Total weight:
                                       </span>
                                       <span
                                         className={
@@ -1202,7 +1201,7 @@ export function CreateEvents() {
                   onClick={() => setActiveTab(2)}
                   className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                 >
-                  ← Quay lại
+                  ← Go Back
                 </button>
                 <button
                   onClick={handleSaveRubrics}
@@ -1214,7 +1213,7 @@ export function CreateEvents() {
                   ) : (
                     <Save size={16} />
                   )}
-                  {isSavingRubrics ? "Đang lưu..." : "Lưu Tiêu chí & Đi tiếp"}
+                  {isSavingRubrics ? "Saving..." : "Save Criteria & Continue"}
                   {!isSavingRubrics && <ArrowRight size={16} />}
                 </button>
               </div>
@@ -1226,7 +1225,7 @@ export function CreateEvents() {
             <div className="space-y-6 max-w-3xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-sm">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
-                  LỊCH TRÌNH VÒNG THI
+                  ROUND SCHEDULE
                 </h3>
 
                 <div className="space-y-6">
@@ -1234,12 +1233,12 @@ export function CreateEvents() {
                   <div className="bg-white border border-slate-200 rounded-lg p-5">
                     <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>{" "}
-                      Vòng Sơ Khảo (Round 0)
+                      Preliminary Round (Round 0)
                     </h4>
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase">
-                          Mở cổng thi
+                          Open Submissions
                         </label>
                         <input
                           type="datetime-local"
@@ -1258,7 +1257,7 @@ export function CreateEvents() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase">
-                          Đóng cổng thi (Chấm điểm)
+                          Close Submissions (Grading)
                         </label>
                         <input
                           type="datetime-local"
@@ -1279,7 +1278,7 @@ export function CreateEvents() {
                     <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase">
-                          Giới hạn Đội đăng ký
+                          Registration Team Limit
                         </label>
                         <input
                           type="number"
@@ -1299,7 +1298,7 @@ export function CreateEvents() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase">
-                          Chỉ tiêu vào Chung Kết (Top N)
+                          Final Round Quota (Top N)
                         </label>
                         <input
                           type="number"
@@ -1324,16 +1323,16 @@ export function CreateEvents() {
                   <div className="bg-white border border-slate-200 rounded-lg p-5">
                     <h4 className="font-black text-slate-800 mb-4 flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-500"></div>{" "}
-                      Vòng Chung Kết (Round 1)
+                      Final Round (Round 1)
                     </h4>
                     <p className="text-xs text-slate-500 mb-4 italic">
-                      Vòng chung kết sẽ tự động bắt đầu ngay khi Vòng sơ khảo
-                      kết thúc và kế thừa danh sách Top{" "}
-                      {rounds.prelim.topAdvance} đội thi.
+                      The final round will start automatically right after the preliminary round
+                      ends and inherit the list of the Top{" "}
+                      {rounds.prelim.topAdvance} teams.
                     </p>
                     <div className="space-y-2 w-1/2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase">
-                        Đóng cổng & Công bố Quán quân
+                        Close Submissions & Announce Winner
                       </label>
                       <input
                         type="datetime-local"
@@ -1355,7 +1354,7 @@ export function CreateEvents() {
                     onClick={() => setActiveTab(3)}
                     className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                   >
-                    ← Quay lại
+                    ← Go Back
                   </button>
                   <button
                     onClick={handleSaveRounds}
@@ -1368,8 +1367,8 @@ export function CreateEvents() {
                       <CheckCircle2 size={18} />
                     )}
                     {isSavingRounds
-                      ? "Đang khởi chạy..."
-                      : "Hoàn tất & Khởi chạy Hệ thống"}
+                      ? "Initializing..."
+                      : "Complete & Launch System"}
                   </button>
                 </div>
               </div>

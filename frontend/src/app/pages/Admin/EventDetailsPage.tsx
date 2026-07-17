@@ -1203,7 +1203,7 @@ export function EventDetailsPage() {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Mở cổng
+                  Open Submissions
                 </label>
                 <input
                   type="datetime-local"
@@ -1219,7 +1219,7 @@ export function EventDetailsPage() {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Đóng cổng
+                  Close Submissions
                 </label>
                 <input
                   type="datetime-local"
@@ -1238,7 +1238,7 @@ export function EventDetailsPage() {
             <div className="border-t border-slate-100 pt-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Bộ tiêu chí cho vòng phụ
+                  Rubric set for extra round
                 </span>
                 <div className="flex gap-1 ml-2">
                   <button
@@ -1251,7 +1251,7 @@ export function EventDetailsPage() {
                         : "bg-white text-slate-500 border-slate-200"
                     }`}
                   >
-                    Tạo mới
+                    Create new
                   </button>
                   <button
                     onClick={() =>
@@ -1263,7 +1263,7 @@ export function EventDetailsPage() {
                         : "bg-white text-slate-500 border-slate-200"
                     }`}
                   >
-                    Dùng có sẵn
+                    Use existing
                   </button>
                 </div>
               </div>
@@ -1279,7 +1279,7 @@ export function EventDetailsPage() {
                   }
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-blue-500"
                 >
-                  <option value="">-- Chọn bộ tiêu chí có sẵn --</option>
+                  <option value="">-- Select an existing rubric set --</option>
                   {extraSets.map((s: any) => (
                     <option key={s.setId} value={s.setId}>
                       {s.setName}
@@ -1294,8 +1294,8 @@ export function EventDetailsPage() {
                   }`}
                 >
                   <Scale size={12} />
-                  Tổng trọng số của bộ này: {reuseSetTotal}%
-                  {reuseSetTotal !== 100 && " (phải đúng 100% mới dùng được)"}
+                  Total weight of this set: {reuseSetTotal}%
+                  {reuseSetTotal !== 100 && " (must be exactly 100% to use)"}
                 </p>
               )}
               {extraForm.critMode === "new" ? (
@@ -1308,7 +1308,7 @@ export function EventDetailsPage() {
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Tên tiêu chí (*)"
+                          placeholder="Criterion name (*)"
                           value={r.name}
                           onChange={(e) =>
                             setExtraForm((p: any) => ({
@@ -1322,7 +1322,7 @@ export function EventDetailsPage() {
                         />
                         <input
                           type="number"
-                          placeholder="Trọng số"
+                          placeholder="Weight"
                           value={r.score}
                           onChange={(e) =>
                             setExtraForm((p: any) => ({
@@ -1357,7 +1357,7 @@ export function EventDetailsPage() {
                       {/* TRƯỜNG DESCRIPTION MỚI THÊM NÈ */}
                       <input
                         type="text"
-                        placeholder="Mô tả tiêu chí (không bắt buộc)"
+                        placeholder="Criterion description (optional)"
                         value={r.description || ""}
                         onChange={(e) =>
                           setExtraForm((p: any) => ({
@@ -1385,7 +1385,7 @@ export function EventDetailsPage() {
                     }
                     className="text-xs font-bold text-blue-600 hover:text-blue-700 mt-1 inline-block"
                   >
-                    + Thêm tiêu chí
+                    + Add criterion
                   </button>
 
                   {/* [FIX #2] Cảnh báo trọng số real-time + chặn tạo nếu chưa đủ 100% */}
@@ -1395,8 +1395,8 @@ export function EventDetailsPage() {
                     }`}
                   >
                     <Scale size={12} />
-                    Tổng trọng số: {newRowsTotal}%
-                    {newRowsTotal !== 100 && " (phải đúng 100% mới được tạo)"}
+                    Total weight: {newRowsTotal}%
+                    {newRowsTotal !== 100 && " (must be exactly 100% to create)"}
                   </p>
                 </div>
               ) : null}
@@ -1407,14 +1407,14 @@ export function EventDetailsPage() {
                 onClick={() => setShowAddRound(false)}
                 className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleAddExtraRound}
                 disabled={savingRound || !canSubmitRound}
                 title={
                   !canSubmitRound
-                    ? "Tổng trọng số của bộ tiêu chí phải đúng 100%"
+                    ? "Total weight of the rubric set must be exactly 100%"
                     : undefined
                 }
                 className="flex items-center gap-2 px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1424,7 +1424,7 @@ export function EventDetailsPage() {
                 ) : (
                   <Save size={16} />
                 )}
-                {savingRound ? "Đang tạo..." : "Xác nhận tạo vòng phụ"}
+                {savingRound ? "Creating..." : "Confirm create extra round"}
               </button>
             </div>
           </div>
@@ -1433,12 +1433,12 @@ export function EventDetailsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Edit3 size={18} className="text-blue-500" /> Thông tin cơ bản
+              <Edit3 size={18} className="text-blue-500" /> Basic Information
             </h3>
             <div className="space-y-5">
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Tên sự kiện
+                  Event Name
                 </label>
                 <input
                   disabled={isEnded}
@@ -1452,7 +1452,7 @@ export function EventDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Trạng thái hiện tại
+                    Current Status
                   </label>
                   <div
                     className={`w-full px-4 py-3 border rounded-lg font-bold flex items-center justify-between ${
@@ -1480,7 +1480,7 @@ export function EventDetailsPage() {
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Học kỳ
+                    Season
                   </label>
                   <select
                     disabled={isEnded}
@@ -1491,7 +1491,7 @@ export function EventDetailsPage() {
                     className={`w-full px-4 py-3 bg-white border border-slate-200 rounded-lg outline-none font-semibold text-slate-900 ${isEnded ? "opacity-70 cursor-not-allowed bg-slate-50" : "focus:border-blue-500"}`}
                   >
                     <option value="" disabled>
-                      Chọn học kỳ
+                      Select season
                     </option>
                     <option value="Spring">Spring</option>
                     <option value="Summer">Summer</option>
@@ -1502,7 +1502,7 @@ export function EventDetailsPage() {
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Năm
+                    Year
                   </label>
                   <input
                     disabled={isEnded}
@@ -1533,7 +1533,7 @@ export function EventDetailsPage() {
                 <div className="flex gap-4 items-center justify-between">
                   <div className="flex-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Tên Hạng mục
+                      Track Name
                     </label>
                     <div className="font-bold text-sm text-slate-800">
                       {track.trackName}
@@ -1545,14 +1545,14 @@ export function EventDetailsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEditTrack(track)}
-                        title="Sửa Hạng mục"
+                        title="Edit Track"
                         className="text-slate-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteTrack(track)}
-                        title="Xóa Hạng mục"
+                        title="Delete Track"
                         className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
                       >
                         <Trash2 size={16} />
@@ -1563,7 +1563,7 @@ export function EventDetailsPage() {
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    Các chủ đề:
+                    Topics:
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {track.topics.length > 0 ? (
@@ -1580,14 +1580,14 @@ export function EventDetailsPage() {
                               <button
                                 onClick={() => handleEditTopic(topic, track)}
                                 className="text-blue-400 hover:text-blue-700 p-0.5"
-                                title="Sửa chủ đề"
+                                title="Edit topic"
                               >
                                 <Pencil size={12} />
                               </button>
                               <button
                                 onClick={() => handleDeleteTopic(topic, track)}
                                 className="text-blue-400 hover:text-red-600 p-0.5"
-                                title="Xóa chủ đề"
+                                title="Delete topic"
                               >
                                 <X size={14} />
                               </button>
@@ -1597,7 +1597,7 @@ export function EventDetailsPage() {
                       ))
                     ) : (
                       <span className="text-xs text-slate-400 italic">
-                        Chưa có chủ đề nào được thêm.
+                        No topics added yet.
                       </span>
                     )}
                   </div>
@@ -1606,21 +1606,20 @@ export function EventDetailsPage() {
             ))
           ) : (
             <p className="text-sm text-slate-500 italic text-center py-4">
-              Sự kiện này chưa có hạng mục nào.
+              This event does not have any tracks yet.
             </p>
           )}
 
           {/* ===== #3: BỘ TIÊU CHÍ ĐÁNH GIÁ ===== */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <ListChecks size={18} className="text-blue-500" /> Bộ tiêu chí
-              đánh giá
+              <ListChecks size={18} className="text-blue-500" /> Evaluation Rubric
             </h3>
 
             {loadingCriteria ? (
               <div className="flex items-center gap-2 text-sm text-slate-400 py-3">
                 <Loader2 size={15} className="animate-spin" />
-                Đang tải bộ tiêu chí...
+                Loading rubric sets...
               </div>
             ) : criteriaError ? (
               <div className="flex items-center justify-between gap-3 py-3">
@@ -1631,12 +1630,12 @@ export function EventDetailsPage() {
                   onClick={loadCriteria}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 shrink-0"
                 >
-                  <RefreshCw size={12} /> Thử lại
+                  <RefreshCw size={12} /> Retry
                 </button>
               </div>
             ) : criteriaSets.length === 0 ? (
               <p className="text-sm text-slate-400 italic py-3">
-                Sự kiện này chưa có bộ tiêu chí nào.
+                This event has no rubric sets.
               </p>
             ) : (
               <div className="space-y-5">
@@ -1662,14 +1661,14 @@ export function EventDetailsPage() {
                           <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={() => handleEditSetName(set)}
-                              title="Đổi tên bộ"
+                              title="Rename set"
                               className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
                             >
                               <Pencil size={15} />
                             </button>
                             <button
                               onClick={() => handleDeleteSet(set)}
-                              title="Xóa cả bộ"
+                              title="Delete entire set"
                               className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                             >
                               <Trash2 size={15} />
@@ -1681,7 +1680,7 @@ export function EventDetailsPage() {
                       <div className="divide-y divide-slate-50">
                         {set.items.length === 0 ? (
                           <p className="text-xs text-slate-400 italic px-4 py-3">
-                            Bộ này chưa có tiêu chí.
+                            This set has no criteria.
                           </p>
                         ) : (
                           set.items.map((it: any, itemIdx: number) => (
@@ -1727,14 +1726,14 @@ export function EventDetailsPage() {
                                 <div className="flex items-center gap-1 shrink-0 ml-1">
                                   <button
                                     onClick={() => handleEditCriterion(it)}
-                                    title="Sửa tên/mô tả"
+                                    title="Edit name/description"
                                     className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
                                   >
                                     <Pencil size={14} />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteCriterion(it)}
-                                    title="Xóa tiêu chí"
+                                    title="Delete criterion"
                                     className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                   >
                                     <Trash2 size={14} />
@@ -1753,8 +1752,8 @@ export function EventDetailsPage() {
                           }`}
                         >
                           <Scale size={12} className="inline mr-1" />
-                          Tổng trọng số: {total}%
-                          {total !== 100 && " (phải đúng 100% mới lưu được)"}
+                          Total weight: {total}%
+                          {total !== 100 && " (must be exactly 100% to save)"}
                         </span>
                         {!isEnded && (
                           <button
@@ -1762,12 +1761,12 @@ export function EventDetailsPage() {
                             disabled={total !== 100}
                             title={
                               total !== 100
-                                ? "Tổng trọng số phải đúng 100%"
+                                ? "Total weight must be exactly 100%"
                                 : undefined
                             }
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900"
                           >
-                            <Save size={13} /> Lưu trọng số
+                            <Save size={13} /> Save weight
                           </button>
                         )}
                       </div>
@@ -1781,7 +1780,7 @@ export function EventDetailsPage() {
             {deletedCriteria.length > 0 && (
               <div className="mt-6 border-t border-dashed border-slate-200 pt-4">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <RotateCcw size={13} /> Tiêu chí đã xóa (có thể khôi phục)
+                  <RotateCcw size={13} /> Deleted criteria (can be restored)
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {deletedCriteria.map((c: any, i: number) => (
@@ -1794,7 +1793,7 @@ export function EventDetailsPage() {
                       </span>
                       <button
                         onClick={() => handleRestoreCriterion(c)}
-                        title="Khôi phục"
+                        title="Restore"
                         className="text-emerald-500 hover:text-emerald-700 p-1 rounded hover:bg-emerald-50 transition-colors"
                       >
                         <RotateCcw size={14} />

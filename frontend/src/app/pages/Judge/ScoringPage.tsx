@@ -40,7 +40,7 @@ const normalizeId = (id: any) =>
 
 export function ScoringPage() {
   const navigate = useNavigate();
-  const { teamId } = useParams(); // Có thể là submissionId hoặc teamInRoundId do Dashboard truyền qua
+  const { teamId } = useParams();
   const location = useLocation();
   const teamFromList = location.state?.team || {};
 
@@ -56,7 +56,7 @@ export function ScoringPage() {
     } catch {}
   }
 
-  // SỬA LỖI 1: Bổ sung đầy đủ các trường ánh xạ token như bên Dashboard
+  // Token Mapper
   const currentTeacherId =
     user?.id ||
     user?.Id ||
@@ -67,7 +67,7 @@ export function ScoringPage() {
     decodedUser?.sub ||
     decodedUser?.nameid ||
     decodedUser?.userId ||
-    decodedUser?.UserId || // <-- Thêm nameid
+    decodedUser?.UserId ||
     decodedUser?.teacherId ||
     decodedUser?.teacherID ||
     decodedUser?.TeacherId ||
@@ -85,14 +85,22 @@ export function ScoringPage() {
   });
 
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
-  const [evaluationId, setEvaluationId] = useState("");
+
+  // Tận dụng luôn ID nếu có từ Dashboard truyền sang
+  const [evaluationId, setEvaluationId] = useState<string>(
+    teamFromList?.evaluationId ||
+      teamFromList?.evaluationID ||
+      teamFromList?.EvaluationID ||
+      "",
+  );
+
   const [feedback, setFeedback] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // SỬA LỖI 2: State lưu trữ ID Bài Nộp CHUẨN XÁC để gửi xuống DB lúc chấm
+  // State lưu trữ ID Bài Nộp CHUẨN XÁC
   const [actualSubmissionId, setActualSubmissionId] = useState(
     teamFromList?.submissionId || teamFromList?.submissionID || teamId || "",
   );
@@ -119,7 +127,6 @@ export function ScoringPage() {
           const subRes = await apiClient.get("/api/Submission");
           const allSubs = getList(subRes);
 
-          // Tìm bài nộp thông minh: Dò theo ID bài nộp HOẶC teamInRoundId
           const expectedTeamInRoundId = normalizeId(
             teamFromList?.teamInRoundId ||
               teamFromList?.teamInRoundID ||
@@ -146,7 +153,6 @@ export function ScoringPage() {
                 mySub.urlSlide || mySub.URLSlide || mySub.slideUrl || "",
             });
 
-            // CHỐT ID BÀI NỘP CHUẨN XÁC
             const foundSubmissionId =
               mySub.id || mySub.submissionID || mySub.submissionId;
             if (foundSubmissionId) {
@@ -164,7 +170,7 @@ export function ScoringPage() {
         }
 
         // ==========================================
-        // BƯỚC 2: TRÍCH XUẤT VÀ TÌM KIẾM ID BỘ TIÊU CHÍ
+        // BƯỚC 2: TÌM KIẾM ID BỘ TIÊU CHÍ
         // ==========================================
         let targetSetId = normalizeId(
           teamFromList?.criteriaSetId ||
@@ -183,9 +189,7 @@ export function ScoringPage() {
             targetSetId = normalizeId(
               roundData?.criteriaSetID || (roundData as any)?.criteriaSetId,
             );
-          } catch (e) {
-            console.warn("Lỗi khi gọi roundApi lấy tiêu chí theo Vòng:", e);
-          }
+          } catch (e) {}
         }
 
         if (
@@ -209,13 +213,11 @@ export function ScoringPage() {
                   defaultSet.setID,
               );
             }
-          } catch (e) {
-            console.error("Lỗi lấy danh sách bộ tiêu chí dự phòng:", e);
-          }
+          } catch (e) {}
         }
 
         // ==========================================
-        // BƯỚC 3: TẢI DANH SÁCH MỤC TIÊU CHÍ VÀ TRA TỪ ĐIỂN
+        // BƯỚC 3: NẠP TIÊU CHÍ
         // ==========================================
         let isCriteriaLoaded = false;
 
@@ -234,7 +236,7 @@ export function ScoringPage() {
               const cId = normalizeId(c.criteriaID || c.criteriaId || c.id);
               if (cId) {
                 criteriaNameMap[cId] = {
-                  name: c.criteriaName || c.CriteriaName || "Tiêu chí đánh giá",
+                  name: c.criteriaName || c.CriteriaName || "Tiêu chí hệ thống",
                   desc: c.description || c.Description || "",
                 };
               }
@@ -271,7 +273,7 @@ export function ScoringPage() {
                   item.id;
                 const cId = normalizeId(rawCId);
                 const dictInfo = criteriaNameMap[cId] || {
-                  name: "Tiêu chí hệ thống",
+                  name: "Tiêu chí đánh giá",
                   desc: "",
                 };
 
@@ -298,7 +300,7 @@ export function ScoringPage() {
               Swal.fire({
                 icon: "warning",
                 title: "Bộ tiêu chí rỗng",
-                text: "Vòng thi này đã được gán Bộ Tiêu Chí, nhưng Bộ này hiện chưa được Admin thêm câu hỏi/thang điểm nào vào bên trong.",
+                text: "Admin chưa thêm câu hỏi nào vào bộ tiêu chí này.",
               });
               isCriteriaLoaded = true;
             }
@@ -308,43 +310,57 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "Lỗi cấu hình thang điểm",
-            text: "Không thể nạp dữ liệu barem điểm cho đội thi này. Vui lòng kiểm tra lại cấu hình bộ tiêu chí!",
+            title: "Lỗi cấu hình",
+            text: "Không nạp được bộ tiêu chí. Vui lòng liên hệ Admin!",
           });
         }
 
         // ==========================================
-        // BƯỚC 4: TẢI ĐIỂM SỐ ĐÃ LƯU TRƯỚC ĐÓ
+        // BƯỚC 4: TẢI ĐIỂM SỐ ĐÃ LƯU TRƯỚC ĐÓ (ĐÃ FIX LỖI ARRAY)
         // ==========================================
         try {
-          // Lấy đúng ID Bài nộp mới load ra được điểm
           const currentSubId = actualSubmissionId;
           if (currentSubId) {
             const evalRes =
               await judgeApi.getEvaluationBySubmission(currentSubId);
-            const evalData = evalRes?.data || evalRes;
+            let evalList = evalRes?.data ?? evalRes;
 
-            if (
-              evalData &&
-              (evalData.evaluationID ||
-                evalData.id ||
-                evalData.score !== undefined)
-            ) {
-              setEvaluationId(
-                evalData.evaluationID ||
-                  evalData.id ||
-                  evalData.evaluationId ||
-                  "",
-              );
-              setFeedback(evalData.reason || evalData.feedback || "");
-              setSavedScore(evalData.score);
+            if (evalList) {
+              // Chuyển object thành mảng nếu BE lỡ trả về object
+              if (!Array.isArray(evalList)) {
+                if (Array.isArray(evalList.items)) evalList = evalList.items;
+                else if (Array.isArray(evalList.data)) evalList = evalList.data;
+                else evalList = [evalList];
+              }
+
+              if (Array.isArray(evalList) && evalList.length > 0) {
+                // Tìm chính xác bài đánh giá của Giám khảo hiện tại
+                const myEval =
+                  evalList.find(
+                    (e: any) =>
+                      normalizeId(e.teacherId || e.teacherID || e.TeacherId) ===
+                      normalizeId(currentTeacherId),
+                  ) || evalList[0];
+
+                const foundEvalId =
+                  myEval?.evaluationID ||
+                  myEval?.evaluationId ||
+                  myEval?.id ||
+                  myEval?.EvaluationID;
+
+                if (foundEvalId) {
+                  setEvaluationId(String(foundEvalId));
+                  setFeedback(myEval?.reason || myEval?.feedback || "");
+                  setSavedScore(myEval?.score);
+                }
+              }
             }
           }
         } catch (e) {
-          console.log("ℹ️ Đội thi hiện tại chưa được lưu điểm cũ.");
+          console.log("Đội thi chưa có điểm trước đó.");
         }
       } catch (e) {
-        console.error("Lỗi hệ thống tổng thể:", e);
+        console.error("Lỗi:", e);
       } finally {
         setIsLoading(false);
       }
@@ -353,7 +369,7 @@ export function ScoringPage() {
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
 
-  // Tính toán tổng điểm tự động
+  // Tính điểm
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
     0,
@@ -382,16 +398,7 @@ export function ScoringPage() {
       Swal.fire({
         icon: "error",
         title: "Lỗi xác thực",
-        text: "Hệ thống không nhận diện được ID Giám khảo. Vui lòng F5 hoặc đăng nhập lại!",
-      });
-      return;
-    }
-
-    if (criteriaList.length === 0) {
-      Swal.fire({
-        icon: "warning",
-        title: "Thiếu barem điểm",
-        text: "Không có bộ tiêu chí nào để chấm điểm. Vui lòng liên hệ Admin!",
+        text: "Không tìm thấy ID Giám khảo.",
       });
       return;
     }
@@ -399,8 +406,8 @@ export function ScoringPage() {
     if (displayScore === 0) {
       Swal.fire({
         icon: "warning",
-        title: "Điểm số không hợp lệ",
-        text: "Vui lòng nhập điểm đánh giá lớn hơn 0 trước khi tiến hành chốt kết quả!",
+        title: "Thiếu điểm",
+        text: "Vui lòng nhập điểm > 0.",
       });
       return;
     }
@@ -408,56 +415,56 @@ export function ScoringPage() {
     if (!feedback.trim()) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu nhận xét",
-        text: "Vui lòng nhập nội dung nhận xét & góp ý (Feedback) dành cho đội thi!",
-      });
-      return;
-    }
-
-    if (!actualSubmissionId) {
-      Swal.fire({
-        icon: "error",
-        title: "Lỗi dữ liệu",
-        text: "Không tìm thấy mã số bài nộp hợp lệ của đội thi này!",
+        title: "Thiếu Feedback",
+        text: "Vui lòng nhập nhận xét.",
       });
       return;
     }
 
     try {
       setIsSaving(true);
-      const basePayload = {
-        score: displayScore,
-        reason: feedback,
-      };
+      const scoreNum = Number(displayScore);
 
       if (evaluationId) {
-        await judgeApi.updateEvaluation(currentTeacherId, {
-          ...basePayload,
-          evaluationID: evaluationId,
-        });
+        // GỬI PUT (UPDATE) VỚI ĐÚNG FORMAT BACKEND ĐÒI HỎI
+        const updatePayload = {
+          score: scoreNum,
+          reason: feedback.trim(),
+          evaluationID: String(evaluationId), // Bắt buộc trùng tên property "evaluationID"
+        };
+
+        await apiClient.put(
+          `/api/Evaluation/${currentTeacherId}`,
+          updatePayload,
+        );
       } else {
-        // Gửi ĐÚNG actualSubmissionId
-        await judgeApi.createEvaluation(currentTeacherId, {
-          ...basePayload,
-          submissionID: actualSubmissionId,
-        });
+        // GỬI POST (CREATE MỚI)
+        const createPayload = {
+          submissionID: String(actualSubmissionId),
+          score: scoreNum,
+          reason: feedback.trim(),
+        };
+
+        await apiClient.post(
+          `/api/Evaluation/${currentTeacherId}`,
+          createPayload,
+        );
       }
 
       Swal.fire({
         icon: "success",
         title: "Lưu điểm thành công!",
-        text: `Đội thi đã được ghi nhận tổng số điểm là: ${displayScore} điểm.`,
+        text: `Đội thi đã được chấm: ${displayScore} điểm.`,
         timer: 2000,
         showConfirmButton: false,
       }).then(() => navigate("/judge"));
     } catch (error: any) {
-      console.error("Lỗi khi gửi dữ liệu chấm điểm lên hệ thống:", error);
+      console.error("Lỗi khi lưu điểm:", error);
       Swal.fire({
         icon: "error",
-        title: "Lưu kết quả thất bại",
+        title: "Lưu thất bại",
         text:
-          error.response?.data?.message ||
-          "Hệ thống từ chối ghi nhận điểm số lúc này.",
+          error.response?.data?.message || "Dữ liệu không khớp với Backend.",
       });
     } finally {
       setIsSaving(false);
@@ -468,7 +475,7 @@ export function ScoringPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-400 font-bold animate-pulse">
-          Đang nạp dữ liệu bài thi và bộ tiêu chí đánh giá thật...
+          Đang nạp dữ liệu bài thi...
         </p>
       </div>
     );
@@ -506,7 +513,7 @@ export function ScoringPage() {
       </header>
 
       <main className="max-w-6xl mx-auto mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
-        {/* ================= CỘT TRÁI: THÔNG TIN BÀI NỘP ================= */}
+        {/* ================= CỘT TRÁI ================= */}
         <div className="lg:col-span-5 space-y-6">
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6">
             <div className="flex items-center justify-between mb-6">
@@ -533,8 +540,8 @@ export function ScoringPage() {
                     Đã có điểm hệ thống
                   </p>
                   <p className="text-xs text-emerald-600 mt-1">
-                    Đội này đã được chấm <b>{savedScore} điểm</b>. Bạn có thể
-                    nhập lại điểm để cập nhật kết quả mới.
+                    Đội này đã được chấm <b>{savedScore} điểm</b>. Để cập nhật,
+                    vui lòng nhập lại các điểm thành phần.
                   </p>
                 </div>
               </div>
@@ -598,15 +605,14 @@ export function ScoringPage() {
           </section>
         </div>
 
-        {/* ================= CỘT PHẢI: BẢNG TIÊU CHÍ CHẤM ================= */}
+        {/* ================= CỘT PHẢI ================= */}
         <div className="lg:col-span-7">
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 lg:p-8">
             <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2">
               <FileText className="text-blue-600" /> Rubric Đánh Giá
             </h3>
             <p className="text-sm text-slate-500 mb-6 font-medium">
-              Vui lòng nhập điểm số cho từng tiêu chí, hệ thống sẽ tự động tính
-              tổng điểm để gửi xuống Backend.
+              Nhập điểm số cho từng tiêu chí, hệ thống sẽ tự động tính tổng.
             </p>
 
             {criteriaList.length === 0 ? (
@@ -615,8 +621,7 @@ export function ScoringPage() {
                   Bộ tiêu chí trống
                 </p>
                 <p className="text-slate-400 mt-2 text-sm">
-                  Vòng thi này hiện chưa được thiết lập các câu hỏi chấm điểm.
-                  Hãy nhắc Admin thêm nội dung vào bộ tiêu chí!
+                  Vòng thi này hiện chưa có câu hỏi chấm điểm.
                 </p>
               </div>
             ) : (
@@ -671,7 +676,7 @@ export function ScoringPage() {
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 className="w-full h-36 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
-                placeholder="Nhập nhận xét chi tiết, điểm mạnh, điểm yếu và các góp ý xây dựng cho đội thi..."
+                placeholder="Nhập nhận xét chi tiết..."
               ></textarea>
             </div>
 

@@ -145,12 +145,12 @@ const extractTeamIdFromJoinInput = (value: string) => {
 };
 
 const getCurrentUserFromToken = (accessToken?: string | null) => {
-  if (!accessToken) return { displayName: "Bạn", email: "", playerId: "" };
+  if (!accessToken) return { displayName: "You", email: "", playerId: "" };
 
   try {
     const decoded: any = jwtDecode(accessToken);
     const displayName =
-      decoded?.fullName || decoded?.name || decoded?.email || "Bạn";
+      decoded?.fullName || decoded?.name || decoded?.email || "You";
 
     // Phải thêm cái "sớ" nameidentifier của C# này vào thì mới moi được ID ra
     const playerId =
@@ -169,7 +169,7 @@ const getCurrentUserFromToken = (accessToken?: string | null) => {
       playerId,
     };
   } catch {
-    return { displayName: "Bạn", email: "", playerId: "" };
+    return { displayName: "You", email: "", playerId: "" };
   }
 };
 // @ts-expect-error
@@ -219,11 +219,11 @@ const resolveMemberName = (
   if (!isMissingName) return rawName;
 
   if (isSelf) {
-    return currentUserInfo.displayName || currentUserInfo.email || "Bạn";
+    return currentUserInfo.displayName || currentUserInfo.email || "You";
   }
 
-  // Đổi thành "Thành viên" cho đồng bộ với tiếng Việt ở ngoài
-  return `Thành viên ${index + 1}`;
+  // Đổi thành "Member" cho đồng bộ với tiếng Việt ở ngoài
+  return `Member ${index + 1}`;
 };
 
 const resolveMemberRole = (
@@ -314,11 +314,11 @@ export function Team() {
 
       Swal.fire({
         icon: "error",
-        title: "Không tải được team",
+        title: "Error Loading Team",
         text:
           error.response?.data?.message ||
           error.response?.data ||
-          "Không thể lấy thông tin team hiện tại.",
+          "Unable to get current team information.",
       });
     } finally {
       setIsLoading(false);
@@ -345,8 +345,8 @@ export function Team() {
     if (!inviteLink) {
       Swal.fire({
         icon: "warning",
-        title: "Chưa có link mời",
-        text: "Backend chưa trả invite link hoặc teamId.",
+        title: "No Invite Link",
+        text: "The backend did not return an invite link or teamId.",
       });
       return;
     }
@@ -361,8 +361,8 @@ export function Team() {
     if (!teamName.trim()) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu tên team",
-        text: "Vui lòng nhập tên team trước khi tạo.",
+        title: "Missing Team Name",
+        text: "Please enter a team name before creating.",
       });
       return;
     }
@@ -380,8 +380,8 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Tạo team thành công",
-        text: "Bạn hiện là Team Leader. Hãy qua Dashboard để chọn Event / Track / Topic.",
+        title: "Team Created Successfully",
+        text: "You are now the Team Leader. Please go to the Dashboard to select your Event / Track / Topic.",
       });
 
       setTeamName("");
@@ -400,11 +400,11 @@ export function Team() {
           ? rawError
           : rawError?.message || rawError?.title || rawError?.errors
             ? JSON.stringify(rawError?.errors || rawError, null, 2)
-            : "Backend từ chối tạo team.";
+            : "Backend refused to create the team.";
 
       Swal.fire({
         icon: "error",
-        title: "Không tạo được team",
+        title: "Cannot Create Team",
         html: `<pre style="white-space:pre-wrap;text-align:left;font-size:12px">${errorMessage}</pre>`,
       });
     } finally {
@@ -418,8 +418,8 @@ export function Team() {
     if (!teamIdToJoin) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu teamId hoặc link mời",
-        text: "Vui lòng nhập teamId hoặc paste link mời của team.",
+        title: "Missing teamId or invite link",
+        text: "Please enter the teamId or paste the team's invite link.",
       });
       return;
     }
@@ -431,8 +431,8 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Join team thành công",
-        text: "Bạn đã tham gia team với vai trò Team Member.",
+        title: "Joined Team Successfully",
+        text: "You have joined the team as a Team Member.",
       });
 
       setJoinInput("");
@@ -444,11 +444,11 @@ export function Team() {
 
       Swal.fire({
         icon: "error",
-        title: "Không join được team",
+        title: "Cannot Join Team",
         text:
           error.response?.data?.message ||
           error.response?.data ||
-          "Backend từ chối thao tác join team.",
+          "Backend refused the join team action.",
       });
     } finally {
       setIsJoiningTeam(false);
@@ -459,16 +459,16 @@ export function Team() {
     const currentName = team?.teamName || team?.name || "";
 
     const { value: newName } = await Swal.fire({
-      title: "Đổi tên Team",
+      title: "Rename Team",
       input: "text",
-      inputLabel: "Nhập tên mới cho team của bạn",
+      inputLabel: "Enter new team name",
       inputValue: currentName,
       showCancelButton: true,
-      confirmButtonText: "Lưu thay đổi",
-      cancelButtonText: "Hủy",
+      confirmButtonText: "Save Changes",
+      cancelButtonText: "Cancel",
       inputValidator: (value) => {
         if (!value || !value.trim()) {
-          return "Tên team không được để trống!";
+          return "Team name cannot be empty!";
         }
       },
     });
@@ -478,8 +478,8 @@ export function Team() {
         await teamApi.updateTeamInfo(teamId, { teamName: newName.trim() });
         Swal.fire({
           icon: "success",
-          title: "Thành công",
-          text: "Tên team đã được cập nhật!",
+          title: "Success",
+          text: "Team name has been updated!",
         });
         await fetchMyTeam(); // Load lại data
         window.dispatchEvent(new Event("player-team-updated")); // Cập nhật luôn tên bên Sidebar
@@ -487,9 +487,9 @@ export function Team() {
         console.error("Rename failed:", error);
         Swal.fire({
           icon: "error",
-          title: "Không thể đổi tên",
+          title: "Cannot Rename",
           text:
-            error.response?.data?.message || "Backend từ chối thao tác này.",
+            error.response?.data?.message || "Backend refused this action.",
         });
       }
     }
@@ -508,8 +508,8 @@ export function Team() {
 
       if (!memberPlayerId) {
         Swal.fire(
-          "Thiếu memberPlayerId",
-          "Không xác định được member cần xóa.",
+          "Missing memberPlayerId",
+          "Unable to identify the member to kick.",
           "error",
         );
         return;
@@ -522,19 +522,19 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Đã kick member",
-        text: "Member đã được xóa khỏi team.",
+        title: "Kicked Member",
+        text: "The member has been removed from the team.",
       });
     } catch (error: any) {
       console.error("Kick member failed:", error);
 
       Swal.fire({
         icon: "error",
-        title: "Không thể kick member",
+        title: "Cannot Kick Member",
         text:
           error.response?.data?.message ||
           error.response?.data ||
-          "Backend từ chối thao tác này.",
+          "Backend refused this action.",
       });
     }
   };
@@ -543,7 +543,7 @@ export function Team() {
     setConfirmModalConfig({
       isOpen: true,
       title: "Kick Team Member",
-      description: `Bạn có chắc muốn kick ${memberName} khỏi team không?`,
+      description: `Are you sure you want to kick ${memberName} from the team?`,
       confirmText: "Kick Member",
       onConfirm: () => {
         void confirmRemoveMember(memberPlayerId);
@@ -561,16 +561,16 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Nhường chức thành công",
-        text: "Bạn đã chuyển quyền Team Leader cho người này. Hiện tại bạn là Team Member.",
+        title: "Transfer Successful",
+        text: "You have transferred the Team Leader role. You are now a Team Member.",
       });
       window.dispatchEvent(new Event("player-team-updated"));
     } catch (error: any) {
       console.error("Transfer leader failed:", error);
       Swal.fire({
         icon: "error",
-        title: "Không thể nhường chức",
-        text: error.response?.data?.message || "Backend từ chối thao tác này.",
+        title: "Cannot Transfer Role",
+        text: error.response?.data?.message || "Backend refused this action.",
       });
     }
   };
@@ -578,9 +578,9 @@ export function Team() {
   const handleTransferClick = (memberPlayerId: string, memberName: string) => {
     setConfirmModalConfig({
       isOpen: true,
-      title: "Nhường chức Team Leader",
-      description: `Bạn có chắc muốn nhường chức Team Leader cho ${memberName} không? Bạn sẽ mất quyền quản lý Team.`,
-      confirmText: "Xác nhận nhường chức",
+      title: "Transfer Team Leader",
+      description: `Are you sure you want to transfer the Team Leader role to ${memberName}? You will lose team management rights.`,
+      confirmText: "Confirm Transfer",
       onConfirm: () => {
         void confirmTransferLeader(memberPlayerId);
       },
@@ -607,19 +607,19 @@ export function Team() {
 
       Swal.fire({
         icon: "success",
-        title: "Đã rời team",
-        text: "Bạn đã rời khỏi team hiện tại.",
+        title: "Left Team",
+        text: "You have successfully left the current team.",
       });
     } catch (error: any) {
       console.error("Leave team failed:", error);
 
       Swal.fire({
         icon: "error",
-        title: "Không thể rời team",
+        title: "Cannot Leave Team",
         text:
           error.response?.data?.message ||
           error.response?.data ||
-          "Backend từ chối thao tác rời team.",
+          "Backend refused the leave team action.",
       });
     }
   };
@@ -628,7 +628,7 @@ export function Team() {
     setConfirmModalConfig({
       isOpen: true,
       title: "Leave Team",
-      description: "Bạn có chắc muốn rời khỏi team này không?",
+      description: "Are you sure you want to leave this team?",
       confirmText: "Leave Team",
       onConfirm: () => {
         void confirmLeaveTeam();
@@ -644,7 +644,7 @@ export function Team() {
             My Team
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Đang tải thông tin team...
+            Loading team information...
           </p>
         </header>
       </div>
@@ -659,8 +659,8 @@ export function Team() {
             My Team
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Bạn chưa có team. Bạn có thể tạo team mới để trở thành Team Leader,
-            hoặc join team có sẵn với vai trò Team Member.
+            You don't have a team yet. You can create a new team to become a Team Leader,
+            or join an existing team as a Team Member.
           </p>
         </header>
 
@@ -671,8 +671,8 @@ export function Team() {
                 Create a new team
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Người tạo team sẽ trở thành Team Leader. Sau đó bạn mới có quyền
-                chọn Event / Track / Topic và Submit Project.
+                The team creator will become the Team Leader. Only then will you have the right
+                to choose the Event / Track / Topic and Submit Project.
               </p>
             </div>
 
@@ -684,7 +684,7 @@ export function Team() {
               <input
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Ví dụ: Tech Wizards"
+                placeholder="Example: Tech Wizards"
                 className="w-full px-4 py-3 border border-gray-200 rounded-radius-md outline-none focus:border-black"
               />
             </div>
@@ -695,12 +695,12 @@ export function Team() {
               disabled={isCreatingTeam}
               className="w-full px-6 py-3 bg-black text-white rounded-radius-md font-bold disabled:opacity-50"
             >
-              {isCreatingTeam ? "Đang tạo team..." : "+ Create Team"}
+              {isCreatingTeam ? "Creating team..." : "+ Create Team"}
             </button>
 
             <p className="text-xs text-gray-500 leading-relaxed">
-              Sau khi tạo team thành công, Sidebar sẽ hiện thêm nút Submit
-              Project vì lúc này bạn là Team Leader.
+              After creating a team successfully, the Sidebar will show a Submit
+              Project button because you are now a Team Leader.
             </p>
           </section>
 
@@ -710,7 +710,7 @@ export function Team() {
                 Join existing team
               </h2>
               <p className="text-sm text-gray-500 mt-1">
-                Join team bằng teamId hoặc link mời. Người join team sẽ là Team
+                Join a team using a teamId or invite link. The person joining will be a Team
                 Member.
               </p>
             </div>
@@ -723,7 +723,7 @@ export function Team() {
               <input
                 value={joinInput}
                 onChange={(e) => setJoinInput(e.target.value)}
-                placeholder="Paste invite link hoặc teamId"
+                placeholder="Paste invite link or teamId"
                 className="w-full px-4 py-3 border border-gray-200 rounded-radius-md outline-none focus:border-black"
               />
             </div>
@@ -734,12 +734,12 @@ export function Team() {
               disabled={isJoiningTeam}
               className="w-full px-6 py-3 bg-white text-black border border-black rounded-radius-md font-bold disabled:opacity-50 hover:bg-gray-50"
             >
-              {isJoiningTeam ? "Đang join team..." : "Join Team"}
+              {isJoiningTeam ? "Joining team..." : "Join Team"}
             </button>
 
             <p className="text-xs text-gray-500 leading-relaxed">
-              Sau khi join team, bạn vẫn là Team Member nên Sidebar sẽ không
-              hiện Submit Project.
+              After joining the team, you are still a Team Member so the Sidebar will not
+              show Submit Project.
             </p>
           </section>
         </div>
@@ -779,7 +779,7 @@ export function Team() {
                   type="text"
                   id="invite-link"
                   className="bg-input-background border-none text-foreground text-sm rounded-l-radius-md block w-full pl-10 p-3 outline-none focus:ring-2 focus:ring-ring focus:ring-inset"
-                  value={inviteLink || "Backend chưa trả invite link"}
+                  value={inviteLink || "Backend did not return an invite link"}
                   readOnly
                 />
               </div>
@@ -808,8 +808,7 @@ export function Team() {
                 Team Member Mode
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Bạn đang là member của team này. Bạn không thể kick thành viên
-                khác, nhưng có thể tự rời team.
+                You are a member of this team. You cannot kick other members, but you can leave the team.
               </p>
             </div>
 
@@ -828,17 +827,16 @@ export function Team() {
             <div>
               <h2 className="font-bold text-lg">Team Roster</h2>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-muted-foreground">
-                  {team?.teamName || team?.name || "Team hiện tại"}
-                </p>
-                {/* Nút sửa tên chỉ hiện cho Leader */}
+                <h2 className="text-xl font-bold text-foreground">
+                  {team?.teamName || team?.name || "Current Team"}
+                </h2>
                 {currentUserIsLeader && (
                   <button
                     onClick={handleRenameTeam}
-                    className="p-1 text-slate-400 hover:text-slate-800 transition-colors rounded-md hover:bg-slate-100"
-                    title="Đổi tên team"
+                    className="p-1 text-muted-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring rounded-radius-sm"
+                    title="Rename team"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                   </button>
                 )}
               </div>
@@ -851,8 +849,8 @@ export function Team() {
 
           <div className="divide-y divide-border">
             {teamMembers.length === 0 ? (
-              <div className="p-6 text-sm text-muted-foreground font-medium">
-                Backend chưa trả danh sách member.
+              <div className="text-muted-foreground py-10 text-center bg-muted/20 rounded-radius-md border border-border border-dashed">
+                Backend did not return a member list.
               </div>
             ) : (
               teamMembers.map((member: any, index: number) => {
@@ -879,10 +877,6 @@ export function Team() {
                   !!self,
                 );
 
-                // @ts-expect-error
-                const canKickThisMember =
-                  currentUserIsLeader && !self && Boolean(memberPlayerId);
-
                 return (
                   <div
                     key={memberPlayerId || `${memberName}-${index}`}
@@ -895,12 +889,14 @@ export function Team() {
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground text-lg">
-                            {/* Ưu tiên 1: Tên | Ưu tiên 2: Email | Cuối cùng: Thành viên X */}
-                            {getMemberName(member) ||
-                              getMemberEmail(member) ||
-                              `Thành viên ${index + 1}`}
-                          </span>
+                          <h3 className="font-semibold text-foreground text-base">
+                            {resolveMemberName(
+                              member,
+                              index,
+                              !!self,
+                              currentUserInfo,
+                            ) || `Member ${index + 1}`}
+                          </h3>
 
                           {isLeaderMember(member) && (
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -927,19 +923,15 @@ export function Team() {
                       </div>
                     </div>
 
-                    {/* BẮT ĐẦU VÙNG NÚT BẤM (ĐÃ CHUẨN HÓA LOGIC 100%) */}
                     {(() => {
-                      // 1. NẾU LÀ CHÍNH MÌNH (YOU) -> Tuyệt đối không có nút Kick hay Transfer
                       if (self) {
                         if (currentUserIsLeader) {
-                          // Mình là Leader -> Chỉ hiện chữ Leader
                           return (
                             <span className="text-sm font-medium text-muted-foreground px-3 py-2">
                               Leader
                             </span>
                           );
                         } else {
-                          // Mình là Member -> Hiện nút Leave Team
                           return (
                             <button
                               type="button"
@@ -952,9 +944,7 @@ export function Team() {
                         }
                       }
 
-                      // 2. NẾU KHÔNG PHẢI MÌNH & MÌNH LÀ LEADER ĐANG NHÌN MEMBER KHÁC
                       if (currentUserIsLeader) {
-                        // Phòng hờ Backend bị ngáo trả về 2 thằng Leader trong 1 nhóm
                         if (isLeaderMember(member)) {
                           return (
                             <span className="text-sm font-medium text-muted-foreground px-3 py-2">
@@ -963,7 +953,6 @@ export function Team() {
                           );
                         }
 
-                        // Nếu member có ID thì cho phép tương tác (Transfer / Kick)
                         if (memberPlayerId) {
                           return (
                             <div className="flex items-center gap-2">

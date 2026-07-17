@@ -212,7 +212,7 @@ export function ManageUsersAndAssign() {
 
       const judges = getList(judgesRes.data).map((j: any) => ({
         id: j.teacherId || j.judgeId || j.id,
-        name: j.teacherName || j.name || "Giám khảo",
+        name: j.teacherName || j.name || "Judge",
         isMentor: false,
       }));
 
@@ -373,15 +373,15 @@ export function ManageUsersAndAssign() {
     action: "approve" | "ban" | "unban",
   ) => {
     const actionMap = {
-      approve: { text: "Duyệt bài", icon: "success" },
-      ban: { text: "Cấm đội", icon: "warning" },
-      unban: { text: "Gỡ cấm", icon: "success" },
+      approve: { text: "Approve", icon: "success" },
+      ban: { text: "Ban", icon: "warning" },
+      unban: { text: "Unban", icon: "success" },
     };
     const currentAction = actionMap[action];
 
     try {
       Swal.fire({
-        title: `Đang ${currentAction.text}...`,
+        title: `${currentAction.text} in progress...`,
         didOpen: () => Swal.showLoading(),
       });
 
@@ -390,7 +390,7 @@ export function ManageUsersAndAssign() {
 
       Swal.fire({
         icon: currentAction.icon as any,
-        title: `Đã ${currentAction.text}!`,
+        title: `${currentAction.text} successful!`,
         showConfirmButton: false,
         timer: 1500,
       });
@@ -398,10 +398,10 @@ export function ManageUsersAndAssign() {
       fetchTeamsInRound(selectedRoundId);
     } catch (error: any) {
       Swal.fire(
-        "Lỗi",
+        "Error",
         error?.response?.data?.title ||
           error?.response?.data ||
-          `Không thể thực hiện hành động này!`,
+          `Cannot perform this action!`,
         "error",
       );
     }

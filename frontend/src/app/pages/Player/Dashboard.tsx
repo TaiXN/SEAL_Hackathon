@@ -12,12 +12,14 @@ import {
 import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { teamApi } from "../../lib/api/teamApi";
-import apiClient from "../../lib/api/apiClient";
+import { roundApi } from "../../lib/api/roundApi";
+import { trackTopicApi } from "../../lib/api/trackTopicApi"; // <-- ĐÃ BỔ SUNG DÒNG NÀY!
+import { leaderboardApi } from "../../lib/api/leaderboardApi";
 import { useAuthStore } from "../../stores/auth.store";
 import { jwtDecode } from "jwt-decode";
 
 // ==========================================
-// 1. CÁC HÀM TIỆN ÍCH (HELPER FUNCTIONS)
+// 1. HELPER FUNCTIONS
 // ==========================================
 
 const getCurrentUserNameFromToken = (accessToken?: string | null) => {
@@ -48,16 +50,53 @@ const normalizeList = (value: any): any[] => {
   return [];
 };
 
-const getTeamId = (team: any) => {
-  return (
-    team?.teamId ||
-    team?.teamID ||
-    team?.id ||
-    team?.team?.teamId ||
-    team?.team?.teamID ||
-    ""
+const normalizeId = (id: any) =>
+  String(id || "")
+    .toLowerCase()
+    .trim();
+
+const safeString = (val: any, fallback: string = ""): string => {
+  if (typeof val === "string" || typeof val === "number") return String(val);
+  return fallback;
+};
+
+// TRÍCH XUẤT TÊN ĐỘI AN TOÀN
+const extractTeamName = (obj: any): string => {
+  if (!obj) return "Unknown";
+  if (obj.submission?.teamInRound?.team?.teamName)
+    return obj.submission.teamInRound.team.teamName;
+  if (obj.submission?.teamInRound?.team?.TeamName)
+    return obj.submission.teamInRound.team.TeamName;
+  if (typeof obj.teamName === "string") return obj.teamName;
+  if (typeof obj.TeamName === "string") return obj.TeamName;
+  if (obj.team?.teamName) return obj.team.teamName;
+  if (obj.name) return obj.name;
+  return "Unknown";
+};
+
+// TRÍCH XUẤT ĐIỂM
+const extractScore = (obj: any): number => {
+  if (!obj) return 0;
+  const s = obj.score ?? obj.Score ?? obj.totalScore ?? obj.TotalScore ?? 0;
+  if (typeof s === "number") return s;
+  if (typeof s === "string" && !isNaN(parseFloat(s))) return parseFloat(s);
+  return 0;
+};
+
+// TRÍCH XUẤT ID ĐỘI
+const extractTeamId = (obj: any): string => {
+  if (!obj) return "";
+  return normalizeId(
+    obj.submission?.teamInRound?.teamId ||
+      obj.teamId ||
+      obj.teamID ||
+      obj.id ||
+      obj.team?.teamId ||
+      obj.team?.teamID,
   );
 };
+
+const getTeamId = (team: any) => extractTeamId(team);
 
 const getCurrentTeamFromHistory = (history: any[]) => {
   if (!history || history.length === 0) return null;
@@ -73,10 +112,7 @@ const getCurrentTeamFromHistory = (history: any[]) => {
     history.find((item) => item?.isActive === true) ||
     history.find((item) => item?.status !== "Deleted") ||
     history[0];
-
-  if (defaultTeam) {
-    localStorage.setItem("activeTeamId", getTeamId(defaultTeam));
-  }
+  if (defaultTeam) localStorage.setItem("activeTeamId", getTeamId(defaultTeam));
   return defaultTeam;
 };
 
@@ -85,40 +121,19 @@ const isLeaderTeam = (team: any) => {
     team?.role || team?.teamRole || team?.memberRole || team?.position || "",
   ).toLowerCase();
   return (
-    team?.isLeader === true ||
-    team?.isLeader === 1 ||
-    team?.leader === true ||
-    team?.isTeamLeader === true ||
-    rawRole === "leader" ||
-    rawRole === "team leader" ||
-    rawRole === "teamleader"
+    team?.isLeader === true || team?.isLeader === 1 || rawRole === "leader"
   );
 };
 
-const getEventId = (event: any) =>
-  event?.id || event?.eventId || event?.eventID || "";
-const getEventName = (event: any) =>
-  event?.name || event?.eventName || event?.EventName || "Unnamed Event";
-const getTrackId = (track: any) =>
-  track?.trackID || track?.trackId || track?.id || "";
-const getTrackName = (track: any) =>
-  track?.trackName || track?.name || "Unnamed Track";
-const getTopicId = (topic: any) =>
-  topic?.topicID || topic?.topicId || topic?.id || "";
-const getTopicName = (topic: any) =>
-  topic?.topicDetail || topic?.topicName || topic?.name || "Unnamed Topic";
-
+// COUNTDOWN TIMER
 function calculateTimeLeft(targetDate: Date) {
   if (!(targetDate instanceof Date) || isNaN(targetDate.getTime())) {
     return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
   }
-
   const difference = targetDate.getTime() - Date.now();
-
   if (difference <= 0) {
     return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
   }
-
   return {
     days: Math.floor(difference / (1000 * 60 * 60 * 24)),
     hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
@@ -139,6 +154,7 @@ export function Dashboard() {
   const accessToken = useAuthStore((state: any) => state.accessToken);
   const loggedInName = getCurrentUserNameFromToken(accessToken);
 
+  // States Form Registration
   const [events, setEvents] = useState<any[]>([]);
   const [tracks, setTracks] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
@@ -148,16 +164,13 @@ export function Dashboard() {
   const [isSubmittingRegistration, setIsSubmittingRegistration] =
     useState(false);
 
-  // Leaderboard States
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
-
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: "",
     description: "",
   });
 
+  // States Timer
   const [deadline, setDeadline] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -167,14 +180,64 @@ export function Dashboard() {
     isExpired: false,
   });
 
+  // States Leaderboard
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
+  const [currentRoundName, setCurrentRoundName] = useState<string>("");
+
+  const [lbRounds, setLbRounds] = useState<any[]>([]);
+  const [lbTracks, setLbTracks] = useState<any[]>([]);
+  const [lbSelectedRound, setLbSelectedRound] = useState("");
+  const [lbSelectedTrack, setLbSelectedTrack] = useState("");
+  const [activeMenus, setActiveMenus] = useState<any[]>([]); // Bổ sung activeMenus
+
   useEffect(() => {
     if (!deadline) return;
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft(deadline));
-    }, 1000);
+    const timer = setInterval(
+      () => setTimeLeft(calculateTimeLeft(deadline)),
+      1000,
+    );
     return () => clearInterval(timer);
   }, [deadline]);
 
+  // LOAD LIST MENU CHO BỘ LỌC LEADERBOARD BẰNG API ACTIVE MENUS
+  useEffect(() => {
+    const fetchLbFilters = async () => {
+      try {
+        const res = await roundApi.getActiveMenus();
+        const menus = normalizeList(res);
+        setActiveMenus(menus);
+        setLbRounds(menus);
+        setLbTracks([]); // Đợi người dùng chọn round
+      } catch (e) {
+        console.warn("Lỗi tải bộ lọc Leaderboard", e);
+      }
+    };
+    fetchLbFilters();
+  }, []);
+
+  // KHI SELECTED ROUND THAY ĐỔI -> CẬP NHẬT LẠI LIST TRACKS
+  useEffect(() => {
+    if (!lbSelectedRound) {
+      setLbTracks([]);
+      setLbSelectedTrack("");
+      return;
+    }
+    const foundRound = activeMenus.find(r => r.roundId === lbSelectedRound || r.roundID === lbSelectedRound || r.id === lbSelectedRound);
+    if (foundRound && foundRound.tracks) {
+      setLbTracks(foundRound.tracks);
+      // Giữ nguyên track đã chọn nếu nó hợp lệ
+      const trackExists = foundRound.tracks.find((t: any) => t.trackId === lbSelectedTrack || t.trackID === lbSelectedTrack || t.id === lbSelectedTrack);
+      if (!trackExists) {
+         setLbSelectedTrack("");
+      }
+    } else {
+      setLbTracks([]);
+      setLbSelectedTrack("");
+    }
+  }, [lbSelectedRound, activeMenus]);
+
+  // LOAD DASHBOARD INFO & LEADERBOARD
   const fetchDashboard = async () => {
     try {
       setIsLoading(true);
@@ -185,133 +248,103 @@ export function Dashboard() {
 
       if (!currentTeam) {
         setDashboardData(null);
+        setIsLoading(false);
         return;
       }
 
       const activeTeamId = getTeamId(currentTeam);
-      let dashData = currentTeam;
+      let dashData = { ...currentTeam };
 
       try {
-        const dashRes = await teamApi.getTeamDashboard(activeTeamId);
-        dashData = { ...currentTeam, ...unwrapData(dashRes) };
-      } catch (err) {
-        console.warn(
-          "Không lấy được chi tiết Dashboard, dùng dữ liệu Team History",
-        );
+        const infoRes = await teamApi.getTeamDashboard(activeTeamId);
+        dashData = { ...dashData, ...unwrapData(infoRes) };
+      } catch (err) {}
+
+      // ==============================================================
+      // VÒNG LẶP DO THÁM: TÌM KIẾM THEO ACTIVE ROUNDS
+      // ==============================================================
+      let foundRoundId = "";
+      let foundTrackId = "";
+      let foundEventId = "";
+      let foundTopicId = "";
+
+      try {
+        const activeRoundsRes = await roundApi.getActiveRounds();
+        const roundsArr = normalizeList(activeRoundsRes);
+
+        for (const round of roundsArr) {
+          const rId = round.roundID || round.id;
+          if (!rId) continue;
+
+          // Gọi API lấy danh sách đội của từng vòng thi
+          const detailsRes = await teamApi.getTeamDetailsInRound(rId);
+          const detailsList = normalizeList(detailsRes);
+
+          // Dò tìm ID đội của mình trong danh sách đó
+          const matchRecord = detailsList.find(
+            (item: any) =>
+              normalizeId(item.teamId || item.teamID) ===
+              normalizeId(activeTeamId),
+          );
+
+          if (matchRecord) {
+            foundRoundId = rId;
+            foundTrackId = matchRecord.trackId || matchRecord.trackID;
+            foundTopicId = matchRecord.topicId || matchRecord.topicID;
+            foundEventId = round.eventID || round.eventId;
+            setCurrentRoundName(round.roundName || "");
+
+            // Gắn vào dashData để UI hiển thị
+            dashData.teamInRound = matchRecord;
+            dashData.status = matchRecord.status || dashData.status;
+            dashData.score = matchRecord.score;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn("Lỗi rà soát teamInRound:", e);
       }
 
       setDashboardData(dashData);
 
+      // TỰ ĐỘNG SET BỘ LỌC NẾU TÌM THẤY ROUND VÀ TRACK
+      if (foundRoundId) setLbSelectedRound(foundRoundId);
+      if (foundTrackId) setLbSelectedTrack(foundTrackId);
+
+      // ==============================================================
+      // TẢI DỮ LIỆU DROPDOWN CHO FORM ĐĂNG KÝ
+      // ==============================================================
       try {
         const eventsRes = await teamApi.getActiveEvents();
         setEvents(normalizeList(eventsRes));
-      } catch (error) {
-        console.error("Lỗi lấy danh sách events:", error);
+      } catch (error) {}
+
+      if (foundEventId) {
+        setSelectedEvent(String(foundEventId));
+        try {
+          const tRes = await teamApi.getTracksByEvent(String(foundEventId));
+          setTracks(normalizeList(tRes));
+        } catch (e) {}
       }
-
-      const currentSelectedTrackId =
-        dashData?.trackID ||
-        dashData?.trackId ||
-        dashData?.teamInRound?.trackId;
-      const currentSelectedTopicId =
-        dashData?.topicID ||
-        dashData?.topicId ||
-        dashData?.teamInRound?.topicId;
-
-      if (currentSelectedTrackId)
-        setSelectedTrack(String(currentSelectedTrackId));
-      if (currentSelectedTopicId)
-        setSelectedTopic(String(currentSelectedTopicId));
-
-      if (!currentSelectedTrackId && !currentSelectedTopicId) {
-        const savedEvent =
-          localStorage.getItem(`team_${activeTeamId}_event`) ||
-          sessionStorage.getItem("draftEvent");
-        const savedTrack =
-          localStorage.getItem(`team_${activeTeamId}_track`) ||
-          sessionStorage.getItem("draftTrack");
-        const savedTopic =
-          localStorage.getItem(`team_${activeTeamId}_topic`) ||
-          sessionStorage.getItem("draftTopic");
-
-        if (savedEvent) {
-          setSelectedEvent(savedEvent);
-          try {
-            const trackRes = await teamApi.getTracksByEvent(savedEvent);
-            setTracks(normalizeList(trackRes));
-          } catch (e) {}
-        }
-        if (savedTrack) {
-          setSelectedTrack(savedTrack);
-          try {
-            const topicRes = await teamApi.getTopicsByTrack(savedTrack);
-            setTopics(normalizeList(topicRes));
-          } catch (e) {}
-        }
-        if (savedTopic) setSelectedTopic(savedTopic);
+      if (foundTrackId) {
+        setSelectedTrack(String(foundTrackId));
+        try {
+          const tpRes = await teamApi.getTopicsByTrack(String(foundTrackId));
+          setTopics(normalizeList(tpRes));
+        } catch (e) {}
       }
+      if (foundTopicId) setSelectedTopic(String(foundTopicId));
 
-      // ==========================================
-      // LẤY LEADERBOARD VÀ LỌC RÁC
-      // ==========================================
-      try {
-        setIsLoadingLeaderboard(true);
-        let lbData = [];
-
-        const rId =
-          dashData?.teamInRound?.roundId ||
-          dashData?.roundID ||
-          dashData?.roundId;
-        const tId =
-          dashData?.teamInRound?.trackId ||
-          dashData?.trackID ||
-          dashData?.trackId;
-
-        // Nếu team đã đăng ký và có roundId, trackId thì lấy leaderbard chi tiết.
-        // Còn không thì lấy cái general
-        if (rId && tId) {
-          const res = await apiClient.get(`/api/LeaderBoard/${rId}/${tId}`);
-          lbData = normalizeList(res);
-        } else {
-          const res = await apiClient.get(`/api/LeaderBoard`);
-          lbData = normalizeList(res);
-        }
-
-        // BỘ LỌC RÁC: Chỉ giữ lại những object thực sự có tên đội
-        const validTeams = lbData.filter(
-          (team: any) => team && (team.teamName || team.name || team.TeamName),
-        );
-
-        // Sort giảm dần theo điểm
-        const sortedData = validTeams.sort((a, b) => {
-          const scoreA = a.score || a.Score || a.totalScore || 0;
-          const scoreB = b.score || b.Score || b.totalScore || 0;
-          return scoreB - scoreA;
-        });
-
-        // Bỏ .slice(0,5) để lấy toàn bộ danh sách đội thi
-        setLeaderboard(sortedData);
-      } catch (e) {
-        console.warn("Lỗi load Leaderboard:", e);
-        setLeaderboard([]);
-      } finally {
-        setIsLoadingLeaderboard(false);
-      }
-
-      // ĐẾM NGƯỢC
+      // Mốc thời gian Đếm ngược
       try {
         const countdownRes = await teamApi.getCountdown(activeTeamId);
         let dateStr = null;
-        if (typeof countdownRes === "string") {
-          dateStr = countdownRes;
-        } else if (countdownRes && typeof countdownRes === "object") {
+        if (typeof countdownRes === "string") dateStr = countdownRes;
+        else if (countdownRes && typeof countdownRes === "object") {
           dateStr =
             countdownRes.endDate ||
             countdownRes.targetDate ||
-            countdownRes.deadline ||
-            countdownRes.endTime ||
-            countdownRes.data ||
-            countdownRes.time;
+            countdownRes.deadline;
         }
 
         if (dateStr) {
@@ -319,11 +352,7 @@ export function Dashboard() {
           if (!isNaN(dl.getTime())) {
             setDeadline(dl);
             setTimeLeft(calculateTimeLeft(dl));
-          } else {
-            setDeadline(null);
           }
-        } else {
-          setDeadline(null);
         }
       } catch (e: any) {
         setDeadline(null);
@@ -342,12 +371,55 @@ export function Dashboard() {
       window.removeEventListener("player-team-updated", fetchDashboard);
   }, []);
 
+  // GỌI LEADERBOARD KHI BỘ LỌC THAY ĐỔI
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setIsLoadingLeaderboard(true);
+      try {
+        let resData = [];
+
+        // Gọi thẳng Detail theo roundId và trackId
+        if (lbSelectedRound && lbSelectedTrack) {
+          try {
+            resData = await leaderboardApi.getLeaderboardDetail(
+              lbSelectedRound,
+              lbSelectedTrack,
+            );
+          } catch (err: any) {
+            if (err.response?.status === 404) resData = [];
+            else throw err;
+          }
+
+          const lbData = normalizeList(resData);
+          const validTeams = lbData.filter(
+            (t: any) => extractTeamName(t) !== "Unknown",
+          );
+          validTeams.sort((a, b) => extractScore(b) - extractScore(a));
+          setLeaderboard(validTeams);
+        } else {
+          setLeaderboard([]);
+        }
+      } catch (error) {
+        console.error("Lỗi lấy Leaderboard:", error);
+        setLeaderboard([]);
+      } finally {
+        setIsLoadingLeaderboard(false);
+      }
+    };
+
+    const delayTimer = setTimeout(() => fetchLeaderboard(), 300);
+    return () => clearTimeout(delayTimer);
+  }, [lbSelectedRound, lbSelectedTrack]);
+
   const teamId = getTeamId(dashboardData);
   const currentUserIsLeader = isLeaderTeam(dashboardData);
   const hasSubmittedRegistration = Boolean(
     dashboardData?.eventID ||
+    dashboardData?.eventId ||
     dashboardData?.trackID ||
+    dashboardData?.trackId ||
     dashboardData?.topicID ||
+    dashboardData?.topicId ||
     dashboardData?.teamInRound,
   );
   const isActuallySubmitted =
@@ -361,19 +433,12 @@ export function Dashboard() {
     setTracks([]);
     setTopics([]);
 
-    if (eventId) sessionStorage.setItem("draftEvent", eventId);
-    else sessionStorage.removeItem("draftEvent");
-    sessionStorage.removeItem("draftTrack");
-    sessionStorage.removeItem("draftTopic");
-
     if (!eventId) return;
 
     try {
       const response = await teamApi.getTracksByEvent(eventId);
       setTracks(normalizeList(response));
-    } catch (error) {
-      console.error("Lỗi lấy track:", error);
-    }
+    } catch (error) {}
   };
 
   const handleTrackChange = async (trackId: string) => {
@@ -381,40 +446,28 @@ export function Dashboard() {
     setSelectedTopic("");
     setTopics([]);
 
-    if (trackId) sessionStorage.setItem("draftTrack", trackId);
-    else sessionStorage.removeItem("draftTrack");
-    sessionStorage.removeItem("draftTopic");
-
     if (!trackId) return;
 
     try {
       const response = await teamApi.getTopicsByTrack(trackId);
       setTopics(normalizeList(response));
-    } catch (error) {
-      console.error("Lỗi lấy topic:", error);
-    }
-  };
-
-  const handleTopicChange = (topicId: string) => {
-    setSelectedTopic(topicId);
-    if (topicId) sessionStorage.setItem("draftTopic", topicId);
-    else sessionStorage.removeItem("draftTopic");
+    } catch (error) {}
   };
 
   const handleSubmitRegistration = () => {
     if (!selectedEvent || !selectedTrack || !selectedTopic) {
       Swal.fire({
         icon: "warning",
-        title: "Thiếu thông tin",
-        text: "Vui lòng chọn đầy đủ Event, Track và Topic.",
+        title: "Missing Information",
+        text: "Please select Event, Track, and Topic.",
       });
       return;
     }
     setModalConfig({
       isOpen: true,
-      title: "Xác nhận đăng ký",
+      title: "Confirm Registration",
       description:
-        "Bạn có chắc chắn với lựa chọn Event, Track và Topic này không? Sau khi submit sẽ không thể tự thay đổi.",
+        "Are you sure you want to register with this Event, Track, and Topic? You cannot change this later.",
     });
   };
 
@@ -431,27 +484,19 @@ export function Dashboard() {
         topicId: selectedTopic,
       });
 
-      localStorage.setItem(`team_${teamId}_event`, selectedEvent);
-      localStorage.setItem(`team_${teamId}_track`, selectedTrack);
-      localStorage.setItem(`team_${teamId}_topic`, selectedTopic);
       localStorage.setItem(`team_${teamId}_submitted`, "true");
-
-      sessionStorage.removeItem("draftEvent");
-      sessionStorage.removeItem("draftTrack");
-      sessionStorage.removeItem("draftTopic");
-
       await fetchDashboard();
 
       Swal.fire({
         icon: "success",
-        title: "Đăng ký thành công",
-        text: "Team đã đăng ký Event, Track và Topic thành công.",
+        title: "Registration Successful",
+        text: "Your team has successfully registered.",
       });
     } catch (error: any) {
       Swal.fire({
         icon: "error",
-        title: "Không thể đăng ký",
-        text: error.response?.data?.message || "Lỗi hệ thống từ Backend.",
+        title: "Registration Failed",
+        text: error.response?.data?.message || "Server Error.",
       });
     } finally {
       setIsSubmittingRegistration(false);
@@ -463,10 +508,10 @@ export function Dashboard() {
       <div className="animate-in fade-in duration-500">
         <header className="mb-10">
           <h1 className="text-4xl font-bold tracking-tight text-primary">
-            Welcome back, {loggedInName}.
+            Welcome back, {safeString(loggedInName, "Player")}.
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Đang tải dữ liệu Dashboard...
+            Loading Dashboard data...
           </p>
         </header>
       </div>
@@ -477,26 +522,27 @@ export function Dashboard() {
     <div className="animate-in fade-in duration-500 max-w-5xl">
       <header className="mb-10">
         <h1 className="text-4xl font-bold tracking-tight text-primary">
-          Welcome back, {loggedInName}.
+          Welcome back, {safeString(loggedInName, "Player")}.
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Team tạo trước. Team Leader sẽ chọn Event, Track và Topic để đăng ký
-          tham gia.
+          The Team Leader needs to select the Event, Track, and Topic to
+          register.
         </p>
       </header>
 
+      {/* 2-COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* ================= LEFT COLUMN (Ratio 8) ================= */}
         <div className="lg:col-span-8 space-y-8">
           <section className="bg-card border border-border rounded-radius-lg p-6 shadow-sm">
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-6 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" /> Vòng thi hiện tại
-              (Countdown)
+              <Clock className="w-4 h-4 text-primary" /> Current Round Countdown
             </h2>
 
             {deadline ? (
               timeLeft.isExpired ? (
                 <div className="bg-red-50 border border-red-200 text-red-600 font-bold px-4 py-3 rounded-radius-md inline-flex items-center gap-2">
-                  ⏳ Thời gian nộp bài của vòng thi này đã kết thúc!
+                  ⏳ The submission time for this round has ended!
                 </div>
               ) : (
                 <div className="flex items-center gap-4 sm:gap-6">
@@ -515,7 +561,7 @@ export function Dashboard() {
               )
             ) : (
               <div className="text-muted-foreground font-medium italic py-4">
-                Chưa có thông tin đếm ngược (Countdown) cho vòng thi này.
+                No countdown available for this round.
               </div>
             )}
           </section>
@@ -530,16 +576,8 @@ export function Dashboard() {
                   My Team
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {dashboardData?.teamName ||
-                    dashboardData?.name ||
-                    "Chưa có team"}
+                  {safeString(extractTeamName(dashboardData), "No team")}
                 </p>
-                {dashboardData?.score !== undefined &&
-                  dashboardData?.score !== null && (
-                    <p className="text-sm font-medium text-emerald-600 mt-2 bg-emerald-50 inline-block px-2 py-1 rounded-md border border-emerald-200">
-                      Điểm hiện tại: {dashboardData.score}
-                    </p>
-                  )}
               </div>
             </div>
 
@@ -549,7 +587,7 @@ export function Dashboard() {
               </div>
               <div className="relative z-10">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                  Trạng thái
+                  Status
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-3 w-3">
@@ -557,7 +595,10 @@ export function Dashboard() {
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                   </span>
                   <p className="text-xl font-bold text-foreground">
-                    {dashboardData?.status || "Active"}
+                    {safeString(
+                      dashboardData?.status || dashboardData?.Status,
+                      "Active",
+                    )}
                   </p>
                 </div>
               </div>
@@ -565,49 +606,89 @@ export function Dashboard() {
           </div>
 
           <section className="bg-white border border-border rounded-radius-lg overflow-hidden shadow-sm mt-8">
-            <div className="p-6 border-b border-border bg-slate-50 flex items-center justify-between">
+            <div className="p-6 border-b border-border bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" /> Bảng xếp hạng
-                  Vòng thi
+                  <TrendingUp className="w-5 h-5 text-primary" /> Leaderboard
+                  {currentRoundName && (
+                    <span className="text-sm text-blue-600 ml-2 bg-blue-100 px-2 py-0.5 rounded-full">
+                      {currentRoundName}
+                    </span>
+                  )}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Vị trí của các đội trong cùng Track & Round hiện tại
+                  Team rankings in the current Track & Round
                 </p>
+              </div>
+
+              <div className="flex gap-2">
+                <select
+                  className="w-32 border border-slate-200 bg-white rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-bold text-slate-700"
+                  value={lbSelectedRound}
+                  onChange={(e) => setLbSelectedRound(e.target.value)}
+                >
+                  <option value="">Select Round</option>
+                  {lbRounds.map((r) => {
+                    const rId = safeString(r.roundID || r.roundId || r.id);
+                    return (
+                      <option key={rId} value={rId}>
+                        {safeString(r.roundName)}
+                      </option>
+                    );
+                  })}
+                </select>
+                <select
+                  className="w-32 border border-slate-200 bg-white rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-bold text-slate-700"
+                  value={lbSelectedTrack}
+                  onChange={(e) => setLbSelectedTrack(e.target.value)}
+                >
+                  <option value="">Select Category</option>
+                  {lbTracks.map((t) => {
+                    const tId = safeString(t.trackID || t.trackId || t.id);
+                    return (
+                      <option key={tId} value={tId}>
+                        {safeString(t.trackName)}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
             </div>
 
             <div className="p-0 max-h-[400px] overflow-y-auto relative">
               {isLoadingLeaderboard ? (
                 <div className="p-8 text-center text-sm font-medium text-slate-500 animate-pulse">
-                  Đang tải bảng xếp hạng...
+                  Loading Leaderboard...
                 </div>
               ) : leaderboard.length === 0 ? (
                 <div className="p-8 text-center text-sm font-medium text-slate-500">
-                  Chưa có dữ liệu bảng xếp hạng từ Giám khảo.
+                  Select a Round and Category to view the leaderboard, or scores
+                  have not been updated yet.
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-white shadow-sm z-10">
                     <tr className="border-b border-slate-100">
                       <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider w-16 text-center">
-                        Hạng
+                        Rank
                       </th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        Đội thi
+                        Team
                       </th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">
-                        Tổng điểm
+                        Total Score
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {leaderboard.map((team, index) => {
+                      const currentTeamIdFromData = extractTeamId(team);
                       const isMyTeam =
-                        team.teamId === teamId || team.id === teamId;
+                        currentTeamIdFromData === safeString(teamId) &&
+                        safeString(teamId) !== "";
                       const rank = index + 1;
-                      const score =
-                        team.score ?? team.Score ?? team.totalScore ?? 0;
+                      const score = extractScore(team);
+                      const displayName = extractTeamName(team);
 
                       let rankNode = (
                         <span className="w-8 h-8 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-sm font-bold mx-auto">
@@ -630,23 +711,24 @@ export function Dashboard() {
                       return (
                         <tr
                           key={index}
-                          className={`transition-colors hover:bg-slate-50 ${isMyTeam ? "bg-blue-50/50" : ""}`}
+                          className={`transition-colors hover:bg-slate-50 ${
+                            isMyTeam ? "bg-blue-50/50" : ""
+                          }`}
                         >
                           <td className="px-6 py-4 text-center align-middle">
                             {rankNode}
                           </td>
                           <td className="px-6 py-4 align-middle">
                             <span
-                              className={`font-semibold ${isMyTeam ? "text-blue-700" : "text-slate-800"}`}
+                              className={`font-semibold ${
+                                isMyTeam ? "text-blue-700" : "text-slate-800"
+                              }`}
                             >
-                              {team.teamName ||
-                                team.name ||
-                                team.TeamName ||
-                                "Ẩn danh"}
+                              {safeString(displayName)}
                             </span>
                             {isMyTeam && (
                               <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-600 text-white border border-blue-700">
-                                Đội của bạn
+                                Your Team
                               </span>
                             )}
                           </td>
@@ -664,7 +746,7 @@ export function Dashboard() {
                                         : "bg-slate-50 text-slate-600 border-slate-200"
                               }`}
                             >
-                              {score} pts
+                              {safeString(score)} pts
                             </span>
                           </td>
                         </tr>
@@ -677,6 +759,7 @@ export function Dashboard() {
           </section>
         </div>
 
+        {/* ================= RIGHT COLUMN (Ratio 4): REGISTRATION FORM ================= */}
         <div className="lg:col-span-4">
           <section className="bg-slate-50 border border-slate-200 rounded-radius-lg p-6 shadow-sm h-full flex flex-col">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2 shrink-0">
@@ -686,20 +769,20 @@ export function Dashboard() {
             <div className="flex-1 bg-white border border-slate-200 rounded-radius-lg p-6 shadow-sm space-y-5">
               {!teamId ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
-                  <p className="font-bold text-slate-900">Bạn chưa có team</p>
+                  <p className="font-bold text-slate-900">No Team Yet</p>
                   <p className="text-sm text-slate-500 mt-1">
-                    Hãy tạo team ở trang My Team trước khi đăng ký tham gia
+                    Create a team on the My Team page before registering for an
                     event.
                   </p>
                 </div>
               ) : !currentUserIsLeader ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">
-                    Chỉ Team Leader mới được đăng ký
+                    Leader Registration Only
                   </p>
                   <p className="text-sm text-slate-500 mt-1">
-                    Bạn đang là Team Member. Hãy chờ Team Leader chọn Event,
-                    Track và Topic.
+                    You are a Team Member. Wait for your Team Leader to select
+                    the Event, Track, and Topic.
                   </p>
                 </div>
               ) : (
@@ -707,11 +790,11 @@ export function Dashboard() {
                   {isActuallySubmitted && (
                     <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-radius-md p-4 mb-4">
                       <p className="font-bold flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5" /> Đã chốt đăng ký!
+                        <ShieldCheck className="w-5 h-5" /> Registration Locked!
                       </p>
                       <p className="text-sm mt-1">
-                        Dưới đây là thông tin Event, Track và Topic mà team bạn
-                        đã chọn.
+                        Below is the Event, Track, and Topic your team has
+                        registered for.
                       </p>
                     </div>
                   )}
@@ -727,14 +810,25 @@ export function Dashboard() {
                       disabled={isActuallySubmitted}
                     >
                       <option value="">Choose an event...</option>
-                      {events.map((event) => (
-                        <option
-                          key={getEventId(event)}
-                          value={getEventId(event)}
-                        >
-                          {getEventName(event)}
-                        </option>
-                      ))}
+                      {events.map((event) => {
+                        const evId = safeString(
+                          event.EventID ||
+                            event.eventID ||
+                            event.eventId ||
+                            event.id,
+                        );
+                        const evName = safeString(
+                          event.EventName ||
+                            event.eventName ||
+                            event.name ||
+                            "Unnamed Event",
+                        );
+                        return (
+                          <option key={evId} value={evId}>
+                            {evName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -749,14 +843,25 @@ export function Dashboard() {
                       disabled={!selectedEvent || isActuallySubmitted}
                     >
                       <option value="">Choose a track...</option>
-                      {tracks.map((track) => (
-                        <option
-                          key={getTrackId(track)}
-                          value={getTrackId(track)}
-                        >
-                          {getTrackName(track)}
-                        </option>
-                      ))}
+                      {tracks.map((track) => {
+                        const trId = safeString(
+                          track.TrackID ||
+                            track.trackID ||
+                            track.trackId ||
+                            track.id,
+                        );
+                        const trName = safeString(
+                          track.TrackName ||
+                            track.trackName ||
+                            track.name ||
+                            "Unnamed Track",
+                        );
+                        return (
+                          <option key={trId} value={trId}>
+                            {trName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -767,18 +872,30 @@ export function Dashboard() {
                     <select
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-radius-md text-sm outline-none focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-100 disabled:cursor-not-allowed font-medium text-slate-800"
                       value={selectedTopic}
-                      onChange={(e) => handleTopicChange(e.target.value)}
+                      onChange={(e) => setSelectedTopic(e.target.value)}
                       disabled={!selectedTrack || isActuallySubmitted}
                     >
                       <option value="">Choose a topic...</option>
-                      {topics.map((topic) => (
-                        <option
-                          key={getTopicId(topic)}
-                          value={getTopicId(topic)}
-                        >
-                          {getTopicName(topic)}
-                        </option>
-                      ))}
+                      {topics.map((topic) => {
+                        const tpId = safeString(
+                          topic.TopicID ||
+                            topic.topicID ||
+                            topic.topicId ||
+                            topic.id,
+                        );
+                        const tpName = safeString(
+                          topic.TopicDetail ||
+                            topic.topicDetail ||
+                            topic.topicName ||
+                            topic.name ||
+                            "Unnamed Topic",
+                        );
+                        return (
+                          <option key={tpId} value={tpId}>
+                            {tpName}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -790,8 +907,8 @@ export function Dashboard() {
                     >
                       <Map className="w-4 h-4" />
                       {isSubmittingRegistration
-                        ? "Đang đăng ký..."
-                        : "Xác nhận đăng ký tham gia"}
+                        ? "Submitting..."
+                        : "Confirm Registration"}
                     </button>
                   )}
                 </>
@@ -807,7 +924,7 @@ export function Dashboard() {
         onConfirm={executeSubmitRegistration}
         title={modalConfig.title}
         description={modalConfig.description}
-        confirmText="Xác nhận đăng ký"
+        confirmText="Confirm Registration"
       />
     </div>
   );
@@ -824,7 +941,9 @@ function TimeUnit({
 }) {
   return (
     <div
-      className={`flex flex-col items-center ${hiddenOnSmall ? "hidden sm:flex" : "flex"}`}
+      className={`flex flex-col items-center ${
+        hiddenOnSmall ? "hidden sm:flex" : "flex"
+      }`}
     >
       <span className="text-5xl sm:text-7xl font-bold font-mono tracking-tighter drop-shadow-sm text-slate-900">
         {value.toString().padStart(2, "0")}
@@ -839,7 +958,9 @@ function TimeUnit({
 function TimeDivider({ hiddenOnSmall = false }: { hiddenOnSmall?: boolean }) {
   return (
     <div
-      className={`text-4xl sm:text-6xl font-light text-slate-300 pb-6 sm:pb-8 ${hiddenOnSmall ? "hidden sm:block" : "block"}`}
+      className={`text-4xl sm:text-6xl font-light text-slate-300 pb-6 sm:pb-8 ${
+        hiddenOnSmall ? "hidden sm:block" : "block"
+      }`}
     >
       :
     </div>
