@@ -89,10 +89,10 @@ namespace Services.TeamService
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            string eventName = "Chưa đăng ký sự kiện";
-            string categoryName = "Chưa chọn đề tài";
+            string eventName = "You not in an Event";
+            string categoryName = "You havent picked a topic";
 
-            string currentRoundName = "Chưa bắt đầu";
+            string currentRoundName = "round havent started";
             int currentRoundIndex = 0;
 
             var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
