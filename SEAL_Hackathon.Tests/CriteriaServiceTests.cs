@@ -1,12 +1,13 @@
-﻿using Xunit;
+﻿using APIViewModels.Criteria;
+using DataAccess.Entities;
+using DataAccess.Repositories.UnitOfWork;
 using Moq;
 using Services.CriteriaService;
-using APIViewModels.Criteria;
-using DataAccess.Repositories.UnitOfWork;
-using DataAccess.Entities;
+using Services.RoundService;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace SEAL_Hackathon.Tests
 {
@@ -176,6 +177,172 @@ namespace SEAL_Hackathon.Tests
             bool result = await service.UpdateSetAsync("set-1", request);
 
             Assert.False(result);
+        }
+
+
+        // AUTOTRANSITIONROUNDASYNC 
+
+        //c1
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID01_NormalConditions_ReturnsTrue()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.SetupSequence(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "event-1", RoundIndex = 1, TopNpromotion = 5 })
+                .ReturnsAsync(new Round { RoundId = "next-round", EventId = "event-1", RoundIndex = 2, RoundName = "Finals" });
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Event { EventId = "event-1", IsActive = true });
+
+            mockUow.Setup(u => u.LeaderBoard.GetAllAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<LeaderBoard, bool>>>(),
+                It.IsAny<Func<System.Linq.IQueryable<LeaderBoard>, System.Linq.IOrderedQueryable<LeaderBoard>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<LeaderBoard>());
+
+            var service = new RoundService(mockUow.Object);
+
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.True(result.IsSuccess);
+            mockUow.Verify(u => u.SaveAsync(), Times.Once);
+        }
+
+        // c2
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID02_EventNotFound_ReturnsFalse()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.Setup(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "fake-event-id" });
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync((Event)null);
+
+            var service = new RoundService(mockUow.Object);
+
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.False(result.IsSuccess);
+        }
+
+        // c3
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID03_EventInActive_ReturnsFalse()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.Setup(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "event-1" });
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync((Event)null);
+
+            var service = new RoundService(mockUow.Object);
+
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.False(result.IsSuccess);
+        }
+
+        // c4
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID04_NextRoundNull_ReturnsFalse()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.SetupSequence(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "event-1", RoundIndex = 3 })
+                .ReturnsAsync((Round)null);
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Event { EventId = "event-1", IsActive = true });
+
+            var service = new RoundService(mockUow.Object);
+
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.False(result.IsSuccess);
+        }
+
+        // c5
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID05_SqlException_ReturnsFalse()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.SetupSequence(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "event-1", RoundIndex = 1, TopNpromotion = 5 })
+                .ReturnsAsync(new Round { RoundId = "next-round", EventId = "event-1", RoundIndex = 2 });
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Event { EventId = "event-1", IsActive = true });
+
+            mockUow.Setup(u => u.LeaderBoard.GetAllAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<LeaderBoard, bool>>>(),
+                It.IsAny<Func<System.Linq.IQueryable<LeaderBoard>, System.Linq.IOrderedQueryable<LeaderBoard>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<LeaderBoard>());
+
+            mockUow.Setup(u => u.SaveAsync()).ThrowsAsync(new Exception("SqlException: Database server timeout."));
+
+            var service = new RoundService(mockUow.Object);
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.False(result.IsSuccess);
+        }
+
+        // c6
+        [Fact]
+        public async Task AutoTransitionRoundAsync_UTCID06_DbUpdateException_ReturnsFalse()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
+
+            mockUow.SetupSequence(u => u.Round.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Round, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Round { RoundId = "current-round", EventId = "event-1", RoundIndex = 1, TopNpromotion = 5 })
+                .ReturnsAsync(new Round { RoundId = "next-round", EventId = "event-1", RoundIndex = 2 });
+
+            mockUow.Setup(u => u.Event.GetFirstOrDefaultAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Event, bool>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new Event { EventId = "event-1", IsActive = true });
+
+            mockUow.Setup(u => u.LeaderBoard.GetAllAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<LeaderBoard, bool>>>(),
+                It.IsAny<Func<System.Linq.IQueryable<LeaderBoard>, System.Linq.IOrderedQueryable<LeaderBoard>>>(),
+                It.IsAny<string>()))
+                .ReturnsAsync(new List<LeaderBoard>());
+
+            mockUow.Setup(u => u.SaveAsync()).ThrowsAsync(new Microsoft.EntityFrameworkCore.DbUpdateException("Entity Framework Update Error"));
+
+            var service = new RoundService(mockUow.Object);
+            var result = await service.AutoTransitionRoundAsync("current-round");
+
+            Assert.False(result.IsSuccess);
         }
     }
 }
