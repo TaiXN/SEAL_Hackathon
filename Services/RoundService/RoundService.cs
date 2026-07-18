@@ -18,25 +18,32 @@ namespace Services.RoundService
         {
             try
             {
-                if (info.StartDate >= info.EndDate)
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+          
+                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
+                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
+
+
+                if (startDateVn >= endDateVn)
                 {
                     return false;
                 }
 
-                if (info.StartDate < DateTime.Now)
+                if (startDateVn < vnNow)
                 {
                     return false;
                 }
 
                 List<Round> existingRounds = await _uow.Round.GetAllQueryable()
-            .Where(e => e.EventId == info.EventID)
-            .ToListAsync(); 
+              .Where(e => e.EventId == info.EventID)
+              .ToListAsync();
 
                 if (existingRounds.Count > 0)
                 {
                     DateTime earliestStartDate = existingRounds.Min(r => r.StartDate);
 
-                    if (DateTime.Now >= earliestStartDate)
+                    if (vnNow >= earliestStartDate)
                     {
                         return false;
                     }
@@ -56,8 +63,8 @@ namespace Services.RoundService
                     EventId = info.EventID,
                     Creator = accID,
                     RoundName = info.RoundName,
-                    StartDate = info.StartDate,
-                    EndDate = info.EndDate,
+                    StartDate = startDateVn,
+                    EndDate = endDateVn,
                     TopNpromotion = info.TopNPromotion,
                     MaxTeam = info.MaxTeam,
                     IsActive = true,
@@ -109,20 +116,17 @@ namespace Services.RoundService
                     return false;
                 }
 
-                if (info.StartDate >= info.EndDate)
-                {
-                    return false;
-                }
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
+                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
 
-                if (info.StartDate < DateTime.Now)
-                {
-                    return false;
-                }
+                if (startDateVn >= endDateVn) return false;
+                if (startDateVn < vnNow) return false;
 
                 roundDb.EventId = info.EventID;
                 roundDb.RoundName = info.RoundName;
-                roundDb.StartDate = info.StartDate;
-                roundDb.EndDate = info.EndDate;
+                roundDb.StartDate = startDateVn;
+                roundDb.EndDate = endDateVn;
                 roundDb.TopNpromotion = info.TopNPromotion;
                 roundDb.MaxTeam = info.MaxTeam;
                 roundDb.CriteriaSetId = info.CriteriaSetID;
@@ -274,9 +278,12 @@ namespace Services.RoundService
         {
             try
             {
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
 
-                List<Round> result = await _uow.Round.GetAllAsync(q => q.IsActive && q.StartDate <= DateTime.UtcNow);
-                return result.ToList();
+                List<Round> result = await _uow.Round.GetAllAsync(q => q.IsActive && q.StartDate <= vnNow);
+
+     
+                return result;
             }
             catch
             {
