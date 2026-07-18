@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="APIViewModels/APIViewModels.csproj" Id="f95ef682-7677-4313-af3d-8787de46d917" />
   <Project Path="DataAccess/DataAccess.csproj" Id="27aa6d7c-e606-43c4-b19f-907438897a78" />
+  <Project Path="SEAL_Hackathon.Tests/SEAL_Hackathon.Tests.csproj" Id="fa0344a5-d8e8-4ddf-b75d-22965e6c791c" />
   <Project Path="SEAL_Hackathon/SEAL_Hackathon.csproj" />
   <Project Path="Services/Services.csproj" Id="0eb410dd-7d83-4e5e-88b7-b63f5793ec67" />
 </Solution>
