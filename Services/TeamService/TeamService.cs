@@ -93,7 +93,7 @@ namespace Services.TeamService
             string categoryName = "You havent picked a topic";
 
             string currentRoundName = "round havent started";
-            int currentRoundIndex = 0;
+            int currentRoundIndex = -1;
 
             var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
 
