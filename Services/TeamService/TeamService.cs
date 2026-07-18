@@ -89,8 +89,11 @@ namespace Services.TeamService
             var team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            string eventName = "Chưa đăng ký sự kiện";
-            string categoryName = "Chưa chọn đề tài";
+            string eventName = "You not in an Event";
+            string categoryName = "You havent picked a topic";
+
+            string currentRoundName = "round havent started";
+            int currentRoundIndex = 0;
 
             var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
 
@@ -114,7 +117,17 @@ namespace Services.TeamService
                 if (round != null)
                 {
                     var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
-                    if (eventDb != null) eventName = eventDb.EventName;
+                    if (eventDb != null)
+                    {
+                        eventName = eventDb.EventName;
+                        currentRoundIndex = eventDb.CurrentRound;
+
+                        var activeRoundDb = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventDb.EventId && r.RoundIndex == eventDb.CurrentRound);
+                        if (activeRoundDb != null)
+                        {
+                            currentRoundName = activeRoundDb.RoundName;
+                        }
+                    }
                 }
             }
 
@@ -126,7 +139,9 @@ namespace Services.TeamService
                 TeamName = team.TeamName,
                 EventName = eventName,
                 CategoryName = categoryName,
-                TotalMembers = memberCount
+                TotalMembers = memberCount,
+                CurrentRoundName = currentRoundName,
+                CurrentRoundIndex = currentRoundIndex
             };
         }
 

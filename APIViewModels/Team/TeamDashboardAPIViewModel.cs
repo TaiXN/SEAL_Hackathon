@@ -6,5 +6,7 @@
         public string EventName { get; set; } 
         public string CategoryName { get; set; }
         public int TotalMembers { get; set; }
+        public string CurrentRoundName { get; set; }
+        public int CurrentRoundIndex { get; set; }
     }
 }
