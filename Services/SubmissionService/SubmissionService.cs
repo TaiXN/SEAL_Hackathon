@@ -22,12 +22,25 @@ namespace Services.SubmissionService
         {
             var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
-
             if (myTeamInfo == null) throw new Exception("You are not currently in this team.");
             if (!myTeamInfo.IsLeader) throw new Exception("Only the Team Leader can submit the project URLs.");
 
             var allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
-            var teamInRound = allTeamRounds.OrderByDescending(tr => tr.Id).FirstOrDefault();
+            TeamInRound teamInRound = null;
+            Round currentRound = null;
+
+            foreach (var tr in allTeamRounds)
+            {
+                var r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                if (r != null)
+                {
+                    if (currentRound == null || r.RoundIndex > currentRound.RoundIndex)
+                    {
+                        currentRound = r;
+                        teamInRound = tr;
+                    }
+                }
+            }
 
             if (teamInRound == null) throw new Exception("Your team must register for a Track and Topic before submitting URLs.");
 
@@ -37,7 +50,6 @@ namespace Services.SubmissionService
             if (teamInRound.IsBanned)
                 throw new Exception("Your team has been banned from this round. Submission is locked.");
 
-            var currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == teamInRound.RoundId);
             if (currentRound == null) throw new Exception("Cannot find this round");
 
             if (DateTime.Now < currentRound.StartDate)
