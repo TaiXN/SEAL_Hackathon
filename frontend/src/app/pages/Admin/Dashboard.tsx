@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   LayoutGrid,
   Plus,
+  Search,
+  Filter as FilterIcon,
 } from "lucide-react";
 
 import { roundApi } from "../../lib/api/roundApi";
@@ -55,7 +57,7 @@ type EnrichedEvent = {
   year: any;
   cur: number;
   numRounds: number;
-  status: "ongoing" | "upcoming" | "ended" | "unknown";
+  status: "ongoing" | "ended" | "unknown";
   curRound: any | null;
 };
 
@@ -65,6 +67,10 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
+
+  // States cho Search và Filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchData = async (manual = false) => {
     try {
@@ -97,7 +103,6 @@ export function Dashboard() {
 
         let status: EnrichedEvent["status"];
         if (Number.isNaN(cur)) status = "unknown";
-        else if (cur < 0) status = "upcoming";
         else if (cur >= (numRounds || 2)) status = "ended";
         else status = "ongoing";
 
@@ -144,6 +149,7 @@ export function Dashboard() {
     );
   }
 
+  // Thống kê tổng quan (Luôn giữ nguyên số liệu gốc)
   const ongoing = events.filter((e) => e.status === "ongoing");
   const ended = events.filter((e) => e.status === "ended");
 
@@ -170,6 +176,18 @@ export function Dashboard() {
       bg: "bg-blue-50 border-blue-100",
     },
   ];
+
+  // Logic Lọc & Tìm kiếm cho danh sách sự kiện hiển thị
+  const displayEvents = events.filter((e) => {
+    const matchesSearch =
+      e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.semester.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(e.year).includes(searchTerm);
+
+    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="p-10 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
@@ -202,13 +220,13 @@ export function Dashboard() {
         {/* NÚT BẤM 3D VẬT LÝ */}
         <button
           onClick={() => navigate("/admin/events/create")}
-          className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-black rounded-2xl border-2 border-[#0a192f] border-b-[6px] hover:bg-slate-800 hover:border-b-black active:border-b-[2px] active:translate-y-[4px] transition-all"
+          className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-black rounded-2xl border-2 border-[#0a192f] border-b-[6px] hover:bg-slate-800 hover:border-b-black active:border-b-[2px] active:translate-y-[4px] transition-all shadow-sm"
         >
           <Plus size={20} strokeWidth={3} /> Create New Event
         </button>
       </div>
 
-      {/* STAT CARDS - MINIMALIST */}
+      {/* STAT CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {stats.map((s) => (
           <div
@@ -232,108 +250,152 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* ONGOING EVENTS LIST */}
-      <div>
-        <h2 className="text-2xl font-black text-[#0a192f] mb-6 flex items-center gap-2">
-          <Activity size={24} className="text-emerald-500" strokeWidth={3} />
-          Active Events
-        </h2>
+      {/* TÌM KIẾM VÀ LỌC */}
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <FilterIcon size={20} strokeWidth={2.5} />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 min-w-[200px] w-full cursor-pointer transition-all"
+          >
+            <option value="all">All Events</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="ended">Ended</option>
+          </select>
+        </div>
 
-        {ongoing.length === 0 ? (
-          <div className="bg-white p-16 rounded-[2rem] border-2 border-dashed border-slate-200 text-center flex flex-col items-center">
+        <div className="flex items-center relative w-full sm:w-96 ml-auto">
+          <Search
+            size={18}
+            className="text-slate-400 absolute left-5"
+            strokeWidth={2.5}
+          />
+          <input
+            type="text"
+            placeholder="Search by name, semester, year..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-xl pl-12 pr-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
+          />
+        </div>
+      </div>
+
+      {/* DANH SÁCH SỰ KIỆN */}
+      <div>
+        {displayEvents.length === 0 ? (
+          <div className="bg-white p-16 rounded-[2rem] border-2 border-dashed border-slate-200 text-center flex flex-col items-center shadow-sm">
             <AlertCircle
-              size={48}
-              className="text-slate-300 mb-4"
+              size={56}
+              className="text-slate-300 mb-5"
               strokeWidth={1.5}
             />
-            <h3 className="text-xl font-bold text-slate-700">
-              No Active Tournaments
+            <h3 className="text-xl font-extrabold text-[#0a192f]">
+              {events.length === 0
+                ? "No Tournaments Initialized"
+                : "No Matches Found"}
             </h3>
-            <p className="text-slate-500 mt-2 text-base max-w-sm">
-              All previous events have concluded, or no new event has been
-              initiated yet.
+            <p className="text-slate-500 mt-2 text-base font-medium max-w-sm">
+              {events.length === 0
+                ? "There are currently no events in the system. Start by creating a new one."
+                : "No events match your current search criteria or filters."}
             </p>
-            <button
-              onClick={() => navigate("/admin/events/create")}
-              className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0a192f] border-2 border-slate-200 border-b-[4px] font-black rounded-xl hover:border-slate-300 hover:bg-slate-50 active:border-b-[2px] active:translate-y-[2px] transition-all"
-            >
-              <Plus size={18} strokeWidth={2.5} /> Initialize Event
-            </button>
+            {events.length === 0 && (
+              <button
+                onClick={() => navigate("/admin/events/create")}
+                className="mt-8 inline-flex items-center gap-2 px-8 py-3.5 bg-white text-[#0a192f] border-2 border-slate-200 border-b-[4px] font-black rounded-xl hover:border-slate-300 hover:bg-slate-50 active:border-b-[2px] active:translate-y-[2px] transition-all"
+              >
+                <Plus size={18} strokeWidth={3} /> Initialize Event
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {ongoing.map((e) => (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {displayEvents.map((e) => (
               <div
                 key={e.id}
                 className="bg-white rounded-[2rem] border border-slate-200 border-b-[6px] hover:border-b-[#0a192f] hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group"
               >
                 {/* Header Card */}
-                <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
-                  <div>
-                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-blue-600 transition-colors">
+                <div className="p-8 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+                  <div className="pr-4">
+                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-blue-600 transition-colors leading-tight">
                       {e.name}
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
+                    <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-1.5">
                       {e.semester} {e.year}
                     </p>
                   </div>
-                  <span className="text-[10px] px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live
-                  </span>
+                  {e.status === "ongoing" && (
+                    <span className="text-[10px] px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-sm shrink-0 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Live
+                    </span>
+                  )}
+                  {e.status === "ended" && (
+                    <span className="text-[10px] px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-500 font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-sm shrink-0 border border-slate-200">
+                      <CheckCircle2 size={12} strokeWidth={2.5} /> Ended
+                    </span>
+                  )}
                 </div>
 
                 {/* Body Card */}
-                <div className="p-6 flex-1 flex flex-col">
+                <div className="p-8 flex-1 flex flex-col">
                   {e.curRound ? (
                     <>
-                      <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
-                          <span className="px-3 py-1.5 bg-[#0a192f] text-white rounded-lg text-sm font-bold shadow-sm">
+                          <span className="px-4 py-2 bg-[#0a192f] text-white rounded-xl text-sm font-extrabold shadow-sm">
                             {e.curRound.roundName || "Round"}
                           </span>
-                          <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-bold uppercase tracking-widest border border-slate-200">
+                          <span className="text-[10px] px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 font-extrabold uppercase tracking-widest border border-slate-200 shadow-sm">
                             Round {e.curRound._displayIndex}
                           </span>
                         </div>
                         <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                          {e.numRounds} Total Round(s)
+                          {e.numRounds} Round(s) Total
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-500 font-bold bg-slate-50 w-fit px-3 py-1.5 rounded-lg border border-slate-100 mb-5">
-                        <Clock size={14} className="text-blue-500" />
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500 font-bold bg-slate-50/80 w-fit px-4 py-2 rounded-xl border border-slate-100 mb-6 shadow-sm uppercase tracking-wide">
+                        <Clock
+                          size={14}
+                          className="text-blue-500"
+                          strokeWidth={2.5}
+                        />
                         {formatDate(e.curRound.startDate)}{" "}
-                        <ArrowRight size={12} className="text-slate-300" />{" "}
+                        <ArrowRight size={14} className="text-slate-300 mx-1" />{" "}
                         {formatDate(e.curRound.endDate)}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm rounded-2xl p-4">
-                          <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-                            <Users size={20} />
+                      <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div className="flex items-center gap-4 bg-white border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] rounded-2xl p-5">
+                          <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                            <Users size={24} strokeWidth={2.5} />
                           </div>
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                               Capacity
                             </p>
-                            <p className="text-xl font-black text-[#0a192f]">
+                            <p className="text-2xl font-black text-[#0a192f]">
                               {e.curRound.maxTeam ?? "—"}{" "}
-                              <span className="text-sm text-slate-400 font-bold">
+                              <span className="text-xs text-slate-400 font-bold ml-0.5">
                                 teams
                               </span>
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm rounded-2xl p-4">
-                          <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-                            <Target size={20} />
+                        <div className="flex items-center gap-4 bg-white border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] rounded-2xl p-5">
+                          <div className="p-2.5 bg-amber-50 rounded-xl text-amber-600">
+                            <Target size={24} strokeWidth={2.5} />
                           </div>
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                               Advancing
                             </p>
-                            <p className="text-xl font-black text-[#0a192f]">
+                            <p className="text-2xl font-black text-[#0a192f]">
                               Top {e.curRound._topN}
                             </p>
                           </div>
@@ -341,15 +403,20 @@ export function Dashboard() {
                       </div>
                     </>
                   ) : (
-                    <p className="text-sm text-slate-400 italic py-6 flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl mb-6">
-                      Rounds configuration is missing.
-                    </p>
+                    <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 mb-8 flex-1 flex flex-col items-center justify-center text-center">
+                      <p className="text-sm font-bold text-slate-500">
+                        No Rounds Configured
+                      </p>
+                      <p className="text-xs font-medium text-slate-400 mt-1">
+                        This event requires round configurations to become fully
+                        active.
+                      </p>
+                    </div>
                   )}
 
-                  {/* Nút bấm 3D mềm mại cho Card */}
                   <button
                     onClick={() => navigate(`/admin/events/${e.id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-slate-100 text-[#0a192f] border-2 border-slate-100 border-b-[4px] hover:border-slate-300 hover:bg-slate-200 text-sm font-black rounded-xl active:border-b-[0px] active:translate-y-[4px] transition-all mt-auto"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 text-[#0a192f] border-2 border-slate-100 border-b-[4px] hover:border-slate-200 hover:bg-slate-100 text-sm font-black rounded-2xl active:border-b-[0px] active:translate-y-[4px] transition-all mt-auto"
                   >
                     Manage Event <ArrowRight size={18} strokeWidth={2.5} />
                   </button>

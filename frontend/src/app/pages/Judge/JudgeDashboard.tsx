@@ -342,9 +342,6 @@ export function JudgeDashboard() {
                           <p className="font-extrabold text-[#0a192f] text-sm">
                             {team.teamName || "Unnamed Team"}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-mono uppercase mt-1">
-                            ID: {(uniqueId || "N/A").substring(0, 8)}
-                          </p>
                         </td>
                         <td className="px-6 py-6">
                           <p className="font-bold text-slate-600 text-xs">
