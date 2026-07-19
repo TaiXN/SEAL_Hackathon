@@ -7,6 +7,9 @@ import {
   CheckCircle2,
   ListTodo,
   FileX,
+  FileText,
+  Clock,
+  Award,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
@@ -98,6 +101,23 @@ export function JudgeDashboard() {
     (team.teamName || "").toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  // ==========================================
+  // TÍNH TOÁN THỐNG KÊ (Dựa trên data của API)
+  // ==========================================
+  const totalTeams = teams.length;
+  const submittedTeams = teams.filter((t) =>
+    Boolean(t.submissionId || t.submissionID || t.urlGithub || t.urlDemo),
+  ).length;
+  const notSubmittedTeams = totalTeams - submittedTeams;
+  const evaluatedTeams = teams.filter((t) =>
+    Boolean(
+      t.evaluationId ||
+      t.evaluationID ||
+      (t.score !== null && t.score !== undefined),
+    ),
+  ).length;
+  const pendingTeams = submittedTeams - evaluatedTeams; // Đã nộp nhưng chưa chấm
+
   return (
     <div className="min-h-screen bg-[#f4f6f8] font-sans text-slate-900 pb-12 animate-in fade-in duration-500">
       <header className="bg-white border-b border-slate-100 px-10 py-5 flex justify-between items-center shadow-sm sticky top-0 z-20">
@@ -133,22 +153,94 @@ export function JudgeDashboard() {
         </button>
       </header>
 
-      <main className="max-w-6xl mx-auto mt-12 space-y-8 px-6">
-        <header className="mb-10">
+      <main className="max-w-7xl mx-auto mt-12 space-y-8 px-6">
+        <header className="mb-8">
           <h1 className="text-4xl font-extrabold text-[#0a192f] tracking-tight flex items-center gap-4">
             <ListTodo className="w-9 h-9 text-blue-600" />
-            Evaluation List
+            Dashboard Overview
           </h1>
           <p className="text-slate-500 mt-3 text-base font-medium max-w-2xl">
-            Manage and evaluate the teams assigned to you during the Hackathon
-            event.
+            Track submission statuses and manage your evaluation progress for
+            all assigned teams.
           </p>
         </header>
 
+        {/* ========================================== */}
+        {/* STATS OVERVIEW CARDS (THỐNG KÊ)             */}
+        {/* ========================================== */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {/* Đã nộp bài */}
+          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <FileText size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                Submitted
+              </p>
+              <h3 className="text-3xl font-black text-[#0a192f] leading-none">
+                {submittedTeams}{" "}
+                <span className="text-sm font-bold text-slate-400">teams</span>
+              </h3>
+            </div>
+          </div>
+
+          {/* Chưa nộp bài */}
+          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200">
+              <FileX size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">
+                Not Submitted
+              </p>
+              <h3 className="text-3xl font-black text-[#0a192f] leading-none">
+                {notSubmittedTeams}{" "}
+                <span className="text-sm font-bold text-slate-400">teams</span>
+              </h3>
+            </div>
+          </div>
+
+          {/* Đã chấm điểm */}
+          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <Award size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-[11px] font-extrabold text-emerald-500 uppercase tracking-widest mb-1">
+                Evaluated
+              </p>
+              <h3 className="text-3xl font-black text-[#0a192f] leading-none">
+                {evaluatedTeams}{" "}
+                <span className="text-sm font-bold text-slate-400">teams</span>
+              </h3>
+            </div>
+          </div>
+
+          {/* Cần chấm (Đã nộp nhưng chưa chấm) */}
+          <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-100">
+              <Clock size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-[11px] font-extrabold text-amber-500 uppercase tracking-widest mb-1">
+                Pending Scoring
+              </p>
+              <h3 className="text-3xl font-black text-[#0a192f] leading-none">
+                {pendingTeams}{" "}
+                <span className="text-sm font-bold text-slate-400">teams</span>
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================== */}
+        {/* EVALUATION LIST (BẢNG DANH SÁCH)             */}
+        {/* ========================================== */}
         <div className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row gap-6 justify-between items-center bg-slate-50/50">
             <h2 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest">
-              Assigned Teams ({teams.length})
+              Evaluation Roster ({teams.length})
             </h2>
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
