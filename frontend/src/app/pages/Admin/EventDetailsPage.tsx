@@ -35,6 +35,7 @@ import {
   sumWeight,
   DEFAULT_CRITERIA_DESCRIPTION,
   getList,
+  grabSetId,
 } from "../../lib/utils/criteriaHelpers";
 
 const isInactiveRecord = (obj: any): boolean => {
@@ -235,7 +236,6 @@ export function EventDetailsPage() {
           showConfirmButton: false,
         });
       } catch (error: any) {
-        // ĐÃ SỬA LẠI ĐÚNG YÊU CẦU: XÓA TRACK NẾU 404
         if (isNotFoundError(error)) {
           setTracks((prev) =>
             prev.filter((t) => (t.trackID || t.trackId || t.id) !== trackId),
@@ -345,7 +345,6 @@ export function EventDetailsPage() {
           showConfirmButton: false,
         });
       } catch (error: any) {
-        // ĐÃ SỬA LẠI ĐÚNG YÊU CẦU: XÓA TOPIC NẾU 404
         if (isNotFoundError(error)) {
           setTracks((prev) =>
             prev.map((t) => {
@@ -577,6 +576,25 @@ export function EventDetailsPage() {
         (allCrit || []).filter((c: any) => isInactiveRecord(c)),
       );
 
+      // TẠO TỪ ĐIỂN TÊN BỘ TIÊU CHÍ (WORKAROUND THẦN THÁNH)
+      let allSetsRaw: any[] = [];
+      try {
+        const res = await criteriaApi.getAllSet();
+        allSetsRaw = getList(res);
+      } catch (e) {}
+
+      const setNameDictionary: Record<string, string> = {};
+      allSetsRaw.forEach((st: any) => {
+        // DÙNG HÀM grabSetId CHUYÊN TRỊ MỌI TÊN ID TỪ BACKEND
+        const sId = String(grabSetId(st));
+        if (sId && sId !== "undefined" && sId !== "null") {
+          const validName = st.setName || st.SetName || st.name;
+          if (validName) {
+            setNameDictionary[sId] = validName;
+          }
+        }
+      });
+
       const sets: any[] = [];
       const seen = new Set<string>();
       for (const r of sortedRounds) {
@@ -614,9 +632,14 @@ export function EventDetailsPage() {
             })
             .filter((it: any) => it.isActive);
 
+          // LẤY TÊN TỪ TỪ ĐIỂN TRƯỚC, NẾU KHÔNG CÓ MỚI XÀI HÀNG SERVER
+          const dictName = setNameDictionary[String(setId)];
+          const serverName = s.setName || s.SetName;
+          const finalName = dictName || serverName || "Rubric Set";
+
           sets.push({
             setId,
-            setName: s.setName || s.SetName || "Rubric Set",
+            setName: finalName,
             isDefault: s.isDefault ?? s.IsDefault ?? false,
             roundName: r.roundName || "",
             items,
@@ -760,9 +783,6 @@ export function EventDetailsPage() {
     }
   };
 
-  // ====================================================
-  // CẬP NHẬT: HÀM LƯU GỘP SET (TÊN + ĐIỂM)
-  // ====================================================
   const handleSaveSet = async (set: any) => {
     if (!set.setName || !set.setName.trim()) {
       return Swal.fire("Required", "Set name cannot be empty.", "warning");
@@ -785,13 +805,12 @@ export function EventDetailsPage() {
         score: Number(it.score || 0),
       }));
 
-      // Bơm cả setName mới và list điểm mới vào payload
       await criteriaApi.updateSet(set.setId, {
         setID: set.setId,
         setId: set.setId,
         eventID: id,
         eventId: id,
-        setName: set.setName.trim(), // Tên set đang được gõ trên UI
+        setName: set.setName.trim(),
         isDefault: set.isDefault ?? false,
         criteriaList: mappedCriteriaList,
       } as any);
