@@ -28,20 +28,20 @@ namespace Services.TeamInRoundService
             if (currentTeam == null)
                 throw new Exception("This team experienced a data error; the team could not be found.");
 
-            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
-            if (existingSubmit != null) throw new Exception("Your team has already locked the competition category, resubmission is not possible!");
+            var selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
+            if (selectedEvent == null) throw new Exception("This event does not exist or is no longer active.");
+
+            var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
+            var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
+
+            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId && roundIds.Contains(s.RoundId));
+            if (existingSubmit != null) throw new Exception("Your team has already locked the competition category for this event, resubmission is not possible!");
 
             var allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
             if (memberCount < 3) throw new Exception($"The team must have at least 3 members (Current: {memberCount}).");
 
-            var selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
-            if (selectedEvent == null) throw new Exception("This event does not exist or is no longer active.");
-
-
-            var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
             var currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
-            var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
 
             var allSubmittedTeamsInEvent = await _uow.TeamInRound.GetAllAsync(tr => roundIds.Contains(tr.RoundId));
             var submittedTeamIds = allSubmittedTeamsInEvent.Select(tr => tr.TeamId).ToList();
@@ -59,11 +59,8 @@ namespace Services.TeamInRoundService
                 throw new Exception($"Submit failed! Member(s) [{names}] have already registered for this event under another team.");
             }
 
-
             var round1 = roundsOfEvent.FirstOrDefault(r => r.RoundIndex == 1);
             if (round1 == null) throw new Exception("This event is not configured for Round 1!");
-
-
 
             if (DateTime.Now >= round1.StartDate)
                 throw new Exception("Registration has expired! This event has officially started.");
@@ -77,7 +74,6 @@ namespace Services.TeamInRoundService
 
             var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
             if (topic == null) throw new Exception("topic doesnt belong to this track");
-
 
             var newSubmit = new TeamInRound
             {
