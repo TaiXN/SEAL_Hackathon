@@ -37,12 +37,17 @@ interface RubricItem {
   weight: number;
 }
 
+// Đã bổ sung setName và onSetNameChange
 function RubricPanel({
   title,
+  setName,
+  onSetNameChange,
   items,
   onChange,
 }: {
   title: string;
+  setName: string;
+  onSetNameChange: (name: string) => void;
   items: RubricItem[];
   onChange: (items: RubricItem[]) => void;
 }) {
@@ -60,22 +65,39 @@ function RubricPanel({
 
   return (
     <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-      <h4 className="font-extrabold text-[#0a192f] text-lg mb-5 pb-3 border-b border-slate-100/60">
-        {title}
-      </h4>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100/80">
+        <h4 className="font-extrabold text-[#0a192f] text-lg shrink-0">
+          {title}
+        </h4>
+
+        {/* Ô NHẬP TÊN BỘ TIÊU CHÍ */}
+        <div className="flex items-center gap-3 w-full flex-1 min-w-0">
+          <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0">
+            Set Name
+          </label>
+          <input
+            type="text"
+            value={setName}
+            onChange={(e) => onSetNameChange(e.target.value)}
+            placeholder="e.g., SEAL Hackathon - Prelim Rubric"
+            className="w-full min-w-0 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+          />
+        </div>
+      </div>
+
       <div className="space-y-4">
         {items.map((r) => (
           <div
             key={r.id}
-            className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-3 transition-all hover:bg-slate-50"
+            className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-3 transition-all hover:bg-white hover:shadow-sm hover:border-slate-200"
           >
             <div className="flex gap-3 items-center">
               <input
                 type="text"
                 value={r.name}
                 onChange={(e) => updateItem(r.id, { name: e.target.value })}
-                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-semibold text-slate-700 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="Criteria Name (e.g., Innovation)"
+                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
+                placeholder="Criterion Name (e.g., Innovation)"
               />
               <div className="relative w-24">
                 <input
@@ -84,7 +106,7 @@ function RubricPanel({
                   onChange={(e) =>
                     updateItem(r.id, { weight: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2.5 pr-6 text-sm text-center bg-white border border-slate-200 rounded-xl font-bold text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  className="w-full px-3 py-2.5 pr-6 text-sm text-center bg-white border border-slate-200 rounded-xl font-black text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 />
                 <span className="absolute right-3 top-2.5 text-slate-400 text-sm font-bold">
                   %
@@ -92,10 +114,10 @@ function RubricPanel({
               </div>
               <button
                 onClick={() => removeItem(r.id)}
-                className="text-slate-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                className="text-slate-300 hover:text-red-500 p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-red-50 transition-colors shadow-sm"
                 title="Remove Criteria"
               >
-                <Trash2 size={18} />
+                <Trash2 size={16} strokeWidth={2.5} />
               </button>
             </div>
             <input
@@ -104,30 +126,33 @@ function RubricPanel({
               onChange={(e) =>
                 updateItem(r.id, { description: e.target.value })
               }
-              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-500 font-medium focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-600 font-medium focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
               placeholder="Description or grading guide (optional)"
             />
           </div>
         ))}
         <button
           onClick={addItem}
-          className="text-xs font-bold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+          className="text-xs font-extrabold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1.5 px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-colors bg-white border border-blue-100 shadow-sm"
         >
-          <Plus size={14} strokeWidth={2.5} /> Add Criteria
+          <Plus size={14} strokeWidth={3} /> Add Criterion
         </button>
       </div>
 
-      <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center font-bold text-sm">
-        <span className="text-slate-500">Total Weight:</span>
+      <div className="mt-8 pt-5 border-t border-slate-100 flex justify-between items-center font-bold text-sm">
+        <span className="text-slate-500 uppercase tracking-widest text-[11px] font-extrabold">
+          Total Weight
+        </span>
         <span
-          className={`px-4 py-1.5 rounded-xl ${isValid ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
+          className={`px-4 py-1.5 rounded-xl font-black ${isValid ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-500 border border-red-100"}`}
         >
           {total}%
         </span>
       </div>
       {!isValid && (
-        <p className="text-[11px] text-red-500 mt-2 flex items-center gap-1.5 font-medium">
-          <AlertCircle size={14} /> Total weight must be exactly 100% to save.
+        <p className="text-[11px] text-red-500 mt-3 flex items-center gap-1.5 font-bold">
+          <AlertCircle size={14} strokeWidth={2.5} /> Total weight must be
+          exactly 100% to save.
         </p>
       )}
     </div>
@@ -153,18 +178,26 @@ export function CreateEvents() {
   ]);
   const [topicInputs, setTopicInputs] = useState<{ [key: number]: string }>({});
 
+  // Cập nhật state rubrics để chứa tên bộ tiêu chí
   const [rubrics, setRubrics] = useState<{
-    prelim: RubricItem[];
-    final: RubricItem[];
+    prelim: { setName: string; items: RubricItem[] };
+    final: { setName: string; items: RubricItem[] };
   }>({
-    prelim: [
-      { id: 1, name: "Innovation & Creativity", description: "", weight: 50 },
-      { id: 2, name: "Practicality", description: "", weight: 50 },
-    ],
-    final: [
-      { id: 3, name: "Overall Completeness", description: "", weight: 100 },
-    ],
+    prelim: {
+      setName: "",
+      items: [
+        { id: 1, name: "Innovation & Creativity", description: "", weight: 50 },
+        { id: 2, name: "Practicality", description: "", weight: 50 },
+      ],
+    },
+    final: {
+      setName: "",
+      items: [
+        { id: 3, name: "Overall Completeness", description: "", weight: 100 },
+      ],
+    },
   });
+
   const [isSavingRubrics, setIsSavingRubrics] = useState(false);
 
   const [rubricMode, setRubricMode] = useState<"new" | "reuse">("new");
@@ -254,6 +287,18 @@ export function CreateEvents() {
           setSavedEventId(foundId);
         }
       }
+
+      // Auto-fill Rubric Set Names if they are empty
+      setRubrics((prev) => ({
+        prelim: {
+          ...prev.prelim,
+          setName: prev.prelim.setName || `${payload.eventName} - Prelim Set`,
+        },
+        final: {
+          ...prev.final,
+          setName: prev.final.setName || `${payload.eventName} - Final Set`,
+        },
+      }));
 
       Swal.fire({
         icon: "success",
@@ -407,17 +452,26 @@ export function CreateEvents() {
           "error",
         );
     } else {
+      // Validate Custom Rubrics
+      if (!rubrics.prelim.setName.trim() || !rubrics.final.setName.trim()) {
+        return Swal.fire(
+          "Required",
+          "Please provide a Set Name for both Preliminary and Final rubrics!",
+          "warning",
+        );
+      }
+
       if (
-        rubrics.prelim.some((r) => !r.name.trim()) ||
-        rubrics.final.some((r) => !r.name.trim())
+        rubrics.prelim.items.some((r) => !r.name.trim()) ||
+        rubrics.final.items.some((r) => !r.name.trim())
       )
         return Swal.fire(
           "Required",
           "Please enter names for all criteria!",
           "warning",
         );
-      const prelimTotal = sumWeight(rubrics.prelim);
-      const finalTotal = sumWeight(rubrics.final);
+      const prelimTotal = sumWeight(rubrics.prelim.items);
+      const finalTotal = sumWeight(rubrics.final.items);
       if (prelimTotal !== 100 || finalTotal !== 100)
         return Swal.fire(
           "Invalid Weight",
@@ -482,7 +536,7 @@ export function CreateEvents() {
         );
 
         const payload = {
-          setName: setName,
+          setName: setName.trim(),
           isDefault: true,
           criteriaList: criteriaMap,
           CriteriaList: criteriaMap,
@@ -505,7 +559,7 @@ export function CreateEvents() {
               .find(
                 (s: any) =>
                   (s.setName || s.name || "").trim().toLowerCase() ===
-                  setName.toLowerCase(),
+                  setName.trim().toLowerCase(),
               );
             setId = extractId(foundSet);
           }
@@ -520,13 +574,13 @@ export function CreateEvents() {
         fId = reuseFinalSetId;
       } else {
         pId = await syncSet(
-          rubrics.prelim,
-          `${eventForm.eventName} - Prelim Set`,
+          rubrics.prelim.items,
+          rubrics.prelim.setName,
           savedPrelimSetId,
         );
         fId = await syncSet(
-          rubrics.final,
-          `${eventForm.eventName} - Final Set`,
+          rubrics.final.items,
+          rubrics.final.setName,
           savedFinalSetId,
         );
       }
@@ -963,19 +1017,39 @@ export function CreateEvents() {
                 </div>
 
                 {rubricMode === "new" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <RubricPanel
                       title="Preliminary Round"
-                      items={rubrics.prelim}
+                      setName={rubrics.prelim.setName}
+                      onSetNameChange={(name) =>
+                        setRubrics((prev) => ({
+                          ...prev,
+                          prelim: { ...prev.prelim, setName: name },
+                        }))
+                      }
+                      items={rubrics.prelim.items}
                       onChange={(items) =>
-                        setRubrics((prev) => ({ ...prev, prelim: items }))
+                        setRubrics((prev) => ({
+                          ...prev,
+                          prelim: { ...prev.prelim, items },
+                        }))
                       }
                     />
                     <RubricPanel
                       title="Final Round"
-                      items={rubrics.final}
+                      setName={rubrics.final.setName}
+                      onSetNameChange={(name) =>
+                        setRubrics((prev) => ({
+                          ...prev,
+                          final: { ...prev.final, setName: name },
+                        }))
+                      }
+                      items={rubrics.final.items}
                       onChange={(items) =>
-                        setRubrics((prev) => ({ ...prev, final: items }))
+                        setRubrics((prev) => ({
+                          ...prev,
+                          final: { ...prev.final, items },
+                        }))
                       }
                     />
                   </div>
