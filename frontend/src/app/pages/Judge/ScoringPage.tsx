@@ -15,13 +15,11 @@ import {
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
 
-// Import APIs
 import apiClient from "../../lib/api/apiClient";
 import { judgeApi } from "../../lib/api/judgeApi";
 import { roundApi } from "../../lib/api/roundApi";
 import { useAuthStore } from "../../stores/auth.store";
 
-// Hàm hỗ trợ đọc mảng an toàn
 const getList = (res: any): any[] => {
   if (!res) return [];
   if (Array.isArray(res)) return res;
@@ -32,7 +30,6 @@ const getList = (res: any): any[] => {
   return [];
 };
 
-// Hàm chuẩn hóa ID chuỗi
 const normalizeId = (id: any) =>
   String(id || "")
     .toLowerCase()
@@ -40,7 +37,7 @@ const normalizeId = (id: any) =>
 
 export function ScoringPage() {
   const navigate = useNavigate();
-  const { teamId } = useParams(); // Có thể là submissionId hoặc teamInRoundId do Dashboard truyền qua
+  const { teamId } = useParams();
   const location = useLocation();
   const teamFromList = location.state?.team || {};
 
@@ -56,7 +53,6 @@ export function ScoringPage() {
     } catch {}
   }
 
-  // SỬA LỖI 1: Bổ sung đầy đủ các trường ánh xạ token như bên Dashboard
   const currentTeacherId =
     user?.id ||
     user?.Id ||
@@ -67,7 +63,7 @@ export function ScoringPage() {
     decodedUser?.sub ||
     decodedUser?.nameid ||
     decodedUser?.userId ||
-    decodedUser?.UserId || // <-- Thêm nameid
+    decodedUser?.UserId ||
     decodedUser?.teacherId ||
     decodedUser?.teacherID ||
     decodedUser?.TeacherId ||
@@ -77,13 +73,11 @@ export function ScoringPage() {
     ] ||
     "";
 
-  // States dữ liệu
   const [submissionData, setSubmissionData] = useState({
     githubUrl: "",
     demoUrl: "",
     slideUrl: "",
   });
-
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
   const [evaluationId, setEvaluationId] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -92,7 +86,6 @@ export function ScoringPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // SỬA LỖI 2: State lưu trữ ID Bài Nộp CHUẨN XÁC để gửi xuống DB lúc chấm
   const [actualSubmissionId, setActualSubmissionId] = useState(
     teamFromList?.submissionId || teamFromList?.submissionID || teamId || "",
   );
@@ -106,9 +99,7 @@ export function ScoringPage() {
       setIsLoading(true);
 
       try {
-        // ==========================================
-        // BƯỚC 1: LẤY THÔNG TIN BÀI NỘP CỦA ĐỘI
-        // ==========================================
+        // 1. Fetch submission details
         let finalRoundId = normalizeId(
           teamFromList?.roundId ||
             teamFromList?.roundID ||
@@ -118,8 +109,6 @@ export function ScoringPage() {
         try {
           const subRes = await apiClient.get("/api/Submission");
           const allSubs = getList(subRes);
-
-          // Tìm bài nộp thông minh: Dò theo ID bài nộp HOẶC teamInRoundId
           const expectedTeamInRoundId = normalizeId(
             teamFromList?.teamInRoundId ||
               teamFromList?.teamInRoundID ||
@@ -145,27 +134,19 @@ export function ScoringPage() {
               slideUrl:
                 mySub.urlSlide || mySub.URLSlide || mySub.slideUrl || "",
             });
-
-            // CHỐT ID BÀI NỘP CHUẨN XÁC
             const foundSubmissionId =
               mySub.id || mySub.submissionID || mySub.submissionId;
-            if (foundSubmissionId) {
-              setActualSubmissionId(foundSubmissionId);
-            }
-
-            if (!finalRoundId) {
+            if (foundSubmissionId) setActualSubmissionId(foundSubmissionId);
+            if (!finalRoundId)
               finalRoundId = normalizeId(
                 mySub.teamInRound?.roundId || mySub.teamInRound?.roundID,
               );
-            }
           }
         } catch (e) {
-          console.warn("Lỗi khi load Submission:", e);
+          console.warn("Error loading Submission:", e);
         }
 
-        // ==========================================
-        // BƯỚC 2: TRÍCH XUẤT VÀ TÌM KIẾM ID BỘ TIÊU CHÍ
-        // ==========================================
+        // 2. Extract Criteria Set ID
         let targetSetId = normalizeId(
           teamFromList?.criteriaSetId ||
             teamFromList?.CriteriaSetId ||
@@ -184,7 +165,7 @@ export function ScoringPage() {
               roundData?.criteriaSetID || (roundData as any)?.criteriaSetId,
             );
           } catch (e) {
-            console.warn("Lỗi khi gọi roundApi lấy tiêu chí theo Vòng:", e);
+            console.warn("Error fetching roundApi:", e);
           }
         }
 
@@ -200,25 +181,20 @@ export function ScoringPage() {
               allSets.find(
                 (s) => s.isDefault === true || s.IsDefault === true,
               ) || allSets[0];
-
-            if (defaultSet) {
+            if (defaultSet)
               targetSetId = normalizeId(
                 defaultSet.criteriaSetID ||
                   defaultSet.criteriaSetId ||
                   defaultSet.id ||
                   defaultSet.setID,
               );
-            }
           } catch (e) {
-            console.error("Lỗi lấy danh sách bộ tiêu chí dự phòng:", e);
+            console.error("Error fetching fallback criteria set:", e);
           }
         }
 
-        // ==========================================
-        // BƯỚC 3: TẢI DANH SÁCH MỤC TIÊU CHÍ VÀ TRA TỪ ĐIỂN
-        // ==========================================
+        // 3. Load Criteria Mapping
         let isCriteriaLoaded = false;
-
         if (
           targetSetId &&
           targetSetId !== "undefined" &&
@@ -232,12 +208,11 @@ export function ScoringPage() {
             const allCriteria = await apiClient.get("/api/Criteria/criterion");
             getList(allCriteria).forEach((c: any) => {
               const cId = normalizeId(c.criteriaID || c.criteriaId || c.id);
-              if (cId) {
+              if (cId)
                 criteriaNameMap[cId] = {
-                  name: c.criteriaName || c.CriteriaName || "Tiêu chí đánh giá",
+                  name: c.criteriaName || c.CriteriaName || "System Criterion",
                   desc: c.description || c.Description || "",
                 };
-              }
             });
 
             const mappingRes = await apiClient.get(
@@ -246,21 +221,19 @@ export function ScoringPage() {
             let mappingsArray = [];
             const data = mappingRes?.data ?? mappingRes;
 
-            if (Array.isArray(data)) {
-              mappingsArray = data;
-            } else if (
+            if (Array.isArray(data)) mappingsArray = data;
+            else if (
               data?.criteriaList ||
               data?.mapping ||
               data?.items ||
               data?.CriteriaList
-            ) {
+            )
               mappingsArray = getList(
                 data.criteriaList ||
                   data.mapping ||
                   data.items ||
                   data.CriteriaList,
               );
-            }
 
             if (mappingsArray.length > 0) {
               const mappedCriteria = mappingsArray.map((item: any) => {
@@ -271,10 +244,9 @@ export function ScoringPage() {
                   item.id;
                 const cId = normalizeId(rawCId);
                 const dictInfo = criteriaNameMap[cId] || {
-                  name: "Tiêu chí hệ thống",
+                  name: "System Criterion",
                   desc: "",
                 };
-
                 return {
                   id: cId || Math.random().toString(),
                   name:
@@ -289,7 +261,6 @@ export function ScoringPage() {
                   judgeScore: 0,
                 };
               });
-
               setCriteriaList(mappedCriteria);
               isCriteriaLoaded = true;
             }
@@ -297,8 +268,9 @@ export function ScoringPage() {
             if (error.response?.status === 404) {
               Swal.fire({
                 icon: "warning",
-                title: "Bộ tiêu chí rỗng",
-                text: "Vòng thi này đã được gán Bộ Tiêu Chí, nhưng Bộ này hiện chưa được Admin thêm câu hỏi/thang điểm nào vào bên trong.",
+                title: "Empty Criteria Set",
+                text: "This round has been assigned a criteria set, but it currently contains no grading items.",
+                customClass: { popup: "rounded-[2rem]" },
               });
               isCriteriaLoaded = true;
             }
@@ -308,22 +280,18 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "Lỗi cấu hình thang điểm",
-            text: "Không thể nạp dữ liệu barem điểm cho đội thi này. Vui lòng kiểm tra lại cấu hình bộ tiêu chí!",
+            title: "Scoring Configuration Error",
+            text: "Could not load scoring rubric for this team. Please check the criteria configuration.",
+            customClass: { popup: "rounded-[2rem]" },
           });
         }
 
-        // ==========================================
-        // BƯỚC 4: TẢI ĐIỂM SỐ ĐÃ LƯU TRƯỚC ĐÓ
-        // ==========================================
+        // 4. Load Saved Scores
         try {
-          // Lấy đúng ID Bài nộp mới load ra được điểm
-          const currentSubId = actualSubmissionId;
-          if (currentSubId) {
+          if (actualSubmissionId) {
             const evalRes =
-              await judgeApi.getEvaluationBySubmission(currentSubId);
+              await judgeApi.getEvaluationBySubmission(actualSubmissionId);
             const evalData = evalRes?.data || evalRes;
-
             if (
               evalData &&
               (evalData.evaluationID ||
@@ -341,19 +309,17 @@ export function ScoringPage() {
             }
           }
         } catch {
-          // Đội thi hiện tại chưa được lưu điểm cũ.
+          /* Ignore if no previous score exists */
         }
       } catch (e) {
-        console.error("Lỗi hệ thống tổng thể:", e);
+        console.error("Global system error:", e);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
 
-  // Tính toán tổng điểm tự động
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
     0,
@@ -362,7 +328,6 @@ export function ScoringPage() {
     (acc, curr) => acc + (curr.maxScore || 0),
     0,
   );
-
   const isEditing = criteriaList.some((c) => c.judgeScore > 0);
   const displayScore = isEditing ? inputTotalScore : savedScore || 0;
 
@@ -371,93 +336,80 @@ export function ScoringPage() {
     if (isNaN(num)) num = 0;
     if (num < 0) num = 0;
     if (num > maxScore) num = maxScore;
-
     setCriteriaList((prev) =>
       prev.map((c) => (c.id === id ? { ...c, judgeScore: num } : c)),
     );
   };
 
   const handleSaveEvaluation = async () => {
-    if (!currentTeacherId) {
-      Swal.fire({
+    if (!currentTeacherId)
+      return Swal.fire({
         icon: "error",
-        title: "Lỗi xác thực",
-        text: "Hệ thống không nhận diện được ID Giám khảo. Vui lòng F5 hoặc đăng nhập lại!",
+        title: "Authentication Error",
+        text: "System could not identify Judge ID. Please refresh or log in again.",
+        customClass: { popup: "rounded-[2rem]" },
       });
-      return;
-    }
-
-    if (criteriaList.length === 0) {
-      Swal.fire({
+    if (criteriaList.length === 0)
+      return Swal.fire({
         icon: "warning",
-        title: "Thiếu barem điểm",
-        text: "Không có bộ tiêu chí nào để chấm điểm. Vui lòng liên hệ Admin!",
+        title: "Missing Rubric",
+        text: "No evaluation criteria found. Please contact Admin.",
+        customClass: { popup: "rounded-[2rem]" },
       });
-      return;
-    }
-
-    if (displayScore === 0) {
-      Swal.fire({
+    if (displayScore === 0)
+      return Swal.fire({
         icon: "warning",
-        title: "Điểm số không hợp lệ",
-        text: "Vui lòng nhập điểm đánh giá lớn hơn 0 trước khi tiến hành chốt kết quả!",
+        title: "Invalid Score",
+        text: "Please enter a score greater than 0 before submitting.",
+        customClass: { popup: "rounded-[2rem]" },
       });
-      return;
-    }
-
-    if (!feedback.trim()) {
-      Swal.fire({
+    if (!feedback.trim())
+      return Swal.fire({
         icon: "warning",
-        title: "Thiếu nhận xét",
-        text: "Vui lòng nhập nội dung nhận xét & góp ý (Feedback) dành cho đội thi!",
+        title: "Missing Feedback",
+        text: "Please provide feedback and comments for the team.",
+        customClass: { popup: "rounded-[2rem]" },
       });
-      return;
-    }
-
-    if (!actualSubmissionId) {
-      Swal.fire({
+    if (!actualSubmissionId)
+      return Swal.fire({
         icon: "error",
-        title: "Lỗi dữ liệu",
-        text: "Không tìm thấy mã số bài nộp hợp lệ của đội thi này!",
+        title: "Data Error",
+        text: "Valid submission ID not found for this team.",
+        customClass: { popup: "rounded-[2rem]" },
       });
-      return;
-    }
 
     try {
       setIsSaving(true);
-      const basePayload = {
-        score: displayScore,
-        reason: feedback,
-      };
+      const basePayload = { score: displayScore, reason: feedback };
 
-      if (evaluationId) {
+      if (evaluationId)
         await judgeApi.updateEvaluation(currentTeacherId, {
           ...basePayload,
           evaluationID: evaluationId,
         });
-      } else {
-        // Gửi ĐÚNG actualSubmissionId
+      else
         await judgeApi.createEvaluation(currentTeacherId, {
           ...basePayload,
           submissionID: actualSubmissionId,
         });
-      }
 
       Swal.fire({
         icon: "success",
-        title: "Lưu điểm thành công!",
-        text: `Đội thi đã được ghi nhận tổng số điểm là: ${displayScore} điểm.`,
+        title: "Score Saved Successfully!",
+        text: `The team's total score has been recorded as ${displayScore} points.`,
         timer: 2000,
         showConfirmButton: false,
+        customClass: { popup: "rounded-[2rem]" },
       }).then(() => navigate("/judge"));
     } catch (error: any) {
-      console.error("Lỗi khi gửi dữ liệu chấm điểm lên hệ thống:", error);
+      console.error("Scoring submission error:", error);
       Swal.fire({
         icon: "error",
-        title: "Lưu kết quả thất bại",
+        title: "Failed to Save Score",
         text:
           error.response?.data?.message ||
-          "Hệ thống từ chối ghi nhận điểm số lúc này.",
+          "The system rejected the score submission at this time.",
+        customClass: { popup: "rounded-[2rem]" },
       });
     } finally {
       setIsSaving(false);
@@ -466,178 +418,201 @@ export function ScoringPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <p className="text-slate-400 font-bold animate-pulse">
-          Đang nạp dữ liệu bài thi và bộ tiêu chí đánh giá thật...
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f6f8]">
+        <p className="text-slate-400 font-extrabold animate-pulse tracking-wide">
+          Loading submission data and evaluation criteria...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-[#f4f6f8] font-sans text-slate-900 pb-12 animate-in fade-in duration-500">
+      <header className="bg-white border-b border-slate-100 px-10 py-5 flex justify-between items-center shadow-sm sticky top-0 z-20">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-slate-100 rounded-full transition-colors mr-2 cursor-pointer"
+            className="p-2.5 hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 transition-all mr-2 cursor-pointer"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
+            <ArrowLeft className="w-5 h-5 text-slate-500" strokeWidth={2.5} />
           </button>
-          <Hexagon size={32} className="text-blue-600" strokeWidth={2.5} />
+          <div className="p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
+            <Hexagon size={28} className="text-[#0a192f]" strokeWidth={2.5} />
+          </div>
           <div>
-            <h1 className="font-extrabold text-lg tracking-tight">
+            <h1 className="font-extrabold text-xl tracking-tight text-[#0a192f] leading-tight">
               SCORING PANEL
             </h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">
               SEAL Hackathon
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-indigo-50 border border-indigo-100 px-5 py-2.5 rounded-xl text-indigo-700 font-black flex items-center gap-2 text-lg">
-            <Calculator size={20} />
+          <div className="bg-[#0a192f] border border-slate-800 px-6 py-3 rounded-2xl text-white font-black flex items-center gap-3 text-xl shadow-lg shadow-slate-900/10">
+            <Calculator size={22} className="text-blue-400" />
             {displayScore}{" "}
-            <span className="text-sm font-medium text-indigo-400">
-              / {maxPossibleScore > 0 ? maxPossibleScore : 100}
+            <span className="text-sm font-bold text-slate-400">
+              / {maxPossibleScore > 0 ? maxPossibleScore : 100} points
             </span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
-        {/* ================= CỘT TRÁI: THÔNG TIN BÀI NỘP ================= */}
-        <div className="lg:col-span-5 space-y-6">
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Activity className="w-6 h-6 text-blue-600" />
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    Đội đang chấm
-                  </p>
-                  <h2 className="text-xl font-extrabold text-slate-900">
-                    {teamFromList?.teamName ||
-                      teamFromList?.name ||
-                      "Đội ẩn danh"}
-                  </h2>
-                </div>
+      <main className="max-w-7xl mx-auto mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 px-6">
+        {/* ================= LEFT COLUMN: SUBMISSION INFO ================= */}
+        <div className="lg:col-span-4 space-y-6">
+          <section className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-8 sticky top-32">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                <Activity size={24} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  Evaluating Team
+                </p>
+                <h2 className="text-xl font-extrabold text-[#0a192f] leading-tight">
+                  {teamFromList?.teamName ||
+                    teamFromList?.name ||
+                    "Anonymous Team"}
+                </h2>
               </div>
             </div>
 
             {savedScore !== null && (
-              <div className="mb-6 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="mb-8 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4 shadow-sm">
+                <CheckCircle2
+                  className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"
+                  strokeWidth={2.5}
+                />
                 <div>
-                  <p className="font-bold text-emerald-800 text-sm">
-                    Đã có điểm hệ thống
+                  <p className="font-extrabold text-emerald-800 text-sm">
+                    Already Evaluated
                   </p>
-                  <p className="text-xs text-emerald-600 mt-1">
-                    Đội này đã được chấm <b>{savedScore} điểm</b>. Bạn có thể
-                    nhập lại điểm để cập nhật kết quả mới.
+                  <p className="text-xs font-semibold text-emerald-600/80 mt-1.5 leading-relaxed">
+                    This team has been scored <b>{savedScore} points</b>. You
+                    can update the scores below.
                   </p>
                 </div>
               </div>
             )}
 
             <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <GitBranch size={14} /> Mã nguồn (Github)
+              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <GitBranch size={14} strokeWidth={2.5} /> Source Code (GitHub)
                 </p>
                 {submissionData.githubUrl ? (
                   <a
                     href={submissionData.githubUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
+                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all"
                   >
                     {submissionData.githubUrl}
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm font-medium text-slate-400 italic">
+                    Not provided
+                  </p>
                 )}
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <Globe size={14} /> Demo / Website
+              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Globe size={14} strokeWidth={2.5} /> Demo / Website
                 </p>
                 {submissionData.demoUrl ? (
                   <a
                     href={submissionData.demoUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
+                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all"
                   >
                     {submissionData.demoUrl}
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm font-medium text-slate-400 italic">
+                    Not provided
+                  </p>
                 )}
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                  <Download size={14} /> Tài liệu (Slide)
+              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Download size={14} strokeWidth={2.5} /> Presentation (Slide)
                 </p>
                 {submissionData.slideUrl ? (
                   <a
                     href={submissionData.slideUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
+                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all flex items-center gap-1.5"
                   >
-                    Xem Slide Thuyết trình
+                    View Presentation Deck
                   </a>
                 ) : (
-                  <p className="text-sm text-slate-400 italic">Chưa cập nhật</p>
+                  <p className="text-sm font-medium text-slate-400 italic">
+                    Not provided
+                  </p>
                 )}
               </div>
             </div>
           </section>
         </div>
 
-        {/* ================= CỘT PHẢI: BẢNG TIÊU CHÍ CHẤM ================= */}
-        <div className="lg:col-span-7">
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 lg:p-8">
-            <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-              <FileText className="text-blue-600" /> Rubric Đánh Giá
-            </h3>
-            <p className="text-sm text-slate-500 mb-6 font-medium">
-              Vui lòng nhập điểm số cho từng tiêu chí, hệ thống sẽ tự động tính
-              tổng điểm để gửi xuống Backend.
-            </p>
+        {/* ================= RIGHT COLUMN: SCORING RUBRIC ================= */}
+        <div className="lg:col-span-8">
+          <section className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-8 lg:p-10">
+            <div className="border-b border-slate-100 pb-6 mb-8">
+              <h3 className="text-2xl font-extrabold text-[#0a192f] flex items-center gap-3">
+                <FileText
+                  className="text-blue-600"
+                  size={28}
+                  strokeWidth={2.5}
+                />{" "}
+                Evaluation Rubric
+              </h3>
+              <p className="text-sm text-slate-500 mt-2 font-medium">
+                Please enter the score for each criterion. The system will
+                automatically calculate the total.
+              </p>
+            </div>
 
             {criteriaList.length === 0 ? (
-              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <p className="text-slate-500 font-medium text-lg">
-                  Bộ tiêu chí trống
+              <div className="p-10 text-center bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-200">
+                <p className="text-slate-500 font-extrabold text-lg">
+                  Empty Criteria Set
                 </p>
-                <p className="text-slate-400 mt-2 text-sm">
-                  Vòng thi này hiện chưa được thiết lập các câu hỏi chấm điểm.
-                  Hãy nhắc Admin thêm nội dung vào bộ tiêu chí!
+                <p className="text-slate-400 mt-2 text-sm font-medium">
+                  This round currently has no grading criteria configured.
+                  Please contact the Administrator.
                 </p>
               </div>
             ) : (
-              criteriaList.map((crit, index) => (
-                <div key={`${crit.id}-${index}`} className="mb-5 last:mb-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border border-slate-100 p-4 rounded-xl hover:border-blue-200 transition-colors">
+              <div className="space-y-5">
+                {criteriaList.map((crit, index) => (
+                  <div
+                    key={`${crit.id}-${index}`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-slate-50/80 border border-slate-100 p-6 rounded-[1.5rem] hover:border-blue-200 hover:bg-white transition-all shadow-sm"
+                  >
                     <div className="flex-1">
-                      <h4 className="font-bold text-slate-800 text-sm">
+                      <h4 className="font-extrabold text-[#0a192f] text-base">
                         {index + 1}. {crit.name}
                       </h4>
                       {crit.description && (
-                        <p className="text-[12px] text-slate-500 mt-1">
+                        <p className="text-[13px] font-medium text-slate-500 mt-2 leading-relaxed">
                           {crit.description}
                         </p>
                       )}
-                      <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                        Điểm tối đa:{" "}
-                        <span className="text-blue-600">{crit.maxScore}</span>
+                      <p className="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-widest bg-white inline-block px-2.5 py-1 rounded-lg border border-slate-100">
+                        Max Score:{" "}
+                        <span className="text-blue-600">
+                          {crit.maxScore} points
+                        </span>
                       </p>
                     </div>
-                    <div className="relative w-32 shrink-0">
+                    <div className="relative w-36 shrink-0">
                       <input
                         type="number"
                         min="0"
@@ -651,42 +626,41 @@ export function ScoringPage() {
                           )
                         }
                         placeholder="0"
-                        className="w-full pl-4 pr-12 py-2.5 bg-white border border-slate-300 rounded-lg text-lg font-bold text-slate-900 text-center outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
+                        className="w-full pl-5 pr-14 py-4 bg-white border border-slate-200 rounded-2xl text-xl font-black text-[#0a192f] text-center outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                        pts
+                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm pointer-events-none">
+                        points
                       </span>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
 
-            <div className="pt-6 mt-6 border-t border-slate-100">
-              <label className="block text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">
-                Nhận xét & Góp ý (Feedback){" "}
-                <span className="text-red-500">*</span>
+            <div className="pt-8 mt-10 border-t border-slate-100">
+              <label className="block text-[11px] font-extrabold text-slate-400 mb-4 uppercase tracking-widest">
+                Feedback & Comments <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                className="w-full h-36 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
-                placeholder="Nhập nhận xét chi tiết, điểm mạnh, điểm yếu và các góp ý xây dựng cho đội thi..."
+                className="w-full h-40 p-5 rounded-2xl border border-slate-200 outline-none text-sm transition-all resize-none bg-slate-50/80 text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 font-semibold placeholder:text-slate-400 placeholder:font-medium shadow-sm"
+                placeholder="Enter detailed feedback, strengths, weaknesses, and constructive comments for the team..."
               ></textarea>
             </div>
 
-            <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
+            <div className="flex justify-end pt-8 mt-8 border-t border-slate-100">
               <button
                 onClick={handleSaveEvaluation}
                 disabled={isSaving || criteriaList.length === 0}
-                className="px-8 py-3 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/30 cursor-pointer"
+                className="px-10 py-4 text-white font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-[#0a192f] hover:bg-slate-800 cursor-pointer text-sm"
               >
-                <Save size={18} />
+                <Save size={18} strokeWidth={2.5} />
                 {isSaving
-                  ? "Đang lưu hệ thống..."
+                  ? "Saving..."
                   : evaluationId
-                    ? "Cập nhật Điểm"
-                    : "Chốt Điểm"}
+                    ? "Update Score"
+                    : "Submit Score"}
               </button>
             </div>
           </section>
