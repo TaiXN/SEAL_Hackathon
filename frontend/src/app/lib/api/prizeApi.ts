@@ -7,6 +7,7 @@ export interface PrizeData {
   description: string;
   eventId?: string;
   teamId?: string; // Dùng khi đã được assign
+  teamName?: string;
   isActive?: boolean;
   isDeleted?: boolean;
 }

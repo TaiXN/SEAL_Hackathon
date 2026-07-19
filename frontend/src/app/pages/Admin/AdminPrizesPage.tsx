@@ -36,6 +36,9 @@ export function AdminPrizesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- TỪ ĐIỂN LƯU TRỮ: MÃ ĐỘI -> TÊN ĐỘI ---
+  const [teamDict, setTeamDict] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -70,6 +73,60 @@ export function AdminPrizesPage() {
     fetchPrizes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEventId]);
+
+  // =========================================================
+  // CHIÊU FRONTEND HACK: BACKGROUND FETCH ĐỂ GHÉP TÊN ĐỘI
+  // =========================================================
+  useEffect(() => {
+    const loadTeamNames = async () => {
+      // 1. Lọc ra những giải thưởng đã có chủ (teamId) nhưng chưa có trong từ điển
+      const awardedPrizes = prizes.filter(
+        (p) => p.teamId && !teamDict[p.teamId],
+      );
+      if (awardedPrizes.length === 0) return;
+
+      try {
+        // 2. Lấy tất cả vòng thi, dò xem giải thưởng thuộc sự kiện nào để tìm vòng thi tương ứng
+        const allRounds = await roundApi.getAllRounds();
+        const eventIdsWithPrizes = Array.from(
+          new Set(awardedPrizes.map((p) => String(p.eventId))),
+        );
+        const targetRounds = allRounds.filter((r: any) =>
+          eventIdsWithPrizes.includes(String(r.eventID || r.eventId)),
+        );
+
+        let newDict = { ...teamDict };
+
+        // 3. Quét qua các vòng thi đó để lấy danh sách Đội
+        await Promise.all(
+          targetRounds.map(async (r: any) => {
+            try {
+              const rId = r.roundID || r.roundId || r.id;
+              const res = await apiClient.get(
+                `/api/TeamInRound/details/round/${rId}`,
+              );
+              if (res.data && Array.isArray(res.data)) {
+                res.data.forEach((t: any) => {
+                  if (t.teamId) {
+                    // Cập nhật tên vào từ điển
+                    newDict[t.teamId] = t.teamName || t.name || t.teamId;
+                  }
+                });
+              }
+            } catch (e) {} // Lỗi vặt bỏ qua để quét tiếp
+          }),
+        );
+
+        setTeamDict(newDict);
+      } catch (error) {
+        console.error("Background fetch for team names failed:", error);
+      }
+    };
+
+    if (prizes.length > 0) {
+      loadTeamNames();
+    }
+  }, [prizes]); // Chạy lại mỗi khi danh sách giải thưởng thay đổi
 
   const filteredPrizes = prizes.filter((p) =>
     p.prizeName?.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -525,11 +582,14 @@ export function AdminPrizesPage() {
                           </div>
                           {isAwarded && (
                             <div className="mt-3">
+                              {/* THAY ĐỔI LỚN Ở ĐÂY: DÙNG TỪ ĐIỂN ĐỂ LẤY TÊN ĐỘI */}
                               <span className="uppercase tracking-widest text-[9px] text-emerald-500 block mb-0.5">
-                                Recipient Team ID
+                                Recipient Team
                               </span>
-                              <span className="text-emerald-700 text-sm font-mono">
-                                {prize.teamId}
+                              <span className="text-emerald-700 text-sm font-bold">
+                                {prize.teamId
+                                  ? teamDict[prize.teamId] || prize.teamId
+                                  : "—"}
                               </span>
                             </div>
                           )}
