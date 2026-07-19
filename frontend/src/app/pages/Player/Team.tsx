@@ -293,11 +293,6 @@ export function Team() {
         const membersResponse = await teamApi.getTeamMembers(currentTeamId);
         const members = normalizeList(membersResponse);
 
-        console.log("TEAM HISTORY:", teamHistory);
-        console.log("CURRENT TEAM:", currentTeam);
-        console.log("TEAM MEMBERS RAW:", membersResponse);
-        console.log("TEAM MEMBERS NORMALIZED:", members);
-
         setTeam({
           ...currentTeam,
           members,
@@ -369,10 +364,6 @@ export function Team() {
 
     try {
       setIsCreatingTeam(true);
-
-      console.log("Tạo team với payload:", {
-        teamName: teamName.trim(),
-      });
 
       await teamApi.createTeam({
         teamName: teamName.trim(),

@@ -12,7 +12,6 @@ export const authApi = {
     password: string;
   }): Promise<AuthTokens> {
     const res = await apiClient.post("/api/Auth/admin/login", credentials);
-    console.log("Cục res lúc này là:", res);
     return {
       accessToken: res.data.accessToken,
       refreshToken: res.data.refreshToken,

@@ -57,11 +57,6 @@ export function ProfilePage() {
       return;
     }
     const loadingToastId = toast.loading("Sending password change request...");
-    console.log("Tao đang gửi cái này đi nè:", {
-      oldPassword,
-      newPassword,
-      confirmPassword,
-    });
     try {
       await authApi.changePassword({
         oldPassword: oldPassword,

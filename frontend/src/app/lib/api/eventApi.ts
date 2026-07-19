@@ -49,7 +49,6 @@ export const eventApi = {
   async getAllEvents(): Promise<EventItem[]> {
     const res = await apiClient.get("/api/Event");
     const activeEvents = res.data.filter((item: any) => item.isActive === true);
-    console.log("Dữ liệu sau khi lọc:", activeEvents);
     return activeEvents.map((item: any) => ({
       id: item.eventId,
       name: item.eventName, // Map eventName của Backend -> name của UI

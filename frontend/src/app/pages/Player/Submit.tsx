@@ -105,11 +105,6 @@ export function Submit() {
         const currentTeamId = getTeamId(currentTeam);
         const leader = Boolean(currentTeam && isLeaderTeam(currentTeam));
 
-        console.log("SUBMIT TEAM HISTORY:", history);
-        console.log("SUBMIT CURRENT TEAM:", currentTeam);
-        console.log("SUBMIT TEAM ID:", currentTeamId);
-        console.log("CAN SUBMIT PROJECT:", leader);
-
         setTeamId(currentTeamId);
         setCanSubmitProject(leader);
       } catch (error) {

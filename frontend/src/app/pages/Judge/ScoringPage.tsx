@@ -340,8 +340,8 @@ export function ScoringPage() {
               setSavedScore(evalData.score);
             }
           }
-        } catch (e) {
-          console.log("ℹ️ Đội thi hiện tại chưa được lưu điểm cũ.");
+        } catch {
+          // Đội thi hiện tại chưa được lưu điểm cũ.
         }
       } catch (e) {
         console.error("Lỗi hệ thống tổng thể:", e);
