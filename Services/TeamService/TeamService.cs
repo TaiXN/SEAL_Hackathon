@@ -96,10 +96,24 @@ namespace Services.TeamService
             bool isEliminated = false;
             string statusMessage = "The event hasn't started yet.";
 
+            var allTeamRounds = await _uow.TeamInRound.GetAllAsync(st => st.TeamId == teamId);
+            TeamInRound submittedProject = null;
+            Round round = null; 
 
-            var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
+            foreach (var tr in allTeamRounds)
+            {
+                var r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                if (r != null)
+                {
+                    if (round == null || r.RoundIndex > round.RoundIndex)
+                    {
+                        round = r;
+                        submittedProject = tr;
+                    }
+                }
+            }
 
-            if (submittedProject != null)
+            if (submittedProject != null && round != null)
             {
                 if (!string.IsNullOrEmpty(submittedProject.TrackId))
                 {
@@ -115,31 +129,47 @@ namespace Services.TeamService
                     }
                 }
 
-                var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == submittedProject.RoundId);
-                if (round != null)
+                var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
+                if (eventDb != null)
                 {
-                    var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
-                    if (eventDb != null)
+                    eventName = eventDb.EventName;
+                    currentRoundIndex = eventDb.CurrentRound;
+
+                    if (currentRoundIndex == 0)
                     {
-                        eventName = eventDb.EventName;
-                        currentRoundIndex = eventDb.CurrentRound;
+                        currentRoundName = "Preliminary Round";
+                    }
+                    else if (currentRoundIndex == 1)
+                    {
+                        currentRoundName = "Final Round";
+                    }
+                    else if (currentRoundIndex >= 2)
+                    {
+                        currentRoundName = "Event Ended";
+                    }
 
-                        var activeRoundDb = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventDb.EventId && r.RoundIndex == eventDb.CurrentRound);
-                        if (activeRoundDb != null)
-                        {
-                            currentRoundName = activeRoundDb.RoundName;
-                        }
-                        if (round.RoundIndex < eventDb.CurrentRound)
-                        {
-                            isEliminated = true;
-                            statusMessage = "You have been eliminated from the event.";
-                        }
-                        else
-                        {
-                            isEliminated = false;
-                            statusMessage = "Congratulations! You have been promoted and are actively competing!";
-                        }
+                    if (eventDb.CurrentRound >= 2)
+                    {
+                        isEliminated = false;
+                        statusMessage = "The event has concluded. Thank you for participating!";
+                    }
+                    else if (round.RoundIndex < eventDb.CurrentRound && eventDb.CurrentRound > 0)
+                    {
+                        isEliminated = true;
+                        statusMessage = "You have been eliminated from the event.";
+                    }
+                    else
+                    {
+                        isEliminated = false;
 
+                        if (currentRoundIndex == 0)
+                        {
+                            statusMessage = "Welcome! You are actively competing in the preliminary round.";
+                        }
+                        else if (currentRoundIndex == 1)
+                        {
+                            statusMessage = "Congratulations! You have been promoted and are competing in the final!";
+                        }
                     }
                 }
             }
