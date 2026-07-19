@@ -146,7 +146,7 @@ export function AdminPrizesPage() {
     const eventOptions = events
       .map(
         (e) =>
-          `<option value="${e.id || e.eventID}">${e.name || e.eventName}</option>`,
+          `<option value="${e.id || e.eventID}" style="padding: 10px; font-weight: 600; color: #0a192f; background-color: white;">${e.name || e.eventName}</option>`,
       )
       .join("");
 
@@ -396,9 +396,11 @@ export function AdminPrizesPage() {
       }
 
       const teamOptions = displayTeams
-        .map((t: any) => `<option value="${t.teamId}">${t.teamName}</option>`)
+        .map(
+          (t: any) =>
+            `<option value="${t.teamId}" style="padding: 10px; font-weight: 600; color: #0a192f; background-color: white;">${t.teamName}</option>`,
+        )
         .join("");
-      Swal.close();
 
       const { value: selectedTeamId } = await Swal.fire({
         title: "Award Prize",
