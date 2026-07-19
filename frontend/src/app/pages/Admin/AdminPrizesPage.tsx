@@ -96,15 +96,15 @@ export function AdminPrizesPage() {
     const { value: formValues } = await Swal.fire({
       title: "Create New Prize",
       html: `
-        <div style="text-align: left; padding: 0 10px;">
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Prize Name</label>
-          <input id="sw-name" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="e.g., First Prize">
+        <div class="text-left px-2 mt-4">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="e.g., First Prize">
           
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Description / Reward</label>
-          <input id="sw-desc" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="Details about the prize...">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description / Reward</label>
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="Details about the prize...">
           
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Target Event</label>
-          <select id="sw-event" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 10px; border-radius: 12px; font-size: 14px; cursor: pointer;">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Target Event</label>
+          <select id="sw-event" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none cursor-pointer">
             <option value="" disabled selected>-- Select an Event --</option>
             ${eventOptions}
           </select>
@@ -165,11 +165,12 @@ export function AdminPrizesPage() {
     const { value: formValues } = await Swal.fire({
       title: "Update Prize",
       html: `
-        <div style="text-align: left; padding: 0 10px;">
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Prize Name</label>
-          <input id="sw-name" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 20px; border-radius: 12px; font-size: 14px;" placeholder="Prize Name" value="${prize.prizeName || ""}">
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Description</label>
-          <input id="sw-desc" class="swal2-input" style="width: 100%; max-width: 100%; margin: 5px 0 10px; border-radius: 12px; font-size: 14px;" placeholder="Description" value="${prize.description || ""}">
+        <div class="text-left px-2 mt-4">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
+          
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
         </div>
       `,
       focusConfirm: false,
@@ -343,15 +344,19 @@ export function AdminPrizesPage() {
       Swal.close();
 
       const { value: selectedTeamId } = await Swal.fire({
-        title: "Award Prize to Team",
+        title: "Award Prize",
         html: `
-          <p style="margin-bottom: 20px; font-size: 14px; color: #475569; line-height: 1.5;">
-            Select a deserving team to receive:<br/><strong style="color: #0a192f; font-size: 16px;">"${prize.prizeName}"</strong>
-          </p>
-          <select id="sw-team" class="swal2-input" style="width: 85%; margin: 0 auto; border-radius: 12px; font-size: 14px; cursor: pointer;">
-            <option value="" disabled selected>-- Click to select Team --</option>
-            ${teamOptions}
-          </select>
+          <div class="text-left px-2 mt-2">
+            <p class="text-sm font-medium text-slate-500 mb-5">
+              Select a deserving team to receive:<br/>
+              <strong class="text-lg font-black text-[#0a192f] mt-1 inline-block">${prize.prizeName}</strong>
+            </p>
+            <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Recipient Team</label>
+            <select id="sw-team" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none cursor-pointer">
+              <option value="" disabled selected>-- Click to select Team --</option>
+              ${teamOptions}
+            </select>
+          </div>
         `,
         showCancelButton: true,
         confirmButtonText: "Confirm Assignment",
@@ -488,12 +493,14 @@ export function AdminPrizesPage() {
                   const eventName =
                     events.find((e) => (e.id || e.eventID) === prize.eventId)
                       ?.name || "N/A";
+                  const isAwarded = !!prize.teamId;
+
                   return (
                     <div
                       key={idx}
                       className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group flex flex-col h-full"
                     >
-                      {prize.teamId && (
+                      {isAwarded && (
                         <div className="absolute top-0 right-0 bg-emerald-50 text-emerald-600 text-[10px] font-extrabold px-4 py-2 rounded-bl-2xl flex items-center gap-1.5 shadow-sm border-b border-l border-emerald-100">
                           <CheckCircle size={14} strokeWidth={2.5} /> AWARDED
                         </div>
@@ -516,7 +523,7 @@ export function AdminPrizesPage() {
                               {eventName}
                             </span>
                           </div>
-                          {prize.teamId && (
+                          {isAwarded && (
                             <div className="mt-3">
                               <span className="uppercase tracking-widest text-[9px] text-emerald-500 block mb-0.5">
                                 Recipient Team ID
@@ -531,10 +538,17 @@ export function AdminPrizesPage() {
 
                       <div className="flex gap-3 mt-auto">
                         <button
-                          onClick={() => handleManualAssign(prize)}
-                          className="flex-1 bg-white text-[#0a192f] font-bold text-sm py-2.5 rounded-xl border-2 border-slate-100 hover:border-[#0a192f] hover:bg-slate-50 transition-all"
+                          onClick={() =>
+                            !isAwarded && handleManualAssign(prize)
+                          }
+                          disabled={isAwarded}
+                          className={`flex-1 font-bold text-sm py-2.5 rounded-xl border-2 transition-all ${
+                            isAwarded
+                              ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed"
+                              : "bg-white text-[#0a192f] border-slate-100 hover:border-[#0a192f] hover:bg-slate-50"
+                          }`}
                         >
-                          {prize.teamId ? "Change Recipient" : "Award Prize"}
+                          {isAwarded ? "Already Awarded" : "Award Prize"}
                         </button>
                         <button
                           onClick={() => handleEditPrize(prize)}
