@@ -220,15 +220,27 @@ export function ManageUsersAndAssign() {
 
       const judges = getList(judgesRes.data).map((j: any) => ({
         id: j.teacherId || j.judgeId || j.id,
-        name: j.teacherName || j.name || "Judge",
+        name:
+          j.teacher?.fullName ||
+          j.teacher?.name ||
+          j.fullName ||
+          j.teacherName ||
+          j.name ||
+          "Judge",
         isMentor: false,
       }));
+
       const mentors = getList(mentorsRes.data).map((m: any) => ({
         id: m.teacherId || m.mentorId || m.id,
-        name: m.teacherName || m.name || "Mentor",
+        name:
+          m.teacher?.fullName ||
+          m.teacher?.name ||
+          m.fullName ||
+          m.teacherName ||
+          m.name ||
+          "Mentor",
         isMentor: true,
       }));
-
       setAssignedTeachers([...judges, ...mentors]);
     } catch (error) {}
   };
@@ -765,45 +777,63 @@ export function ManageUsersAndAssign() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {assignedTeachers.map((item: any, idx: number) => (
-                            <tr
-                              key={`assigned-${item.id}-${idx}`}
-                              className="hover:bg-slate-50 transition-colors"
-                            >
-                              <td className="px-8 py-5 font-bold text-[#0a192f]">
-                                {item.name}
-                              </td>
-                              <td className="px-6 py-5 font-medium text-slate-500">
-                                {activeEventName}
-                              </td>
-                              <td className="px-6 py-5 font-medium text-slate-500">
-                                {selectedTrackName}
-                              </td>
-                              <td className="px-6 py-5 text-center">
-                                {item.isMentor ? (
-                                  <span className="px-3.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
-                                    <Briefcase size={12} strokeWidth={2.5} />{" "}
-                                    Mentor
-                                  </span>
-                                ) : (
-                                  <span className="px-3.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
-                                    <ShieldAlert size={12} strokeWidth={2.5} />{" "}
-                                    Judge
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-8 py-5 flex justify-end gap-2">
-                                <button
-                                  onClick={() =>
-                                    handleRemoveTeacher(item.id, item.isMentor)
-                                  }
-                                  className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {assignedTeachers.map((item: any, idx: number) => {
+                            const matchedTeacher = rawTeachers.find(
+                              (t: any) =>
+                                String(t.teacherId || t.id) === String(item.id),
+                            );
+                            const realName =
+                              matchedTeacher?.fullName ||
+                              matchedTeacher?.teacherName ||
+                              matchedTeacher?.name ||
+                              item.name;
+
+                            return (
+                              <tr
+                                key={`assigned-${item.id}-${idx}`}
+                                className="hover:bg-slate-50 transition-colors"
+                              >
+                                <td className="px-8 py-5 font-bold text-[#0a192f]">
+                                  {realName}
+                                </td>
+                                <td className="px-6 py-5 font-medium text-slate-500">
+                                  {activeEventName}
+                                </td>
+                                <td className="px-6 py-5 font-medium text-slate-500">
+                                  {selectedTrackName}
+                                </td>
+                                <td className="px-6 py-5 text-center">
+                                  {item.isMentor ? (
+                                    <span className="px-3.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
+                                      <Briefcase size={12} strokeWidth={2.5} />{" "}
+                                      Mentor
+                                    </span>
+                                  ) : (
+                                    <span className="px-3.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
+                                      <ShieldAlert
+                                        size={12}
+                                        strokeWidth={2.5}
+                                      />{" "}
+                                      Judge
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-8 py-5 flex justify-end gap-2">
+                                  <button
+                                    onClick={() =>
+                                      handleRemoveTeacher(
+                                        item.id,
+                                        item.isMentor,
+                                      )
+                                    }
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                           {assignedTeachers.length === 0 && (
                             <tr>
                               <td
