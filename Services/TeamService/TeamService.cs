@@ -91,9 +91,11 @@ namespace Services.TeamService
 
             string eventName = "You not in an Event";
             string categoryName = "You havent picked a topic";
-
             string currentRoundName = "round havent started";
             int currentRoundIndex = -1;
+            bool isEliminated = false;
+            string statusMessage = "The event hasn't started yet.";
+
 
             var submittedProject = await _uow.TeamInRound.GetFirstOrDefaultAsync(st => st.TeamId == teamId);
 
@@ -127,6 +129,17 @@ namespace Services.TeamService
                         {
                             currentRoundName = activeRoundDb.RoundName;
                         }
+                        if (round.RoundIndex < eventDb.CurrentRound)
+                        {
+                            isEliminated = true;
+                            statusMessage = "You have been eliminated from the event.";
+                        }
+                        else
+                        {
+                            isEliminated = false;
+                            statusMessage = "Congratulations! You have been promoted and are actively competing!";
+                        }
+
                     }
                 }
             }
@@ -141,7 +154,9 @@ namespace Services.TeamService
                 CategoryName = categoryName,
                 TotalMembers = memberCount,
                 CurrentRoundName = currentRoundName,
-                CurrentRoundIndex = currentRoundIndex
+                CurrentRoundIndex = currentRoundIndex,
+                IsEliminated = isEliminated,
+                StatusMessage = statusMessage
             };
         }
 
