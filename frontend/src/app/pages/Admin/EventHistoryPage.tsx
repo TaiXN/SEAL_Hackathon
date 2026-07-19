@@ -9,6 +9,9 @@ export function EventHistoryPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [seasonFilter, setSeasonFilter] = useState("All");
 
   useEffect(() => {
     fetchEvents();
@@ -39,6 +42,32 @@ export function EventHistoryPage() {
       setIsLoading(false);
     }
   };
+
+  // --- LOGIC LỌC VÀ SẮP XẾP SỰ KIỆN THEO BẢNG CHỮ CÁI ---
+  const filteredEvents = events
+    .filter((ev) => {
+      // Lọc theo tên
+      const matchSearch = (ev.name || ev.eventName || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      // Lọc theo trạng thái
+      const evStatus =
+        ev.currentRound >= (ev.maxRounds || 2) ? "Ended" : "Ongoing";
+      const matchStatus = statusFilter === "All" || evStatus === statusFilter;
+
+      // Lọc theo Season
+      const matchSeason =
+        seasonFilter === "All" || ev.semester === seasonFilter;
+
+      return matchSearch && matchStatus && matchSeason;
+    })
+    .sort((a, b) => {
+      // Sắp xếp A-Z theo tên sự kiện
+      const nameA = a.name || a.eventName || "";
+      const nameB = b.name || b.eventName || "";
+      return nameA.localeCompare(nameB);
+    });
 
   const handleDeleteEvent = async (id: string, name: string) => {
     const result = await Swal.fire({
@@ -104,6 +133,43 @@ export function EventHistoryPage() {
           </button>
         </div>
 
+        {/* THANH CÔNG CỤ SEARCH & FILTER (MỚI THÊM) */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all appearance-none"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Ended">Ended</option>
+            </select>
+
+            <select
+              value={seasonFilter}
+              onChange={(e) => setSeasonFilter(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all appearance-none"
+            >
+              <option value="All">All Seasons</option>
+              <option value="Spring">Spring</option>
+              <option value="Summer">Summer</option>
+              <option value="Fall">Fall</option>
+              <option value="Winter">Winter</option>
+            </select>
+          </div>
+
+          <div className="flex items-center w-full sm:w-80">
+            <input
+              type="text"
+              placeholder="Search event name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 text-sm font-semibold text-[#0a192f] rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
         {/* TABLE CONTAINER */}
         <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden p-3">
           <div className="border border-slate-100 rounded-2xl overflow-hidden">
@@ -129,7 +195,7 @@ export function EventHistoryPage() {
                       Loading Archive...
                     </td>
                   </tr>
-                ) : events.length === 0 ? (
+                ) : filteredEvents.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
@@ -139,7 +205,7 @@ export function EventHistoryPage() {
                     </td>
                   </tr>
                 ) : (
-                  events.map((event, index) => (
+                  filteredEvents.map((event, index) => (
                     <tr
                       key={event.id ?? index}
                       className="hover:bg-slate-50 transition-colors group"
@@ -156,12 +222,6 @@ export function EventHistoryPage() {
                         {event.year}
                       </td>
                       <td className="px-6 py-5 text-center">
-                        {event.currentRound < 0 && (
-                          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                            Upcoming
-                          </span>
-                        )}
                         {event.currentRound >= 0 &&
                           event.currentRound < (event.maxRounds || 2) && (
                             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-200">
