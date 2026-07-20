@@ -184,7 +184,10 @@ const extractCurrentRoundIndex = (obj: any): number | null =>
       obj?.currentRound,
   );
 
-const getRoundLabel = (index: number | null, fallbackRoundName: string): string => {
+const getRoundLabel = (
+  index: number | null,
+  fallbackRoundName: string,
+): string => {
   if (index === -1) return "Not Started";
   if (index === 2) return "Event Ended";
   if (fallbackRoundName && fallbackRoundName !== "Current Round")
@@ -613,7 +616,7 @@ export function Dashboard() {
         // Gọi thẳng Detail theo roundId và trackId
         if (lbSelectedRound && lbSelectedTrack) {
           try {
-            resData = await leaderboardApi.getLeaderboardDetail(
+            resData = await leaderboardApi.getLeaderboardByRoundAndTrack(
               lbSelectedRound,
               lbSelectedTrack,
             );
@@ -662,8 +665,7 @@ export function Dashboard() {
 
   // Logic kiểm tra để hiển thị cho khung Current Round
   const hasSubmittedRegistration = Boolean(
-    hasInfoRegistration ||
-    dashboardData?.teamInRound,
+    hasInfoRegistration || dashboardData?.teamInRound,
   );
   const isActuallySubmitted = hasSubmittedRegistration;
 
@@ -674,7 +676,9 @@ export function Dashboard() {
     currentRoundLabel !== "Not Registered"
       ? currentRoundLabel
       : currentRoundName || "Pending...";
-  const registeredRoundName = isApprovedIntoRound ? displayRoundName : "Pending...";
+  const registeredRoundName = isApprovedIntoRound
+    ? displayRoundName
+    : "Pending...";
   const isRoundLive =
     currentRoundIndex === 0 ||
     currentRoundIndex === 1 ||
