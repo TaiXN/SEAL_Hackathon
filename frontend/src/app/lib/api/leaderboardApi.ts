@@ -12,4 +12,10 @@ export const leaderboardApi = {
     const res = await apiClient.get("/api/LeaderBoard");
     return res.data;
   },
+
+  // Lấy bảng xếp hạng theo Vòng thi và Hạng mục
+  async getLeaderboardDetail(roundId: string, trackId: string) {
+    const res = await apiClient.get(`/api/LeaderBoard/${roundId}/${trackId}`);
+    return res.data;
+  },
 };

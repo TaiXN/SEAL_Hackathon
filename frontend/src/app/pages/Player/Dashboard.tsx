@@ -645,7 +645,7 @@ export function Dashboard() {
         // Gọi thẳng Detail theo roundId và trackId
         if (lbSelectedRound && lbSelectedTrack) {
           try {
-            resData = await leaderboardApi.getLeaderboardByRoundAndTrack(
+            resData = await leaderboardApi.getLeaderboardDetail(
               lbSelectedRound,
               lbSelectedTrack,
             );
