@@ -241,6 +241,11 @@ namespace Services.TeamService
 
             if (memberRecord == null) throw new Exception("You are not in this team.");
 
+            var submittedRecord = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
+            if (submittedRecord != null)
+            {
+                throw new Exception("You cannot leave the team because your team is already locked in for the competition.");
+            }
             var teamMembers = await _uow.TeamMember.GetAllAsync();
             var count = teamMembers.Count(ut => ut.TeamId == teamId);
 
@@ -252,8 +257,6 @@ namespace Services.TeamService
                 }
                 else
                 {
-                    var submittedRecord = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
-                    if (submittedRecord != null) _uow.TeamInRound.Remove(submittedRecord);
 
                     _uow.TeamMember.Remove(memberRecord);
 
@@ -305,6 +308,10 @@ namespace Services.TeamService
 
             var targetTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (targetTeam == null) throw new Exception("team doesnt exist");
+
+            var isTeamLocked = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId);
+            if (isTeamLocked != null)
+                throw new Exception("This team is already locked for the competition. New members cannot join.");
 
             var existingRecord = await _uow.TeamMember.GetFirstOrDefaultAsync(ut => ut.TeamId == teamId && ut.StudentId == requesterAccountId);
             if (existingRecord != null) throw new Exception("u already in this team");
