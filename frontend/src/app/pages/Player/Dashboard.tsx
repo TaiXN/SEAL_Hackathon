@@ -305,6 +305,14 @@ function calculateTimeLeft(targetDate: Date) {
   };
 }
 
+const emptyTimeLeft = {
+  days: 0,
+  hours: 0,
+  minutes: 0,
+  seconds: 0,
+  isExpired: false,
+};
+
 // ==========================================
 // 2. MAIN COMPONENT (DASHBOARD)
 // ==========================================
@@ -334,13 +342,7 @@ export function Dashboard() {
 
   // States Timer
   const [deadline, setDeadline] = useState<Date | null>(null);
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    isExpired: false,
-  });
+  const [timeLeft, setTimeLeft] = useState(emptyTimeLeft);
 
   // States Leaderboard
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -413,6 +415,17 @@ export function Dashboard() {
   const fetchDashboard = async () => {
     try {
       setIsLoading(true);
+      setDeadline(null);
+      setTimeLeft(emptyTimeLeft);
+      setCurrentRoundName("");
+      setSelectedEvent("");
+      setSelectedTrack("");
+      setSelectedTopic("");
+      setTracks([]);
+      setTopics([]);
+      setLbSelectedRound("");
+      setLbSelectedTrack("");
+      setLeaderboard([]);
 
       const historyResponse = await teamApi.getMyTeamsHistory();
       const teamHistory = normalizeList(historyResponse);
@@ -420,6 +433,10 @@ export function Dashboard() {
 
       if (!currentTeam) {
         setDashboardData(null);
+        setDeadline(null);
+        setTimeLeft(emptyTimeLeft);
+        setCurrentRoundName("");
+        setLeaderboard([]);
         setIsLoading(false);
         return;
       }
@@ -518,27 +535,39 @@ export function Dashboard() {
       }
       if (foundTopicId) setSelectedTopic(String(foundTopicId));
 
-      // Mốc thời gian Đếm ngược
-      try {
-        const countdownRes = await teamApi.getCountdown(activeTeamId);
-        let dateStr = null;
-        if (typeof countdownRes === "string") dateStr = countdownRes;
-        else if (countdownRes && typeof countdownRes === "object") {
-          dateStr =
-            countdownRes.endDate ||
-            countdownRes.targetDate ||
-            countdownRes.deadline;
-        }
-
-        if (dateStr) {
-          const dl = new Date(dateStr);
-          if (!isNaN(dl.getTime())) {
-            setDeadline(dl);
-            setTimeLeft(calculateTimeLeft(dl));
+      if (foundEventId || foundRoundId) {
+        // Mốc thời gian Đếm ngược
+        try {
+          const countdownRes = await teamApi.getCountdown(activeTeamId);
+          let dateStr = null;
+          if (typeof countdownRes === "string") dateStr = countdownRes;
+          else if (countdownRes && typeof countdownRes === "object") {
+            dateStr =
+              countdownRes.endDate ||
+              countdownRes.targetDate ||
+              countdownRes.deadline;
           }
+
+          if (dateStr) {
+            const dl = new Date(dateStr);
+            if (!isNaN(dl.getTime())) {
+              setDeadline(dl);
+              setTimeLeft(calculateTimeLeft(dl));
+            } else {
+              setDeadline(null);
+              setTimeLeft(emptyTimeLeft);
+            }
+          } else {
+            setDeadline(null);
+            setTimeLeft(emptyTimeLeft);
+          }
+        } catch (e: any) {
+          setDeadline(null);
+          setTimeLeft(emptyTimeLeft);
         }
-      } catch (e: any) {
+      } else {
         setDeadline(null);
+        setTimeLeft(emptyTimeLeft);
       }
     } catch (error: any) {
       console.error("Lỗi load Dashboard:", error);
