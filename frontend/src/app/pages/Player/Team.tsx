@@ -5,12 +5,12 @@ import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { teamApi } from "../../lib/api/teamApi";
 import { jwtDecode } from "jwt-decode";
 import { useAuthStore } from "../../stores/auth.store";
-
-const unwrapData = (value: any) => value?.data ?? value;
-
-const getTeamId = (team: any) => {
-  return team?.teamId || team?.teamID || team?.id || "";
-};
+import {
+  normalizeList,
+  getCurrentTeamFromHistory,
+  getTeamId,
+  isLeaderTeam,
+} from "../../lib/utils/teamHelpers";
 
 const getMembers = (team: any): any[] => {
   return team?.members || team?.teamMembers || team?.players || [];
@@ -85,22 +85,6 @@ const isLeaderMember = (member: any) => {
   return role === "leader" || role === "team leader" || role === "teamleader";
 };
 
-const isLeaderTeam = (team: any) => {
-  const rawRole = String(
-    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
-  ).toLowerCase();
-
-  return (
-    team?.isLeader === true ||
-    team?.isLeader === 1 ||
-    team?.leader === true ||
-    team?.isTeamLeader === true ||
-    rawRole === "leader" ||
-    rawRole === "team leader" ||
-    rawRole === "teamleader"
-  );
-};
-
 const getInitials = (name: string) => {
   const words = name.trim().split(" ").filter(Boolean);
 
@@ -113,35 +97,12 @@ const getInitials = (name: string) => {
     .toUpperCase();
 };
 
-const normalizeList = (value: any): any[] => {
-  const data = unwrapData(value);
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.result)) return data.result;
-
-  return [];
-};
-
-const getCurrentTeamFromHistory = (history: any[]) => {
-  return (
-    history.find((item) => item?.isActive === true) ||
-    history.find((item) => item?.status !== "Deleted") ||
-    history[0] ||
-    null
-  );
-};
-
 const extractTeamIdFromJoinInput = (value: string) => {
-  const trimmed = value.trim();
+  const clean = value.trim().replace(/\/+$/, "");
+  if (!clean) return "";
 
-  if (!trimmed) return "";
-
-  const parts = trimmed.split("/");
-  const lastPart = parts[parts.length - 1];
-
-  return lastPart || trimmed;
+  const last = clean.split("/").pop() || "";
+  return last.split("?")[0].split("#")[0];
 };
 
 const getCurrentUserFromToken = (accessToken?: string | null) => {

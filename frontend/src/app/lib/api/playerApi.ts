@@ -6,7 +6,6 @@ export interface RegisterPlayerPayload {
   fullName: string;
   address: string;
   phone: string;
-  studentId: string;
   universityId: string;
 }
 

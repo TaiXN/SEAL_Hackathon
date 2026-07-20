@@ -4,7 +4,7 @@ import {
   Trophy,
   Map,
   ShieldCheck,
-  FileCheck,
+  Target,
   Medal,
   TrendingUp,
   Crown,
@@ -13,10 +13,17 @@ import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { teamApi } from "../../lib/api/teamApi";
 import { roundApi } from "../../lib/api/roundApi";
-import { trackTopicApi } from "../../lib/api/trackTopicApi"; // <-- ĐÃ BỔ SUNG DÒNG NÀY!
 import { leaderboardApi } from "../../lib/api/leaderboardApi";
 import { useAuthStore } from "../../stores/auth.store";
 import { jwtDecode } from "jwt-decode";
+import {
+  unwrapData,
+  normalizeList,
+  normalizeId,
+  getTeamId,
+  getCurrentTeamFromHistory,
+  isLeaderTeam,
+} from "../../lib/utils/teamHelpers";
 
 // ==========================================
 // 1. HELPER FUNCTIONS
@@ -39,22 +46,6 @@ const getCurrentUserNameFromToken = (accessToken?: string | null) => {
   }
 };
 
-const unwrapData = (value: any) => value?.data ?? value;
-
-const normalizeList = (value: any): any[] => {
-  const data = unwrapData(value);
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.result)) return data.result;
-  return [];
-};
-
-const normalizeId = (id: any) =>
-  String(id || "")
-    .toLowerCase()
-    .trim();
-
 const safeString = (val: any, fallback: string = ""): string => {
   if (typeof val === "string" || typeof val === "number") return String(val);
   return fallback;
@@ -63,14 +54,14 @@ const safeString = (val: any, fallback: string = ""): string => {
 // TRÍCH XUẤT TÊN ĐỘI AN TOÀN
 const extractTeamName = (obj: any): string => {
   if (!obj) return "Unknown";
+  if (typeof obj.teamName === "string") return obj.teamName;
+  if (typeof obj.TeamName === "string") return obj.TeamName;
+  if (typeof obj.name === "string") return obj.name;
   if (obj.submission?.teamInRound?.team?.teamName)
     return obj.submission.teamInRound.team.teamName;
   if (obj.submission?.teamInRound?.team?.TeamName)
     return obj.submission.teamInRound.team.TeamName;
-  if (typeof obj.teamName === "string") return obj.teamName;
-  if (typeof obj.TeamName === "string") return obj.TeamName;
   if (obj.team?.teamName) return obj.team.teamName;
-  if (obj.name) return obj.name;
   return "Unknown";
 };
 
@@ -83,46 +74,189 @@ const extractScore = (obj: any): number => {
   return 0;
 };
 
-// TRÍCH XUẤT ID ĐỘI
-const extractTeamId = (obj: any): string => {
-  if (!obj) return "";
-  return normalizeId(
-    obj.submission?.teamInRound?.teamId ||
-      obj.teamId ||
-      obj.teamID ||
-      obj.id ||
-      obj.team?.teamId ||
-      obj.team?.teamID,
-  );
+const readString = (value: any, fallback = ""): string => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number") return String(value);
+  return fallback;
 };
 
-const getTeamId = (team: any) => extractTeamId(team);
+const readNumber = (value: any): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (
+    typeof value === "string" &&
+    value.trim() &&
+    !Number.isNaN(Number(value))
+  ) {
+    return Number(value);
+  }
+  return null;
+};
 
-const getCurrentTeamFromHistory = (history: any[]) => {
-  if (!history || history.length === 0) return null;
-  const savedTeamId = localStorage.getItem("activeTeamId");
-  if (savedTeamId === "NEW") return null;
+const extractEventId = (obj: any): string =>
+  readString(
+    obj?.eventId ?? obj?.eventID ?? obj?.EventID ?? obj?.event?.eventId,
+  );
 
-  if (savedTeamId) {
-    const found = history.find((t) => getTeamId(t) === savedTeamId);
-    if (found) return found;
+const extractTrackId = (obj: any): string =>
+  readString(
+    obj?.trackId ?? obj?.trackID ?? obj?.TrackID ?? obj?.track?.trackId,
+  );
+
+const extractTopicId = (obj: any): string =>
+  readString(
+    obj?.topicId ?? obj?.topicID ?? obj?.TopicID ?? obj?.topic?.topicId,
+  );
+
+const extractRoundId = (obj: any): string =>
+  readString(
+    obj?.roundId ||
+      obj?.roundID ||
+      obj?.RoundID ||
+      obj?.currentRoundId ||
+      obj?.currentRoundID ||
+      obj?.teamInRound?.roundId ||
+      obj?.teamInRound?.roundID,
+  );
+
+const extractEventName = (obj: any): string =>
+  readString(
+    obj?.eventName ||
+      obj?.EventName ||
+      obj?.event?.eventName ||
+      obj?.event?.name,
+    "Not registered",
+  );
+
+const extractTrackName = (obj: any): string =>
+  readString(
+    obj?.trackName ||
+      obj?.TrackName ||
+      obj?.track?.trackName ||
+      obj?.track?.name,
+    "No track",
+  );
+
+const extractTopicName = (obj: any): string =>
+  readString(
+    obj?.topicName ||
+      obj?.TopicName ||
+      obj?.topicDetail ||
+      obj?.TopicDetail ||
+      obj?.topic?.topicDetail ||
+      obj?.topic?.name,
+    "No topic",
+  );
+
+const extractCurrentRoundIndex = (obj: any): number | null =>
+  readNumber(
+    obj?.currentRoundIndex ??
+      obj?.currentroundindex ??
+      obj?.CurrentRoundIndex ??
+      obj?.eventCurrentRoundIndex ??
+      obj?.currentRound,
+  );
+
+const getRoundLabel = (index: number | null, fallbackRoundName: string): string => {
+  if (index === -1) return "Not Started";
+  if (index === 2) return "Event Ended";
+  if (fallbackRoundName && fallbackRoundName !== "Current Round")
+    return fallbackRoundName;
+  if (index === 0) return "Vòng bảng";
+  if (index === 1) return "Chung kết";
+  if (index !== null) return `Round ${index + 1}`;
+  return "Not Registered";
+};
+
+const extractRoundName = (obj: any): string =>
+  readString(
+    obj?.roundName ||
+      obj?.RoundName ||
+      obj?.currentRoundName ||
+      obj?.CurrentRoundName ||
+      obj?.teamInRound?.roundName,
+    "Current Round",
+  );
+
+const extractInfoMessage = (obj: any): string =>
+  readString(
+    obj?.message ||
+      obj?.Message ||
+      obj?.notification ||
+      obj?.Notification ||
+      obj?.statusMessage ||
+      obj?.StatusMessage ||
+      obj?.teamMessage ||
+      obj?.TeamMessage ||
+      obj?.description,
+  );
+
+const isTeamEliminated = (obj: any): boolean => {
+  const raw =
+    obj?.isEliminated ?? obj?.iseliminated ?? obj?.IsEliminated ?? false;
+  return raw === true || raw === 1 || String(raw).toLowerCase() === "true";
+};
+
+const getTeamNotice = (obj: any) => {
+  const currentRoundIndex = extractCurrentRoundIndex(obj);
+  const message = extractInfoMessage(obj);
+  const eliminated = isTeamEliminated(obj);
+
+  if (message) {
+    const tone = eliminated
+      ? "danger"
+      : currentRoundIndex === -1
+        ? "warning"
+        : "success";
+    const title = eliminated
+      ? "Team eliminated"
+      : currentRoundIndex === -1
+        ? "Event not started"
+        : currentRoundIndex === 2
+          ? "Event ended"
+          : "Team status";
+
+    return {
+      tone,
+      title,
+      message,
+    };
   }
 
-  const defaultTeam =
-    history.find((item) => item?.isActive === true) ||
-    history.find((item) => item?.status !== "Deleted") ||
-    history[0];
-  if (defaultTeam) localStorage.setItem("activeTeamId", getTeamId(defaultTeam));
-  return defaultTeam;
-};
+  if (currentRoundIndex === -1) {
+    return {
+      tone: "warning",
+      title: "Event not started",
+      message: "Your registered event has not started yet.",
+    };
+  }
 
-const isLeaderTeam = (team: any) => {
-  const rawRole = String(
-    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
-  ).toLowerCase();
-  return (
-    team?.isLeader === true || team?.isLeader === 1 || rawRole === "leader"
-  );
+  if (currentRoundIndex === 2) {
+    return {
+      tone: eliminated ? "danger" : "success",
+      title: "Event ended",
+      message: eliminated
+        ? "Your team has been eliminated from the event."
+        : "The event has ended. Your team is still marked as qualified.",
+    };
+  }
+
+  if (eliminated) {
+    return {
+      tone: "danger",
+      title: "Team eliminated",
+      message: "Your team is no longer eligible to advance to the next round.",
+    };
+  }
+
+  if (currentRoundIndex === 0 || currentRoundIndex === 1) {
+    return {
+      tone: "success",
+      title: "Still in competition",
+      message: "Your team is still eligible in the current round.",
+    };
+  }
+
+  return null;
 };
 
 // COUNTDOWN TIMER
@@ -223,13 +357,23 @@ export function Dashboard() {
       setLbSelectedTrack("");
       return;
     }
-    const foundRound = activeMenus.find(r => r.roundId === lbSelectedRound || r.roundID === lbSelectedRound || r.id === lbSelectedRound);
+    const foundRound = activeMenus.find(
+      (r) =>
+        r.roundId === lbSelectedRound ||
+        r.roundID === lbSelectedRound ||
+        r.id === lbSelectedRound,
+    );
     if (foundRound && foundRound.tracks) {
       setLbTracks(foundRound.tracks);
       // Giữ nguyên track đã chọn nếu nó hợp lệ
-      const trackExists = foundRound.tracks.find((t: any) => t.trackId === lbSelectedTrack || t.trackID === lbSelectedTrack || t.id === lbSelectedTrack);
+      const trackExists = foundRound.tracks.find(
+        (t: any) =>
+          t.trackId === lbSelectedTrack ||
+          t.trackID === lbSelectedTrack ||
+          t.id === lbSelectedTrack,
+      );
       if (!trackExists) {
-         setLbSelectedTrack("");
+        setLbSelectedTrack("");
       }
     } else {
       setLbTracks([]);
@@ -258,54 +402,65 @@ export function Dashboard() {
       try {
         const infoRes = await teamApi.getTeamDashboard(activeTeamId);
         dashData = { ...dashData, ...unwrapData(infoRes) };
-      } catch (err) {}
+      } catch (err) {
+        console.warn("Không tải được /api/Team/{teamId}/info:", err);
+      }
 
       // ==============================================================
       // VÒNG LẶP DO THÁM: TÌM KIẾM THEO ACTIVE ROUNDS
       // ==============================================================
-      let foundRoundId = "";
-      let foundTrackId = "";
-      let foundEventId = "";
-      let foundTopicId = "";
+      let foundRoundId = extractRoundId(dashData);
+      let foundTrackId = extractTrackId(dashData);
+      let foundEventId = extractEventId(dashData);
+      let foundTopicId = extractTopicId(dashData);
 
-      try {
-        const activeRoundsRes = await roundApi.getActiveRounds();
-        const roundsArr = normalizeList(activeRoundsRes);
+      if (!foundRoundId || !foundTrackId || !foundEventId || !foundTopicId) {
+        try {
+          const activeRoundsRes = await roundApi.getActiveRounds();
+          const roundsArr = normalizeList(activeRoundsRes);
 
-        for (const round of roundsArr) {
-          const rId = round.roundID || round.id;
-          if (!rId) continue;
+          for (const round of roundsArr) {
+            const rId = round.roundID || round.id;
+            if (!rId) continue;
 
-          // Gọi API lấy danh sách đội của từng vòng thi
-          const detailsRes = await teamApi.getTeamDetailsInRound(rId);
-          const detailsList = normalizeList(detailsRes);
+            // Gọi API lấy danh sách đội của từng vòng thi
+            const detailsRes = await teamApi.getTeamDetailsInRound(rId);
+            const detailsList = normalizeList(detailsRes);
 
-          // Dò tìm ID đội của mình trong danh sách đó
-          const matchRecord = detailsList.find(
-            (item: any) =>
-              normalizeId(item.teamId || item.teamID) ===
-              normalizeId(activeTeamId),
-          );
+            // Dò tìm ID đội của mình trong danh sách đó
+            const matchRecord = detailsList.find(
+              (item: any) =>
+                normalizeId(item.teamId || item.teamID) ===
+                normalizeId(activeTeamId),
+            );
 
-          if (matchRecord) {
-            foundRoundId = rId;
-            foundTrackId = matchRecord.trackId || matchRecord.trackID;
-            foundTopicId = matchRecord.topicId || matchRecord.topicID;
-            foundEventId = round.eventID || round.eventId;
-            setCurrentRoundName(round.roundName || "");
+            if (matchRecord) {
+              foundRoundId = rId;
+              foundTrackId = matchRecord.trackId || matchRecord.trackID;
+              foundTopicId = matchRecord.topicId || matchRecord.topicID;
+              foundEventId = round.eventID || round.eventId;
+              setCurrentRoundName(round.roundName || "");
 
-            // Gắn vào dashData để UI hiển thị
-            dashData.teamInRound = matchRecord;
-            dashData.status = matchRecord.status || dashData.status;
-            dashData.score = matchRecord.score;
-            break;
+              // Gắn vào dashData để UI hiển thị
+              dashData.teamInRound = matchRecord;
+              dashData.status = matchRecord.status || dashData.status;
+              dashData.score = matchRecord.score;
+              break;
+            }
           }
+        } catch (e) {
+          console.warn("Lỗi rà soát teamInRound:", e);
         }
-      } catch (e) {
-        console.warn("Lỗi rà soát teamInRound:", e);
       }
 
       setDashboardData(dashData);
+
+      const roundLabel = getRoundLabel(
+        extractCurrentRoundIndex(dashData),
+        extractRoundName(dashData),
+      );
+
+      if (roundLabel !== "Not Registered") setCurrentRoundName(roundLabel);
 
       // TỰ ĐỘNG SET BỘ LỌC NẾU TÌM THẤY ROUND VÀ TRACK
       if (foundRoundId) setLbSelectedRound(foundRoundId);
@@ -373,6 +528,55 @@ export function Dashboard() {
 
   // GỌI LEADERBOARD KHI BỘ LỌC THAY ĐỔI
   useEffect(() => {
+    if (!dashboardData || activeMenus.length === 0) return;
+
+    const wantedRoundId = normalizeId(extractRoundId(dashboardData));
+    const wantedRoundName = extractRoundName(dashboardData).toLowerCase();
+    const wantedTrackId = normalizeId(extractTrackId(dashboardData));
+    const wantedTrackName = extractTrackName(dashboardData).toLowerCase();
+
+    const matchedRound = activeMenus.find((round) => {
+      const roundId = normalizeId(round.roundID || round.roundId || round.id);
+      const roundName = readString(round.roundName || round.name).toLowerCase();
+      return (
+        (wantedRoundId && roundId === wantedRoundId) ||
+        (wantedRoundName && roundName === wantedRoundName)
+      );
+    });
+
+    if (!matchedRound) return;
+
+    const matchedRoundId = readString(
+      matchedRound.roundID || matchedRound.roundId || matchedRound.id,
+    );
+    const matchedRoundName = readString(
+      matchedRound.roundName || matchedRound.name,
+    );
+    const roundLabel = getRoundLabel(
+      extractCurrentRoundIndex(dashboardData),
+      matchedRoundName || extractRoundName(dashboardData),
+    );
+
+    if (roundLabel !== "Not Registered") setCurrentRoundName(roundLabel);
+    if (matchedRoundId && !lbSelectedRound) setLbSelectedRound(matchedRoundId);
+
+    const matchedTracks = normalizeList(matchedRound.tracks);
+    const matchedTrack = matchedTracks.find((track: any) => {
+      const trackId = normalizeId(track.trackID || track.trackId || track.id);
+      const trackName = readString(track.trackName || track.name).toLowerCase();
+      return (
+        (wantedTrackId && trackId === wantedTrackId) ||
+        (wantedTrackName && trackName === wantedTrackName)
+      );
+    });
+
+    const matchedTrackId = readString(
+      matchedTrack?.trackID || matchedTrack?.trackId || matchedTrack?.id,
+    );
+    if (matchedTrackId && !lbSelectedTrack) setLbSelectedTrack(matchedTrackId);
+  }, [dashboardData, activeMenus, lbSelectedRound, lbSelectedTrack]);
+
+  useEffect(() => {
     const fetchLeaderboard = async () => {
       setIsLoadingLeaderboard(true);
       try {
@@ -413,6 +617,26 @@ export function Dashboard() {
 
   const teamId = getTeamId(dashboardData);
   const currentUserIsLeader = isLeaderTeam(dashboardData);
+  const eventName = extractEventName(dashboardData);
+  const trackName = extractTrackName(dashboardData);
+  const topicName = extractTopicName(dashboardData);
+  const currentRoundIndex = extractCurrentRoundIndex(dashboardData);
+  const currentRoundLabel = getRoundLabel(
+    currentRoundIndex,
+    extractRoundName(dashboardData),
+  );
+  const eliminated = isTeamEliminated(dashboardData);
+  const teamNotice = getTeamNotice(dashboardData);
+  const hasInfoRegistration = Boolean(
+    extractEventId(dashboardData) ||
+      extractTrackId(dashboardData) ||
+      extractTopicId(dashboardData) ||
+      eventName !== "Not registered" ||
+      trackName !== "No track" ||
+      topicName !== "No topic",
+  );
+
+  // Logic kiểm tra để hiển thị cho khung Current Round
   const hasSubmittedRegistration = Boolean(
     dashboardData?.eventID ||
     dashboardData?.eventId ||
@@ -420,11 +644,30 @@ export function Dashboard() {
     dashboardData?.trackId ||
     dashboardData?.topicID ||
     dashboardData?.topicId ||
+    hasInfoRegistration ||
     dashboardData?.teamInRound,
   );
   const isActuallySubmitted =
     hasSubmittedRegistration ||
     localStorage.getItem(`team_${teamId}_submitted`) === "true";
+
+  const isApprovedIntoRound = Boolean(
+    dashboardData?.teamInRound || hasInfoRegistration,
+  );
+  const registeredRoundName = isApprovedIntoRound
+    ? currentRoundLabel
+    : "Pending...";
+  const isRoundLive =
+    currentRoundIndex === 0 ||
+    currentRoundIndex === 1 ||
+    (currentRoundIndex === null && isApprovedIntoRound && !eliminated);
+  const roundDotClass = eliminated
+    ? "bg-red-500"
+    : currentRoundIndex === -1
+      ? "bg-amber-500"
+      : currentRoundIndex === 2
+        ? "bg-slate-400"
+        : "bg-emerald-500";
 
   const handleEventChange = async (eventId: string) => {
     setSelectedEvent(eventId);
@@ -581,29 +824,62 @@ export function Dashboard() {
               </div>
             </div>
 
+            {/* KHUNG "CURRENT ROUND" CHUẨN THAY CHO "STATUS" */}
             <div className="bg-white border border-border p-6 rounded-radius-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <FileCheck className="w-24 h-24 text-primary" />
+                <Target className="w-24 h-24 text-primary" />
               </div>
               <div className="relative z-10">
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                  Status
+                  Current Round
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  <p className="text-xl font-bold text-foreground">
-                    {safeString(
-                      dashboardData?.status || dashboardData?.Status,
-                      "Active",
-                    )}
-                  </p>
+                  {isApprovedIntoRound ? (
+                    <>
+                      <span className="relative flex h-3 w-3 shrink-0 mt-0.5">
+                        {isRoundLive && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        )}
+                        <span
+                          className={`relative inline-flex rounded-full h-3 w-3 ${roundDotClass}`}
+                        ></span>
+                      </span>
+                      <p
+                        className="text-xl font-bold text-foreground line-clamp-1"
+                        title={registeredRoundName}
+                      >
+                        {registeredRoundName}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="relative flex h-3 w-3 shrink-0 mt-0.5">
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-300"></span>
+                      </span>
+                      <p className="text-xl font-bold text-slate-400">
+                        {isActuallySubmitted ? "Pending..." : "Not Registered"}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {teamNotice && (
+            <div
+              className={`border p-4 rounded-radius-lg shadow-sm ${
+                teamNotice.tone === "danger"
+                  ? "bg-red-50 border-red-200 text-red-700"
+                  : teamNotice.tone === "warning"
+                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                    : "bg-emerald-50 border-emerald-200 text-emerald-700"
+              }`}
+            >
+              <p className="text-sm font-bold">{teamNotice.title}</p>
+              <p className="text-sm mt-1 font-medium">{teamNotice.message}</p>
+            </div>
+          )}
 
           <section className="bg-white border border-border rounded-radius-lg overflow-hidden shadow-sm mt-8">
             <div className="p-6 border-b border-border bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -682,7 +958,7 @@ export function Dashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {leaderboard.map((team, index) => {
-                      const currentTeamIdFromData = extractTeamId(team);
+                      const currentTeamIdFromData = getTeamId(team);
                       const isMyTeam =
                         currentTeamIdFromData === safeString(teamId) &&
                         safeString(teamId) !== "";
@@ -775,6 +1051,23 @@ export function Dashboard() {
                     event.
                   </p>
                 </div>
+              ) : isActuallySubmitted ? (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-radius-md p-4">
+                    <p className="font-bold flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5" /> Registration Locked!
+                    </p>
+                    <p className="text-sm mt-1">
+                      Below is the Event, Track, and Topic your team has
+                      registered for.
+                    </p>
+                  </div>
+
+                  <InfoRow label="Event" value={eventName} />
+                  <InfoRow label="Track" value={trackName} />
+                  <InfoRow label="Topic" value={topicName} />
+                  <InfoRow label="Current Round" value={registeredRoundName} />
+                </div>
               ) : !currentUserIsLeader ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">
@@ -787,18 +1080,6 @@ export function Dashboard() {
                 </div>
               ) : (
                 <>
-                  {isActuallySubmitted && (
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-radius-md p-4 mb-4">
-                      <p className="font-bold flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5" /> Registration Locked!
-                      </p>
-                      <p className="text-sm mt-1">
-                        Below is the Event, Track, and Topic your team has
-                        registered for.
-                      </p>
-                    </div>
-                  )}
-
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">
                       Event
@@ -926,6 +1207,19 @@ export function Dashboard() {
         description={modalConfig.description}
         confirmText="Confirm Registration"
       />
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-radius-md border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-bold text-slate-800 break-words">
+        {value || "-"}
+      </p>
     </div>
   );
 }

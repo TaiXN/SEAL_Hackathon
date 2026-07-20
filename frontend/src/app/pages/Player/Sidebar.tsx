@@ -9,42 +9,11 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 import { teamApi } from "../../lib/api/teamApi";
-
-const unwrapData = (value: any) => value?.data ?? value;
-
-const normalizeList = (value: any): any[] => {
-  const data = unwrapData(value);
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.result)) return data.result;
-
-  return [];
-};
-
-const getCurrentTeamFromHistory = (history: any[]) => {
-  return (
-    history.find((item) => item?.isActive === true) ||
-    history.find((item) => item?.status !== "Deleted") ||
-    history[0] ||
-    null
-  );
-};
-
-const isLeaderTeam = (team: any) => {
-  const rawRole = String(
-    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
-  ).toLowerCase();
-
-  return (
-    team?.isLeader === true ||
-    team?.isLeader === 1 ||
-    team?.leader === true ||
-    team?.isTeamLeader === true ||
-    rawRole.includes("leader")
-  );
-};
+import {
+  normalizeList,
+  getCurrentTeamFromHistory,
+  isLeaderTeam,
+} from "../../lib/utils/teamHelpers";
 
 export function Sidebar() {
   const navigate = useNavigate();
