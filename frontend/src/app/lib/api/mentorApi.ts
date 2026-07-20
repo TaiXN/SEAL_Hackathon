@@ -43,14 +43,14 @@ export function pickId(obj: any): string {
 export const mentorApi = {
   async assignMentor(trackId: string, mentorId: string): Promise<Mentor> {
     const res = await apiClient.post(
-      `/api/Mentor/track/${trackId}/mentor/${mentorId}`,
+      `/api/Mentor/track/${trackId}/teacher/${mentorId}`,
     );
     return res.data;
   },
 
   async removeMentor(trackId: string, mentorId: string): Promise<void> {
     const res = await apiClient.delete(
-      `/api/Mentor/track/${trackId}/mentor/${mentorId}`,
+      `/api/Mentor/track/${trackId}/teacher/${mentorId}`,
     );
     return res.data;
   },

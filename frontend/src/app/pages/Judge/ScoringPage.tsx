@@ -79,7 +79,15 @@ export function ScoringPage() {
     slideUrl: "",
   });
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
-  const [evaluationId, setEvaluationId] = useState("");
+
+  // Tận dụng luôn ID nếu có từ Dashboard truyền sang
+  const [evaluationId, setEvaluationId] = useState<string>(
+    teamFromList?.evaluationId ||
+      teamFromList?.evaluationID ||
+      teamFromList?.EvaluationID ||
+      "",
+  );
+
   const [feedback, setFeedback] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
 
@@ -117,22 +125,47 @@ export function ScoringPage() {
 
           const mySub = allSubs.find((s: any) => {
             const targetId = normalizeId(actualSubmissionId);
+
+            const subId =
+              s.id ||
+              s.submissionID ||
+              s.submissionId ||
+              s.SubmissionId ||
+              s.SubmissionID;
+
+            const teamInRoundId =
+              s.teamInRoundId ||
+              s.teamInRoundID ||
+              s.TeamInRoundId ||
+              s.TeamInRoundID;
+
             return (
-              normalizeId(s.id) === targetId ||
-              normalizeId(s.submissionID) === targetId ||
-              normalizeId(s.submissionId) === targetId ||
+              normalizeId(subId) === targetId ||
               (expectedTeamInRoundId &&
-                normalizeId(s.teamInRoundId) === expectedTeamInRoundId)
+                normalizeId(teamInRoundId) === expectedTeamInRoundId)
             );
           });
 
           if (mySub) {
             setSubmissionData({
               githubUrl:
-                mySub.urlGithub || mySub.URLGithub || mySub.githubUrl || "",
-              demoUrl: mySub.urlDemo || mySub.URLDemo || mySub.demoUrl || "",
+                mySub.urlGithub ||
+                mySub.UrlGithub ||
+                mySub.URLGithub ||
+                mySub.githubUrl ||
+                "",
+              demoUrl:
+                mySub.urlDemo ||
+                mySub.UrlDemo ||
+                mySub.URLDemo ||
+                mySub.demoUrl ||
+                "",
               slideUrl:
-                mySub.urlSlide || mySub.URLSlide || mySub.slideUrl || "",
+                mySub.urlSlide ||
+                mySub.UrlSlide ||
+                mySub.URLSlide ||
+                mySub.slideUrl ||
+                "",
             });
             const foundSubmissionId =
               mySub.id || mySub.submissionID || mySub.submissionId;

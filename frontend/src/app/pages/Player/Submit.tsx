@@ -4,55 +4,12 @@ import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import Swal from "sweetalert2";
 import { submittedTeamApi } from "../../lib/api/submittedTeamApi";
 import { teamApi } from "../../lib/api/teamApi";
-
-const unwrapData = (value: any) => value?.data ?? value;
-
-const normalizeList = (value: any): any[] => {
-  const data = unwrapData(value);
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.result)) return data.result;
-
-  return [];
-};
-
-const getCurrentTeamFromHistory = (history: any[]) => {
-  return (
-    history.find((item) => item?.isActive === true) ||
-    history.find((item) => item?.status !== "Deleted") ||
-    history[0] ||
-    null
-  );
-};
-
-const getTeamId = (team: any) => {
-  return (
-    team?.teamId ||
-    team?.teamID ||
-    team?.id ||
-    team?.team?.teamId ||
-    team?.team?.teamID ||
-    ""
-  );
-};
-
-const isLeaderTeam = (team: any) => {
-  const rawRole = String(
-    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
-  ).toLowerCase();
-
-  return (
-    team?.isLeader === true ||
-    team?.isLeader === 1 ||
-    team?.leader === true ||
-    team?.isTeamLeader === true ||
-    rawRole === "leader" ||
-    rawRole === "team leader" ||
-    rawRole === "teamleader"
-  );
-};
+import {
+  normalizeList,
+  getCurrentTeamFromHistory,
+  getTeamId,
+  isLeaderTeam,
+} from "../../lib/utils/teamHelpers";
 
 const isValidUrl = (value: string) => {
   try {

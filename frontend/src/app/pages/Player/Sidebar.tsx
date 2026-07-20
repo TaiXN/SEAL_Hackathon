@@ -9,58 +9,35 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../../stores/auth.store";
 import { teamApi } from "../../lib/api/teamApi";
-
-const unwrapData = (value: any) => value?.data ?? value;
-
-const normalizeList = (value: any): any[] => {
-  const data = unwrapData(value);
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.result)) return data.result;
-
-  return [];
-};
-
-const getCurrentTeamFromHistory = (history: any[]) => {
-  return (
-    history.find((item) => item?.isActive === true) ||
-    history.find((item) => item?.status !== "Deleted") ||
-    history[0] ||
-    null
-  );
-};
-
-const isLeaderTeam = (team: any) => {
-  const rawRole = String(
-    team?.role || team?.teamRole || team?.memberRole || team?.position || "",
-  ).toLowerCase();
-
-  return (
-    team?.isLeader === true ||
-    team?.isLeader === 1 ||
-    team?.leader === true ||
-    team?.isTeamLeader === true ||
-    rawRole.includes("leader")
-  );
-};
+import {
+  normalizeList,
+  getCurrentTeamFromHistory,
+  getTeamId,
+  isLeaderTeam,
+} from "../../lib/utils/teamHelpers";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const clearTokens = useAuthStore((state) => state.clearTokens);
 
   const [canSubmitProject, setCanSubmitProject] = useState(false);
+  const [teamHistory, setTeamHistory] = useState<any[]>([]);
+  const [activeTeamId, setActiveTeamId] = useState("");
 
   const fetchPlayerTeamRole = async () => {
     try {
       const response = await teamApi.getMyTeamsHistory();
       const history = normalizeList(response);
+      setTeamHistory(history);
+
       const currentTeam = getCurrentTeamFromHistory(history);
+      setActiveTeamId(getTeamId(currentTeam));
 
       setCanSubmitProject(Boolean(currentTeam && isLeaderTeam(currentTeam)));
     } catch (error) {
       console.warn("Không lấy được quyền team của player:", error);
+      setTeamHistory([]);
+      setActiveTeamId("");
       setCanSubmitProject(false);
     }
   };
@@ -83,6 +60,19 @@ export function Sidebar() {
     clearTokens();
     navigate("/login", { replace: true });
   };
+
+  const handleSelectTeam = (team: any) => {
+    const nextTeamId = getTeamId(team);
+    if (!nextTeamId || nextTeamId === activeTeamId) return;
+
+    localStorage.setItem("activeTeamId", nextTeamId);
+    setActiveTeamId(nextTeamId);
+    setCanSubmitProject(isLeaderTeam(team));
+    window.dispatchEvent(new Event("player-team-updated"));
+  };
+
+  const getTeamName = (team: any) =>
+    String(team?.teamName || team?.TeamName || team?.name || "Unnamed Team");
 
   return (
     <aside className="w-[280px] bg-white border-r border-gray-200 flex flex-col h-full shrink-0 relative z-30">
@@ -145,6 +135,43 @@ export function Sidebar() {
           </NavLink>
         )}
       </nav>
+
+      {teamHistory.length > 0 && (
+        <div className="px-4 pb-4">
+          <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Teams
+          </p>
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+            {teamHistory.map((team) => {
+              const itemTeamId = getTeamId(team);
+              const isActive = itemTeamId && itemTeamId === activeTeamId;
+
+              return (
+                <button
+                  type="button"
+                  key={itemTeamId || getTeamName(team)}
+                  onClick={() => handleSelectTeam(team)}
+                  className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left text-sm font-bold transition-colors ${
+                    isActive
+                      ? "bg-black text-white"
+                      : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                  title={getTeamName(team)}
+                >
+                  <span className="truncate">{getTeamName(team)}</span>
+                  <span
+                    className={`text-[9px] uppercase tracking-wider shrink-0 ${
+                      isActive ? "text-white/70" : "text-gray-400"
+                    }`}
+                  >
+                    {isLeaderTeam(team) ? "Lead" : "Mem"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="shrink-0 px-4 pb-4">
         <button

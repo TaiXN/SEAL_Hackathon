@@ -61,8 +61,12 @@ export const trackTopicApi = {
     const res = await apiClient.post("/api/Track", data);
     return res.data;
   },
-  updateTrack: async (id: string, data: Partial<Track>): Promise<Track> => {
-    const res = await apiClient.put(`/api/Track/${id}`, data);
+  updateTrack: async (id: string, data: Partial<Track>) => {
+    const body = {
+      trackName: data.trackName,
+      eventID: data.eventId,
+    };
+    const res = await apiClient.put(`/api/Track/${id}`, body);
     return res.data;
   },
   deleteTrack: async (id: string): Promise<void> => {
