@@ -37,15 +37,14 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllPrizes()
         {
-            List<Prize> result = await _prize.GetAllPrizesAsync();
+            List<PrizeAPIViewModel> result = await _prize.GetAllPrizesAsync();
             return Ok(result);
         }
-
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPrizeById(string id)
         {
-            Prize result = await _prize.GetPrizeByIdAsync(id);
+            PrizeAPIViewModel result = await _prize.GetPrizeByIdAsync(id);
 
             if (result == null)
             {
@@ -55,14 +54,10 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-
         [HttpGet("event/{eventId}")]
         public async Task<IActionResult> GetPrizeByEventId(string eventId)
         {
-           
-            List<Prize> result = await _prize.GetPrizesByEventIdAsync(eventId);
-
-            
+            List<PrizeAPIViewModel> result = await _prize.GetPrizesByEventIdAsync(eventId);
             return Ok(result);
         }
 

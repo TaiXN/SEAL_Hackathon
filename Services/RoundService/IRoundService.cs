@@ -9,13 +9,13 @@ namespace Services.RoundService
     public interface IRoundService
     {
         Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID);
-        Task<List<Round>> GetAllRoundsAsync();
-        Task<Round> GetRoundByIdAsync(string roundID);
         Task<bool> UpdateRoundAsync(UpdateRoundAPIViewModel info);
         Task<bool> DeleteRoundAsync(string roundID);
         Task<List<RoundMenuAPIViewModel>> GetActiveMenuAsync();
         Task<(bool IsSuccess, string Message)> AutoTransitionRoundAsync(string currentRoundId);
-        Task<List<Round>> GetActiveRoundsAsync();
+        Task<List<RoundAPIViewModel>> GetActiveRoundsAsync();
+        Task<RoundAPIViewModel> GetRoundByIdAsync(string roundID);
+        Task<List<RoundAPIViewModel>> GetAllRoundsAsync();
 
 
     }

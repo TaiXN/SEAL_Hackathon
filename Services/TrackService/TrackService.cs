@@ -49,24 +49,42 @@ namespace Services.TrackService
             }
         }
 
-        public async Task<List<Track>> GetAllTracksAsync()
+        public async Task<List<TrackAPIViewModel>> GetAllTracksAsync()
         {
             try
             {
                 List<Track> result = await _uow.Track.GetAllAsync();
-                return result.ToList();
+
+                return result.Select(t => new TrackAPIViewModel
+                {
+                    TrackId = t.TrackId,
+                    EventId = t.EventId,
+                    Creator = t.Creator,
+                    TrackName = t.TrackName,
+                    IsActive = t.IsActive
+                }).ToList();
             }
             catch
             {
-                return new List<Track>();
+                return new List<TrackAPIViewModel>();
             }
         }
 
-        public async Task<Track> GetTrackByIdAsync(string trackID)
+        public async Task<TrackAPIViewModel> GetTrackByIdAsync(string trackID)
         {
             try
             {
-                return await _uow.Track.GetFirstOrDefaultAsync(e => e.TrackId == trackID);
+                Track t = await _uow.Track.GetFirstOrDefaultAsync(e => e.TrackId == trackID);
+                if (t == null) return null;
+
+                return new TrackAPIViewModel
+                {
+                    TrackId = t.TrackId,
+                    EventId = t.EventId,
+                    Creator = t.Creator,
+                    TrackName = t.TrackName,
+                    IsActive = t.IsActive
+                };
             }
             catch
             {

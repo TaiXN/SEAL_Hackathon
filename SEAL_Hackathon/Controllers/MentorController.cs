@@ -1,4 +1,5 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Mentor;
+using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +39,21 @@ namespace SEAL_Hackathon.Controllers
 
 
         [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> GetAllMentors()
+        {
+            List<MentorAPIViewModel> mentors = await _mentor.GetAllMentorsAsync();
+
+            if (mentors == null || mentors.Count == 0)
+            {
+                return NotFound("Empty mentor list.");
+            }
+
+            return Ok(mentors);
+        }
+
+       
+        [Authorize(Roles = "Admin")]
         [HttpGet("track/{trackId}")]
         public async Task<IActionResult> GetMentorsByTrack(string trackId)
         {
@@ -46,7 +62,7 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest("Invalid track ID.");
             }
 
-            List<TeacherList> mentors = await _mentor.GetMentorsByTrackAsync(trackId);
+            List<MentorAPIViewModel> mentors = await _mentor.GetMentorsByTrackAsync(trackId);
 
             if (mentors == null || mentors.Count == 0)
             {

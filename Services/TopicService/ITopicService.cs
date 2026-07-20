@@ -9,8 +9,8 @@ namespace Services.TopicService
     public interface ITopicService
     {
         Task<bool> CreateTopicAsync(CreateTopicAPIViewModel info);
-        Task<List<Topic>> GetAllTopicsAsync();
-        Task<Topic> GetTopicByIdAsync(string topicID);
+        Task<List<TopicAPIViewModel>> GetAllTopicsAsync();
+        Task<TopicAPIViewModel> GetTopicByIdAsync(string topicID);
         Task<bool> UpdatTopicAsync(string id, UpdateTopicAPIViewModel info);
         Task<bool> DeleteTopicAsync(string topicID);
 

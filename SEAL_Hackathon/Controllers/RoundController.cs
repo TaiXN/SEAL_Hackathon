@@ -38,7 +38,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            List<Round> result = await _round.GetAllRoundsAsync();
+            List<RoundAPIViewModel> result = await _round.GetAllRoundsAsync();
             return Ok(result);
         }
 
@@ -48,10 +48,17 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid round ID.");
 
-            Round currentEvent = await _round.GetRoundByIdAsync(id);
+            RoundAPIViewModel currentEvent = await _round.GetRoundByIdAsync(id);
             if (currentEvent == null) return NotFound("No event found.");
 
             return Ok(currentEvent);
+        }
+
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveRounds()
+        {
+            List<RoundAPIViewModel> result = await _round.GetActiveRoundsAsync();
+            return Ok(result);
         }
 
         [Authorize(Roles = "Admin")]
@@ -106,11 +113,6 @@ namespace SEAL_Hackathon.Controllers
             return Ok(new { message = result.Message });
         }
 
-        [HttpGet("active")]
-        public async Task<IActionResult> GetActiveRounds()
-        {
-            var result = await _round.GetActiveRoundsAsync();
-            return Ok(result);
-        }
+        
     }
 }

@@ -34,7 +34,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet("topic")]
         public async Task<IActionResult> GetAllTopic()
         {
-            List<Topic> result = await _topic.GetAllTopicsAsync();
+            List<TopicAPIViewModel> result = await _topic.GetAllTopicsAsync();
             return Ok(result);
         }
 
@@ -44,7 +44,7 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid topic ID.");
 
-            Topic result = await _topic.GetTopicByIdAsync(id);
+            TopicAPIViewModel result = await _topic.GetTopicByIdAsync(id);
             if (result == null)
             {
                 return NotFound("No criteria found.");

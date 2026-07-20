@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
-namespace APIViewModels.Mentor
+namespace APIViewModels.Judge
 {
-    public class MentorAPIViewModel
+    public class JudgeAPIViewModel
     {
         public string TeacherId { get; set; }
         public string TrackId { get; set; }

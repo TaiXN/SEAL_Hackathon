@@ -7,8 +7,11 @@ namespace APIViewModels.Prize
 {
     public class PrizeAPIViewModel
     {
-        [Required]
         public string PrizeId { get; set; }
-        public string TeamId { get; set; }
+        public string PrizeName { get; set; }
+        public string Description { get; set; }
+        public string EventId { get; set; }
+        public string? TeamId { get; set; }
+        public bool IsActive { get; set; }
     }
 }

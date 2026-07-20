@@ -33,7 +33,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet("criterion")]
         public async Task<IActionResult> GetAllCriteria()
         {
-            List<Criterion> result = await _criteria.GetAllCriterionsAsync();
+            List<CriterionAPIViewModel> result = await _criteria.GetAllCriterionsAsync();
             return Ok(result);
         }
 
@@ -43,7 +43,7 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid criteria ID.");
 
-            Criterion result = await _criteria.GetCriterionByIdAsync(id);
+            CriterionAPIViewModel result = await _criteria.GetCriterionByIdAsync(id);
             if (result == null)
             {
                 return NotFound("No criteria found.");
@@ -107,7 +107,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet("set")]
         public async Task<IActionResult> GetAllSets()
         {
-            List<CriteriaSet> result = await _criteria.GetAllSetsAsync();
+            List<CriteriaSetAPIViewModel> result = await _criteria.GetAllSetsAsync();
             return Ok(result);
         }
 
@@ -115,7 +115,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet("set/{id}")]
         public async Task<IActionResult> GetSetDetails(string id)
         {
-            List<Mapping> result = await _criteria.GetSetDetailsAsync(id);
+            List<MappingDetailAPIViewModel> result = await _criteria.GetSetDetailsAsync(id);
             if (result == null || result.Count == 0)
             {
                 return NotFound("No criteria found.");

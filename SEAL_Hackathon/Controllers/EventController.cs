@@ -39,7 +39,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            List<Event> events = await _event.GetAllEventsAsync();
+            List<EventAPIViewModel> events = await _event.GetAllEventsAsync();
             return Ok(events);
         }
 
@@ -49,12 +49,11 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid event ID.");
 
-            Event currentEvent = await _event.GetEventByIdAsync(id);
+            EventAPIViewModel currentEvent = await _event.GetEventByIdAsync(id);
             if (currentEvent == null) return NotFound("No event found.");
 
             return Ok(currentEvent);
         }
-
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, UpdateEventAPIViewModel info)

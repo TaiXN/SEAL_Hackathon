@@ -1,4 +1,5 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Mentor;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -37,29 +38,41 @@ namespace Services.MentorService
             }
         }
 
-        public async Task<List<TeacherList>> GetAllTracksAsync()
+        public async Task<List<MentorAPIViewModel>> GetAllMentorsAsync()
         {
             try
             {
                 List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.IsMentor);
-                return result.ToList();
+
+                return result.Select(m => new MentorAPIViewModel
+                {
+                    TeacherId = m.TeacherId,
+                    TrackId = m.TrackId,
+                    IsMentor = m.IsMentor
+                }).ToList();
             }
             catch
             {
-                return new List<TeacherList>();
+                return new List<MentorAPIViewModel>();
             }
         }
 
-        public async Task<List<TeacherList>> GetMentorsByTrackAsync(string trackID)
+        public async Task<List<MentorAPIViewModel>> GetMentorsByTrackAsync(string trackID)
         {
             try
             {
-               List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.TrackId == trackID && q.IsMentor);
-                return result.ToList();
+                List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.TrackId == trackID && q.IsMentor);
+
+                return result.Select(m => new MentorAPIViewModel
+                {
+                    TeacherId = m.TeacherId,
+                    TrackId = m.TrackId,
+                    IsMentor = m.IsMentor
+                }).ToList();
             }
             catch
             {
-                return new List<TeacherList>();
+                return new List<MentorAPIViewModel>();
             }
         }
 

@@ -44,24 +44,41 @@ namespace Services.CriteriaService
             }
         }
 
-        public async Task<List<Criterion>> GetAllCriterionsAsync()
+        public async Task<List<CriterionAPIViewModel>> GetAllCriterionsAsync()
         {
             try
             {
                 List<Criterion> result = await _uow.Criteria.GetAllAsync();
-                return result.ToList();
+
+              
+                return result.Select(c => new CriterionAPIViewModel
+                {
+                    CriteriaId = c.CriteriaId,
+                    CriteriaName = c.CriteriaName,
+                    Description = c.Description,
+                    IsActive = c.IsActive
+                }).ToList();
             }
             catch
             {
-                return new List<Criterion>();
+                return new List<CriterionAPIViewModel>();
             }
         }
 
-        public async Task<Criterion> GetCriterionByIdAsync(string criterionID)
+        public async Task<CriterionAPIViewModel> GetCriterionByIdAsync(string criterionID)
         {
             try
             {
-                return await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaId == criterionID && e.IsActive);
+                Criterion result = await _uow.Criteria.GetFirstOrDefaultAsync(q => q.CriteriaId == criterionID && q.IsActive);
+                if (result == null) return null;
+
+                return new CriterionAPIViewModel
+                {
+                    CriteriaId = result.CriteriaId,
+                    CriteriaName = result.CriteriaName,
+                    Description = result.Description,
+                    IsActive = result.IsActive
+                };
             }
             catch
             {
@@ -188,30 +205,42 @@ namespace Services.CriteriaService
         }
 
 
-        public async Task<List<CriteriaSet>> GetAllSetsAsync()
+        public async Task<List<CriteriaSetAPIViewModel>> GetAllSetsAsync()
         {
             try
             {
                 List<CriteriaSet> result = await _uow.CriteriaSet.GetAllAsync();
-                return result.ToList();
+
+                return result.Select(q => new CriteriaSetAPIViewModel
+                {
+                    CriteriaSetId = q.CriteriaSetId,
+                    SetName = q.SetName,
+                    IsDefault = q.IsDefault,
+                    IsActive = q.IsActive
+                }).ToList();
             }
             catch
             {
-                return new List<CriteriaSet>();
+                return new List<CriteriaSetAPIViewModel>();
             }
         }
 
 
-        public async Task<List<Mapping>> GetSetDetailsAsync(string setID)
+        public async Task<List<MappingDetailAPIViewModel>> GetSetDetailsAsync(string setID)
         {
             try
             {
-                List<Mapping> result = await _uow.Mapping.GetAllAsync(e => e.CriteriaSetId == setID);
-                return result.ToList();
+                List<Mapping> result = await _uow.Mapping.GetAllAsync(q => q.CriteriaSetId == setID);
+
+                return result.Select(q => new MappingDetailAPIViewModel
+                {
+                    CriteriaId = q.CriteriaId,
+                    Score = q.Score
+                }).ToList();
             }
             catch (Exception ex)
             {
-                return new List<Mapping>();
+                return new List<MappingDetailAPIViewModel>();
             }
         }
 

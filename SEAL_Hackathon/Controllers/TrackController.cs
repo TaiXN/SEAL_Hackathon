@@ -40,7 +40,7 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            List<Track> tracks = await _track.GetAllTracksAsync();
+            List<TrackAPIViewModel> tracks = await _track.GetAllTracksAsync();
             return Ok(tracks);
         }
 
@@ -50,7 +50,7 @@ namespace SEAL_Hackathon.Controllers
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid track ID.");
 
-            Track currentTrack = await _track.GetTrackByIdAsync(id);
+            TrackAPIViewModel currentTrack = await _track.GetTrackByIdAsync(id);
             if (currentTrack == null) return NotFound("No track found.");
 
             return Ok(currentTrack);

@@ -41,7 +41,6 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("Added fail.");
         }
 
-       
         [Authorize(Roles = "Admin")]
         [HttpGet("track/{trackId}")]
         public async Task<IActionResult> GetJudgesByTrack(string trackId)
@@ -51,7 +50,7 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest("Invalid track ID.");
             }
 
-            List<TeacherList> judges = await _judge.GetJudgesByTrackAsync(trackId);
+            List<JudgeAPIViewModel> judges = await _judge.GetJudgesByTrackAsync(trackId);
 
             if (judges == null || judges.Count == 0)
             {
@@ -61,7 +60,22 @@ namespace SEAL_Hackathon.Controllers
             return Ok(judges);
         }
 
-       
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> GetAllJudges()
+        {
+           
+            List<JudgeAPIViewModel> judges = await _judge.GetAllJudgeAsync();
+
+            if (judges == null || judges.Count == 0)
+            {
+                return NotFound("No judges found in the system.");
+            }
+
+            return Ok(judges);
+        }
+
+
         [Authorize(Roles = "Admin")]
         [HttpDelete("track/{trackId}/teacher/{judgeId}")]
         public async Task<IActionResult> RemoveJudge(string judgeId, string trackId)

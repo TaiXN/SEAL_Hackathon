@@ -50,24 +50,44 @@ namespace Services.PrizeService
             }
         }
 
-        public async Task<List<Prize>> GetAllPrizesAsync()
+        public async Task<List<PrizeAPIViewModel>> GetAllPrizesAsync()
         {
             try
             {
                 List<Prize> result = await _uow.Prize.GetAllAsync();
-                return result.ToList();
+
+                return result.Select(p => new PrizeAPIViewModel
+                {
+                    PrizeId = p.PrizeId,
+                    PrizeName = p.PrizeName,
+                    Description = p.Description,
+                    EventId = p.EventId,
+                    TeamId = p.TeamId,
+                    IsActive = p.IsActive
+                }).ToList();
             }
             catch
             {
-                return new List<Prize>();
+                return new List<PrizeAPIViewModel>();
             }
         }
 
-        public async Task<Prize> GetPrizeByIdAsync(string prizeId)
+        public async Task<PrizeAPIViewModel> GetPrizeByIdAsync(string prizeId)
         {
             try
             {
-                return await _uow.Prize.GetFirstOrDefaultAsync(e => e.PrizeId == prizeId);
+                Prize p = await _uow.Prize.GetFirstOrDefaultAsync(e => e.PrizeId == prizeId);
+                if (p == null) return null;
+
+                return new PrizeAPIViewModel
+                {
+                    PrizeId = p.PrizeId,
+                    PrizeName = p.PrizeName,
+                    Description = p.Description,
+                    EventId = p.EventId,
+                    TeamId = p.TeamId,
+                    IsActive = p.IsActive
+                };
             }
             catch
             {
@@ -75,7 +95,7 @@ namespace Services.PrizeService
             }
         }
 
-        public async Task<List<Prize>> GetPrizesByEventIdAsync(string eventId)
+        public async Task<List<PrizeAPIViewModel>> GetPrizesByEventIdAsync(string eventId)
         {
             try
             {
@@ -83,11 +103,19 @@ namespace Services.PrizeService
                     .Where(p => p.EventId == eventId)
                     .ToListAsync();
 
-                return result;
+                return result.Select(p => new PrizeAPIViewModel
+                {
+                    PrizeId = p.PrizeId,
+                    PrizeName = p.PrizeName,
+                    Description = p.Description,
+                    EventId = p.EventId,
+                    TeamId = p.TeamId,
+                    IsActive = p.IsActive
+                }).ToList();
             }
             catch (Exception ex)
             {
-                return new List<Prize>();
+                return new List<PrizeAPIViewModel>();
             }
         }
 

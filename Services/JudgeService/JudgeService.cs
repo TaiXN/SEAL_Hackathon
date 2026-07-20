@@ -1,4 +1,5 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Judge;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 
 namespace Services.JudgeService
@@ -34,29 +35,40 @@ namespace Services.JudgeService
             }
         }
 
-        public async Task<List<TeacherList>> GetAllTracksAsync()
+        public async Task<List<JudgeAPIViewModel>> GetAllJudgeAsync()
         {
             try
             {
                 List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.IsMentor == false);
-                return result.ToList();
+                return result.Select(q => new JudgeAPIViewModel
+                {
+                    TeacherId = q.TeacherId,
+                    TrackId = q.TrackId,
+                    IsMentor = q.IsMentor
+                }).ToList();
             }
-            catch
+            catch 
             {
-                return new List<TeacherList>();
+                return new List<JudgeAPIViewModel>();
             }
         }
 
-        public async Task<List<TeacherList>> GetJudgesByTrackAsync(string trackID)
+        public async Task<List<JudgeAPIViewModel>> GetJudgesByTrackAsync(string trackID)
         {
             try
             {
                 List<TeacherList> result = await _uow.TeacherList.GetAllAsync(q => q.TrackId == trackID && q.IsMentor == false);
-                return result.ToList();
+
+                return result.Select(q => new JudgeAPIViewModel
+                {
+                    TeacherId = q.TeacherId,
+                    TrackId = q.TrackId,
+                    IsMentor = q.IsMentor
+                }).ToList();
             }
             catch
             {
-                return new List<TeacherList>();
+                return new List<JudgeAPIViewModel>();
             }
         }
 

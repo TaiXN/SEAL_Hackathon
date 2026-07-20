@@ -81,28 +81,85 @@ namespace Services.RoundService
             }
         }
 
-        public async Task<List<Round>> GetAllRoundsAsync()
+        public async Task<List<RoundAPIViewModel>> GetAllRoundsAsync()
         {
             try
             {
                 List<Round> result = await _uow.Round.GetAllAsync();
-                return result.ToList();
+                return result.Select(r => new RoundAPIViewModel
+                {
+                    RoundId = r.RoundId,
+                    EventId = r.EventId,
+                    Creator = r.Creator,
+                    RoundName = r.RoundName,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    TopNpromotion = r.TopNpromotion,
+                    MaxTeam = r.MaxTeam,
+                    IsActive = r.IsActive,
+                    RoundIndex = r.RoundIndex,
+                    CriteriaSetId = r.CriteriaSetId
+                }).ToList();
             }
             catch
             {
-                return new List<Round>();
+                return new List<RoundAPIViewModel>();
             }
         }
 
-        public async Task<Round> GetRoundByIdAsync(string roundID)
+        public async Task<RoundAPIViewModel> GetRoundByIdAsync(string roundID)
         {
             try
             {
-                return await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId == roundID);
+                Round r = await _uow.Round.GetFirstOrDefaultAsync(e => e.RoundId == roundID);
+                if (r == null) return null;
+
+                return new RoundAPIViewModel
+                {
+                    RoundId = r.RoundId,
+                    EventId = r.EventId,
+                    Creator = r.Creator,
+                    RoundName = r.RoundName,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    TopNpromotion = r.TopNpromotion,
+                    MaxTeam = r.MaxTeam,
+                    IsActive = r.IsActive,
+                    RoundIndex = r.RoundIndex,
+                    CriteriaSetId = r.CriteriaSetId
+                };
             }
             catch
             {
                 return null;
+            }
+        }
+
+        public async Task<List<RoundAPIViewModel>> GetActiveRoundsAsync()
+        {
+            try
+            {
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+                List<Round> result = await _uow.Round.GetAllAsync(q => q.IsActive && q.StartDate <= vnNow);
+
+                return result.Select(r => new RoundAPIViewModel
+                {
+                    RoundId = r.RoundId,
+                    EventId = r.EventId,
+                    Creator = r.Creator,
+                    RoundName = r.RoundName,
+                    StartDate = r.StartDate,
+                    EndDate = r.EndDate,
+                    TopNpromotion = r.TopNpromotion,
+                    MaxTeam = r.MaxTeam,
+                    IsActive = r.IsActive,
+                    RoundIndex = r.RoundIndex,
+                    CriteriaSetId = r.CriteriaSetId
+                }).ToList();
+            }
+            catch
+            {
+                return new List<RoundAPIViewModel>();
             }
         }
 
@@ -274,21 +331,6 @@ namespace Services.RoundService
             }
         }
 
-        public async Task<List<Round>> GetActiveRoundsAsync()
-        {
-            try
-            {
-                DateTime vnNow = DateTime.UtcNow.AddHours(7);
-
-                List<Round> result = await _uow.Round.GetAllAsync(q => q.IsActive && q.StartDate <= vnNow);
-
-     
-                return result;
-            }
-            catch
-            {
-                return new List<Round>();
-            }
-        }
+       
     }
 }

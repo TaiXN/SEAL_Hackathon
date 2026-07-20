@@ -79,24 +79,47 @@ namespace Services.EventService
             }
         }
 
-        public async Task<List<Event>> GetAllEventsAsync()
+        public async Task<List<EventAPIViewModel>> GetAllEventsAsync()
         {
             try
             {
                 List<Event> result = await _uow.Event.GetAllAsync();
-                return result.ToList();
+
+             
+                return result.Select(e => new EventAPIViewModel
+                {
+                    EventId = e.EventId,
+                    Creator = e.Creator,
+                    EventName = e.EventName,
+                    Season = e.Season,
+                    Year = e.Year,
+                    IsActive = e.IsActive,
+                    CurrentRound = e.CurrentRound
+                }).ToList();
             }
             catch
             {
-                return new List<Event>();
+                return new List<EventAPIViewModel>();
             }
         }
 
-        public async Task<Event> GetEventByIdAsync(string eventId)
+        public async Task<EventAPIViewModel> GetEventByIdAsync(string eventId)
         {
             try
             {
-                return await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
+                Event e = await _uow.Event.GetFirstOrDefaultAsync(ev => ev.EventId == eventId);
+                if (e == null) return null;
+
+                return new EventAPIViewModel
+                {
+                    EventId = e.EventId,
+                    Creator = e.Creator,
+                    EventName = e.EventName,
+                    Season = e.Season,
+                    Year = e.Year,
+                    IsActive = e.IsActive,
+                    CurrentRound = e.CurrentRound
+                };
             }
             catch
             {

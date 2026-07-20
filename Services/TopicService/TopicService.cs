@@ -43,25 +43,40 @@ namespace Services.TopicService
                 return false;
             }
         }
-
-        public async Task<List<Topic>> GetAllTopicsAsync()
+        public async Task<List<TopicAPIViewModel>> GetAllTopicsAsync()
         {
             try
             {
                 List<Topic> result = await _uow.Topic.GetAllAsync();
-                return result.ToList();
+
+                return result.Select(t => new TopicAPIViewModel
+                {
+                    TopicId = t.TopicId,
+                    TrackId = t.TrackId,
+                    TopicDetail = t.TopicDetail,
+                    IsActive = t.IsActive
+                }).ToList();
             }
             catch
             {
-                return new List<Topic>();
+                return new List<TopicAPIViewModel>();
             }
         }
 
-        public async Task<Topic> GetTopicByIdAsync(string topicID)
+        public async Task<TopicAPIViewModel> GetTopicByIdAsync(string topicID)
         {
             try
             {
-                return await _uow.Topic.GetFirstOrDefaultAsync(e => e.TopicId == topicID && e.IsActive);
+                Topic t = await _uow.Topic.GetFirstOrDefaultAsync(e => e.TopicId == topicID && e.IsActive);
+                if (t == null) return null;
+
+                return new TopicAPIViewModel
+                {
+                    TopicId = t.TopicId,
+                    TrackId = t.TrackId,
+                    TopicDetail = t.TopicDetail,
+                    IsActive = t.IsActive
+                };
             }
             catch
             {
