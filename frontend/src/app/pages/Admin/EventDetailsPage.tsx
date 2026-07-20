@@ -173,14 +173,35 @@ export function EventDetailsPage() {
 
         const allScores = leaderboards.flat();
 
-        const enrichedTeams = teams.map((t) => {
-          const tId = String(t.teamId || t.teamID || t.id);
-          const scoreData = allScores.find(
-            (s: any) => String(s.teamId || s.teamID || s.id) === tId,
-          );
+        const enrichedTeams = teams.map((t: any) => {
+          const scoreData = allScores.find((s: any) => {
+            // Ép kiểu chuẩn và tách riêng từng loại ID ra so sánh
+            const sInRoundId = String(
+              s.teamInRoundId || s.teamInRoundID || s.id || "",
+            ).toLowerCase();
+            const tInRoundId = String(
+              t.teamInRoundId || t.teamInRoundID || t.id || "",
+            ).toLowerCase();
+
+            const sTeamId = String(s.teamId || s.teamID || "").toLowerCase();
+            const tTeamId = String(t.teamId || t.teamID || "").toLowerCase();
+
+            // Khớp đúng loại ID với nhau, không khớp chéo
+            const matchInRoundId =
+              sInRoundId &&
+              sInRoundId !== "undefined" &&
+              sInRoundId === tInRoundId;
+            const matchTeamId =
+              sTeamId && sTeamId !== "undefined" && sTeamId === tTeamId;
+            const matchName =
+              s.teamName && s.teamName === (t.teamName || t.name); // Cứu cánh cuối cùng
+
+            return matchInRoundId || matchTeamId || matchName;
+          });
+
           return {
             ...t,
-            score: scoreData ? Number(scoreData.score || 0) : 0,
+            score: Number(t.score ?? scoreData?.score ?? 0),
           };
         });
 
