@@ -26,7 +26,7 @@ import {
 } from "../../lib/utils/teamHelpers";
 
 // ==========================================
-// 1. HELPER FUNCTIONS
+// 1. HELPER FUNCTIONS gdsfgsdfgsdgs
 // ==========================================
 
 const getCurrentUserNameFromToken = (accessToken?: string | null) => {
@@ -1089,7 +1089,7 @@ export function Dashboard() {
                 <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">No Team Yet</p>
                   <p className="text-sm text-slate-500 mt-1">
-                    Create a team on the My Team page before registering for an
+                    Create team on the My Team page before registering for an
                     event.
                   </p>
                 </div>
