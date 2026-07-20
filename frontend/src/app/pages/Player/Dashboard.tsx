@@ -131,8 +131,14 @@ const extractTrackName = (obj: any): string =>
   readString(
     obj?.trackName ||
       obj?.TrackName ||
+      obj?.categoryName ||
+      obj?.CategoryName ||
       obj?.track?.trackName ||
-      obj?.track?.name,
+      obj?.track?.name ||
+      obj?.teamInRound?.trackName ||
+      obj?.teamInRound?.TrackName ||
+      obj?.teamInRound?.track?.trackName ||
+      obj?.teamInRound?.track?.name,
     "No track",
   );
 
@@ -143,9 +149,31 @@ const extractTopicName = (obj: any): string =>
       obj?.topicDetail ||
       obj?.TopicDetail ||
       obj?.topic?.topicDetail ||
-      obj?.topic?.name,
+      obj?.topic?.name ||
+      obj?.teamInRound?.topicName ||
+      obj?.teamInRound?.TopicName ||
+      obj?.teamInRound?.topicDetail ||
+      obj?.teamInRound?.TopicDetail ||
+      obj?.teamInRound?.topic?.topicDetail ||
+      obj?.teamInRound?.topic?.name,
     "No topic",
   );
+
+const isFilledField = (value: string, emptyValues: string[]) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  return !emptyValues.includes(normalized);
+};
+
+const hasRegisteredEvent = (obj: any, eventName: string) =>
+  Boolean(extractEventId(obj)) ||
+  isFilledField(eventName, [
+    "not registered",
+    "no event",
+    "you not in an event",
+    "you are not in an event",
+    "not in an event",
+  ]);
 
 const extractCurrentRoundIndex = (obj: any): number | null =>
   readNumber(
@@ -626,37 +654,27 @@ export function Dashboard() {
     extractRoundName(dashboardData),
   );
   const eliminated = isTeamEliminated(dashboardData);
-  const teamNotice = getTeamNotice(dashboardData);
-  const hasInfoRegistration = Boolean(
-    extractEventId(dashboardData) ||
-      extractTrackId(dashboardData) ||
-      extractTopicId(dashboardData) ||
-      eventName !== "Not registered" ||
-      trackName !== "No track" ||
-      topicName !== "No topic",
-  );
+  const hasEventRegistration = hasRegisteredEvent(dashboardData, eventName);
+  const hasKnownRound =
+    currentRoundLabel !== "Not Registered" || Boolean(currentRoundName);
+  const hasInfoRegistration = hasEventRegistration;
+  const teamNotice = hasInfoRegistration ? getTeamNotice(dashboardData) : null;
 
   // Logic kiểm tra để hiển thị cho khung Current Round
   const hasSubmittedRegistration = Boolean(
-    dashboardData?.eventID ||
-    dashboardData?.eventId ||
-    dashboardData?.trackID ||
-    dashboardData?.trackId ||
-    dashboardData?.topicID ||
-    dashboardData?.topicId ||
     hasInfoRegistration ||
     dashboardData?.teamInRound,
   );
-  const isActuallySubmitted =
-    hasSubmittedRegistration ||
-    localStorage.getItem(`team_${teamId}_submitted`) === "true";
+  const isActuallySubmitted = hasSubmittedRegistration;
 
   const isApprovedIntoRound = Boolean(
-    dashboardData?.teamInRound || hasInfoRegistration,
+    dashboardData?.teamInRound || hasInfoRegistration || hasKnownRound,
   );
-  const registeredRoundName = isApprovedIntoRound
-    ? currentRoundLabel
-    : "Pending...";
+  const displayRoundName =
+    currentRoundLabel !== "Not Registered"
+      ? currentRoundLabel
+      : currentRoundName || "Pending...";
+  const registeredRoundName = isApprovedIntoRound ? displayRoundName : "Pending...";
   const isRoundLive =
     currentRoundIndex === 0 ||
     currentRoundIndex === 1 ||
@@ -886,14 +904,9 @@ export function Dashboard() {
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-primary" /> Leaderboard
-                  {currentRoundName && (
-                    <span className="text-sm text-blue-600 ml-2 bg-blue-100 px-2 py-0.5 rounded-full">
-                      {currentRoundName}
-                    </span>
-                  )}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Team rankings in the current Track & Round
+                  Team rankings by selected Track & Round
                 </p>
               </div>
 

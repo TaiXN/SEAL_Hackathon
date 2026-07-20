@@ -7,14 +7,57 @@ import { jwtDecode } from "jwt-decode";
 import { useAuthStore } from "../../stores/auth.store";
 import {
   normalizeList,
+  unwrapData,
   getCurrentTeamFromHistory,
   getTeamId,
   isLeaderTeam,
 } from "../../lib/utils/teamHelpers";
 
+const readString = (value: any, fallback = "") => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number") return String(value);
+  return fallback;
+};
+
 const getMembers = (team: any): any[] => {
   return team?.members || team?.teamMembers || team?.players || [];
 };
+
+const getTeamDisplayName = (team: any) =>
+  readString(
+    team?.teamName || team?.TeamName || team?.name || team?.team?.teamName,
+    "Unnamed Team",
+  );
+
+const getTeamEventName = (team: any) =>
+  readString(
+    team?.eventName ||
+      team?.EventName ||
+      team?.event?.eventName ||
+      team?.event?.name ||
+      team?.teamInRound?.eventName,
+  );
+
+const getTeamTrackName = (team: any) =>
+  readString(
+    team?.trackName ||
+      team?.TrackName ||
+      team?.track?.trackName ||
+      team?.track?.name ||
+      team?.teamInRound?.trackName,
+  );
+
+const getTeamTopicName = (team: any) =>
+  readString(
+    team?.topicName ||
+      team?.TopicName ||
+      team?.topicDetail ||
+      team?.TopicDetail ||
+      team?.topic?.topicDetail ||
+      team?.topic?.name ||
+      team?.teamInRound?.topicName ||
+      team?.teamInRound?.topicDetail,
+  );
 
 const getMemberPlayerId = (member: any) => {
   return (
@@ -204,6 +247,7 @@ const resolveMemberRole = (
 
 export function Team() {
   const [team, setTeam] = useState<any>(null);
+  const [teamHistory, setTeamHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -236,6 +280,7 @@ export function Team() {
 
       const historyResponse = await teamApi.getMyTeamsHistory();
       const teamHistory = normalizeList(historyResponse);
+      setTeamHistory(teamHistory);
       const currentTeam = getCurrentTeamFromHistory(teamHistory);
 
       if (!currentTeam) {
@@ -281,6 +326,7 @@ export function Team() {
           error.response?.data ||
           "Unable to get current team information.",
       });
+      setTeamHistory([]);
     } finally {
       setIsLoading(false);
     }
@@ -288,6 +334,15 @@ export function Team() {
 
   useEffect(() => {
     fetchMyTeam();
+
+    const handler = () => {
+      fetchMyTeam();
+    };
+
+    window.addEventListener("player-team-updated", handler);
+    return () => {
+      window.removeEventListener("player-team-updated", handler);
+    };
   }, []);
 
   const teamId = getTeamId(team);
@@ -318,6 +373,15 @@ export function Team() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleSelectTeam = async (nextTeam: any) => {
+    const nextTeamId = getTeamId(nextTeam);
+
+    if (!nextTeamId || nextTeamId === teamId) return;
+
+    localStorage.setItem("activeTeamId", nextTeamId);
+    window.dispatchEvent(new Event("player-team-updated"));
+  };
+
   const handleCreateTeam = async () => {
     if (!teamName.trim()) {
       Swal.fire({
@@ -335,9 +399,12 @@ export function Team() {
         teamName: teamName.trim(),
       });
 
-      await teamApi.createTeam({
+      const createResponse = await teamApi.createTeam({
         teamName: teamName.trim(),
       });
+
+      const createdTeamId = getTeamId(unwrapData(createResponse));
+      if (createdTeamId) localStorage.setItem("activeTeamId", createdTeamId);
 
       Swal.fire({
         icon: "success",
@@ -389,6 +456,7 @@ export function Team() {
       setIsJoiningTeam(true);
 
       await teamApi.joinViaLink(teamIdToJoin);
+      localStorage.setItem("activeTeamId", teamIdToJoin);
 
       Swal.fire({
         icon: "success",
@@ -562,7 +630,8 @@ export function Team() {
       await teamApi.leaveTeam(teamId);
 
       setConfirmModalConfig((prev) => ({ ...prev, isOpen: false }));
-      setTeam(null);
+      localStorage.removeItem("activeTeamId");
+      await fetchMyTeam();
 
       window.dispatchEvent(new Event("player-team-updated"));
 
@@ -624,6 +693,14 @@ export function Team() {
             or join an existing team as a Team Member.
           </p>
         </header>
+
+        {teamHistory.length > 0 && (
+          <TeamSwitcher
+            teams={teamHistory}
+            activeTeamId={teamId}
+            onSelect={handleSelectTeam}
+          />
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-white border border-gray-200 rounded-radius-lg p-6 shadow-sm space-y-5">
@@ -721,6 +798,14 @@ export function Team() {
       </header>
 
       <div className="space-y-8">
+        {teamHistory.length > 0 && (
+          <TeamSwitcher
+            teams={teamHistory}
+            activeTeamId={teamId}
+            onSelect={handleSelectTeam}
+          />
+        )}
+
         <section className="bg-card border border-border rounded-radius-lg p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
           <div className="flex-1 w-full space-y-2">
             <label
@@ -1007,6 +1092,74 @@ export function Team() {
             ))}
           </div>
         </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-gray-200 rounded-radius-lg p-6 shadow-sm space-y-5">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Create another team
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Create a new team for a different event. The backend will keep
+                event membership rules consistent.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">
+                Team name
+              </label>
+              <input
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Example: Tech Wizards"
+                className="w-full px-4 py-3 border border-gray-200 rounded-radius-md outline-none focus:border-black"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreateTeam}
+              disabled={isCreatingTeam}
+              className="w-full px-6 py-3 bg-black text-white rounded-radius-md font-bold disabled:opacity-50"
+            >
+              {isCreatingTeam ? "Creating team..." : "+ Create Team"}
+            </button>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-radius-lg p-6 shadow-sm space-y-5">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Join another team
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Paste a team invite link or teamId. If you already joined a
+                team in the same event, the join API will reject it.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">
+                Team invite link / teamId
+              </label>
+              <input
+                value={joinInput}
+                onChange={(e) => setJoinInput(e.target.value)}
+                placeholder="Paste invite link or teamId"
+                className="w-full px-4 py-3 border border-gray-200 rounded-radius-md outline-none focus:border-black"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleJoinTeam}
+              disabled={isJoiningTeam}
+              className="w-full px-6 py-3 bg-white text-black border border-black rounded-radius-md font-bold disabled:opacity-50 hover:bg-gray-50"
+            >
+              {isJoiningTeam ? "Joining team..." : "Join Team"}
+            </button>
+          </div>
+        </section>
       </div>
 
       <ConfirmModal
@@ -1021,5 +1174,94 @@ export function Team() {
         isDestructive
       />
     </div>
+  );
+}
+
+function TeamSwitcher({
+  teams,
+  activeTeamId,
+  onSelect,
+}: {
+  teams: any[];
+  activeTeamId: string;
+  onSelect: (team: any) => void | Promise<void>;
+}) {
+  if (teams.length === 0) return null;
+
+  return (
+    <section className="bg-white border border-border rounded-radius-lg p-4 shadow-sm mb-8">
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+            Your Teams
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Choose a team to view its Dashboard, roster, and submit permission.
+          </p>
+        </div>
+        <span className="text-xs font-bold text-slate-400">
+          {teams.length} team{teams.length > 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {teams.map((item) => {
+          const itemTeamId = getTeamId(item);
+          const isActive = itemTeamId && itemTeamId === activeTeamId;
+          const eventName = getTeamEventName(item);
+          const trackName = getTeamTrackName(item);
+          const topicName = getTeamTopicName(item);
+          const detailLine =
+            [eventName, trackName, topicName].filter(Boolean).join(" / ") ||
+            "No event selected yet";
+
+          return (
+            <button
+              type="button"
+              key={itemTeamId || getTeamDisplayName(item)}
+              onClick={() => void onSelect(item)}
+              className={`w-full text-left border rounded-radius-md p-4 transition-colors ${
+                isActive
+                  ? "border-black bg-black text-white"
+                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-bold truncate">
+                    {getTeamDisplayName(item)}
+                  </p>
+                  <p
+                    className={`text-sm mt-1 truncate ${
+                      isActive ? "text-white/70" : "text-slate-500"
+                    }`}
+                    title={detailLine}
+                  >
+                    {detailLine}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${
+                      isActive
+                        ? "bg-white text-black"
+                        : "bg-white text-slate-600 border border-slate-200"
+                    }`}
+                  >
+                    {isLeaderTeam(item) ? "Leader" : "Member"}
+                  </span>
+                  {isActive && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-white/70">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
