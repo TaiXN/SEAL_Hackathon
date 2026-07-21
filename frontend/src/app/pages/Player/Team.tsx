@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { teamApi } from "../../lib/api/teamApi";
-import { jwtDecode } from "jwt-decode";
 import { useAuthStore } from "../../stores/auth.store";
 import {
   normalizeList,
@@ -12,238 +11,21 @@ import {
   getTeamId,
   isLeaderTeam,
 } from "../../lib/utils/teamHelpers";
-
-const readString = (value: any, fallback = "") => {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  if (typeof value === "number") return String(value);
-  return fallback;
-};
-
-const getMembers = (team: any): any[] => {
-  return team?.members || team?.teamMembers || team?.players || [];
-};
-
-const getTeamDisplayName = (team: any) =>
-  readString(
-    team?.teamName || team?.TeamName || team?.name || team?.team?.teamName,
-    "Unnamed Team",
-  );
-
-const getTeamEventName = (team: any) =>
-  readString(
-    team?.eventName ||
-      team?.EventName ||
-      team?.event?.eventName ||
-      team?.event?.name ||
-      team?.teamInRound?.eventName,
-  );
-
-const getTeamTrackName = (team: any) =>
-  readString(
-    team?.trackName ||
-      team?.TrackName ||
-      team?.track?.trackName ||
-      team?.track?.name ||
-      team?.teamInRound?.trackName,
-  );
-
-const getTeamTopicName = (team: any) =>
-  readString(
-    team?.topicName ||
-      team?.TopicName ||
-      team?.topicDetail ||
-      team?.TopicDetail ||
-      team?.topic?.topicDetail ||
-      team?.topic?.name ||
-      team?.teamInRound?.topicName ||
-      team?.teamInRound?.topicDetail,
-  );
-
-const getMemberPlayerId = (member: any) => {
-  return (
-    member?.student?.studentId ||
-    member?.student?.StudentID ||
-    member?.student?.id ||
-    member?.account?.accountId ||
-    member?.account?.id ||
-    member?.studentId ||
-    member?.studentID ||
-    member?.StudentID ||
-    member?.playerId ||
-    member?.PlayerId ||
-    member?.playerID ||
-    member?.PlayerID ||
-    member?.memberPlayerId ||
-    member?.MemberPlayerId ||
-    member?.memberId ||
-    member?.MemberId ||
-    member?.id ||
-    member?.ID ||
-    ""
-  );
-};
-
-const getMemberEmail = (member: any) => {
-  return (
-    member?.studentEmail || // Thêm cái này
-    member?.account?.email || // Dự phòng
-    member?.email ||
-    member?.Email ||
-    member?.player?.email ||
-    member?.player?.Email ||
-    ""
-  );
-};
-
-const getMemberName = (member: any) => {
-  if (member?.student?.account?.fullName)
-    return member.student.account.fullName;
-  if (member?.student?.fullName) return member.student.fullName;
-  if (member?.account?.fullName) return member.account.fullName;
-  return (
-    member?.studentName ||
-    member?.fullName ||
-    member?.FullName ||
-    member?.name ||
-    member?.Name ||
-    ""
-  );
-};
-
-const isLeaderMember = (member: any) => {
-  if (
-    member?.isLeader === true ||
-    member?.IsLeader === true ||
-    member?.isLeader === 1 ||
-    member?.IsLeader === 1
-  ) {
-    return true;
-  }
-
-  // Đề phòng Backend trả về role dạng chuỗi
-  const role = String(
-    member?.role || member?.teamRole || member?.memberRole || "",
-  ).toLowerCase();
-
-  return role === "leader" || role === "team leader" || role === "teamleader";
-};
-
-const getInitials = (name: string) => {
-  const words = name.trim().split(" ").filter(Boolean);
-
-  if (words.length === 0) return "?";
-
-  return words
-    .slice(-2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-};
-
-const extractTeamIdFromJoinInput = (value: string) => {
-  const clean = value.trim().replace(/\/+$/, "");
-  if (!clean) return "";
-
-  const last = clean.split("/").pop() || "";
-  return last.split("?")[0].split("#")[0];
-};
-
-const getCurrentUserFromToken = (accessToken?: string | null) => {
-  if (!accessToken) return { displayName: "You", email: "", playerId: "" };
-
-  try {
-    const decoded: any = jwtDecode(accessToken);
-    const displayName =
-      decoded?.fullName || decoded?.name || decoded?.email || "You";
-
-    // Phải thêm cái "sớ" nameidentifier của C# này vào thì mới moi được ID ra
-    const playerId =
-      decoded?.[
-        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-      ] ||
-      decoded?.studentId ||
-      decoded?.StudentId ||
-      decoded?.playerId ||
-      decoded?.sub ||
-      "";
-
-    return {
-      displayName,
-      email: decoded?.email || decoded?.Email || "",
-      playerId,
-    };
-  } catch {
-    return { displayName: "You", email: "", playerId: "" };
-  }
-};
-// @ts-expect-error
-const sameValue = (a?: any, b?: any) => {
-  if (!a || !b) return false;
-  return String(a).toLowerCase() === String(b).toLowerCase();
-};
-
-const isSelfMember = (
-  member: any,
-  // @ts-expect-error
-  index: number,
-  currentUserInfo: { displayName: string; email: string; playerId: string },
-  // @ts-expect-error
-  currentUserIsLeader: boolean,
-) => {
-  // ĐÃ XÓA DÒNG NHẬN VƠ INDEX 0. Giờ so sánh bằng thực lực ID!
-  const memberId = String(getMemberPlayerId(member) || "");
-  const myId = String(currentUserInfo.playerId || "");
-
-  // Nếu ID quét được khớp với ID trong Token thì người đó 100% là You
-  return memberId && myId && memberId.toLowerCase() === myId.toLowerCase();
-};
-
-const resolveMemberName = (
-  member: any,
-  index: number,
-  isSelf: boolean,
-  currentUserInfo: {
-    displayName: string;
-    email: string;
-    playerId: string;
-  },
-) => {
-  // THÊM ƯU TIÊN LẤY EMAIL VÀO ĐÂY ĐỂ HIỆN LÊN BẢNG THÔNG BÁO CHO ĐẸP
-  const rawName = String(
-    getMemberName(member) || getMemberEmail(member) || "",
-  ).trim();
-
-  const isMissingName =
-    !rawName ||
-    rawName === "Không có tên" ||
-    rawName.toLowerCase() === "unknown" ||
-    rawName.toLowerCase() === "null" ||
-    rawName.toLowerCase() === "undefined";
-
-  if (!isMissingName) return rawName;
-
-  if (isSelf) {
-    return currentUserInfo.displayName || currentUserInfo.email || "You";
-  }
-
-  // Đổi thành "Member" cho đồng bộ với tiếng Việt ở ngoài
-  return `Member ${index + 1}`;
-};
-
-const resolveMemberRole = (
-  member: any,
-  // @ts-expect-error
-  index: number, // @ts-expect-error
-  currentUserIsLeader: boolean, // @ts-expect-error
-  isSelf: boolean,
-) => {
-  // Dùng chung 1 logic duy nhất với cái Vương miện, không đoán bừa vị trí index === 0 nữa!
-  if (isLeaderMember(member)) {
-    return "Team Leader";
-  }
-
-  return "Member";
-};
+import {
+  extractTeamIdFromJoinInput,
+  getCurrentUserFromToken,
+  getInitials,
+  getMemberPlayerId,
+  getMembers,
+  getTeamDisplayName,
+  getTeamEventName,
+  getTeamTopicName,
+  getTeamTrackName,
+  isLeaderMember,
+  isSelfMember,
+  resolveMemberName,
+  resolveMemberRole,
+} from "../../lib/utils/playerTeamHelpers";
 
 export function Team() {
   const [team, setTeam] = useState<any>(null);
@@ -310,7 +92,7 @@ export function Team() {
         });
       } catch (memberError) {
         console.warn(
-          "Không lấy được members, vẫn render team history:",
+          "Failed to load members, rendering team history instead:",
           memberError,
         );
         setTeam(currentTeam);
@@ -395,7 +177,7 @@ export function Team() {
     try {
       setIsCreatingTeam(true);
 
-      console.log("Tạo team với payload:", {
+      console.log("Creating team with payload:", {
         teamName: teamName.trim(),
       });
 
@@ -510,8 +292,8 @@ export function Team() {
           title: "Success",
           text: "Team name has been updated!",
         });
-        await fetchMyTeam(); // Load lại data
-        window.dispatchEvent(new Event("player-team-updated")); // Cập nhật luôn tên bên Sidebar
+        await fetchMyTeam();
+        window.dispatchEvent(new Event("player-team-updated"));
       } catch (error: any) {
         console.error("Rename failed:", error);
         Swal.fire({
@@ -528,8 +310,8 @@ export function Team() {
     try {
       if (!teamId) {
         Swal.fire(
-          "Thiếu teamId",
-          "Không xác định được team hiện tại.",
+          "Missing teamId",
+          "Unable to identify the current team.",
           "error",
         );
         return;
@@ -620,8 +402,8 @@ export function Team() {
     try {
       if (!teamId) {
         Swal.fire(
-          "Thiếu teamId",
-          "Không xác định được team hiện tại.",
+          "Missing teamId",
+          "Unable to identify the current team.",
           "error",
         );
         return;
@@ -1034,7 +816,7 @@ export function Team() {
                         }
                       }
 
-                      // 3. NẾU MÌNH CHỈ LÀ MEMBER VÀ ĐANG NHÌN NGƯỜI KHÁC
+                      // Member view for other members.
                       if (isLeaderMember(member)) {
                         return (
                           <span className="text-sm font-medium text-muted-foreground px-3 py-2">
@@ -1049,7 +831,7 @@ export function Team() {
                         </span>
                       );
                     })()}
-                    {/* KẾT THÚC VÙNG NÚT BẤM */}
+                    {/* End member action area. */}
                   </div>
                 );
               })

@@ -26,7 +26,7 @@ import {
 } from "../../lib/utils/teamHelpers";
 
 // ==========================================
-// 1. HELPER FUNCTIONS gdsfgsdfgsdgs
+// 1. HELPER FUNCTIONS
 // ==========================================
 
 const getCurrentUserNameFromToken = (accessToken?: string | null) => {
