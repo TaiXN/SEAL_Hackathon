@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("APIViewModels")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f86e7e5f57c91f3424bf4ec196af5cbad9510615")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3a80abd37fbf2206e6dd3019bbd5b6ea7157a374")]
 [assembly: System.Reflection.AssemblyProductAttribute("APIViewModels")]
 [assembly: System.Reflection.AssemblyTitleAttribute("APIViewModels")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

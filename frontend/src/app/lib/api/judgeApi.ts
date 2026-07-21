@@ -1,7 +1,7 @@
 import apiClient from "./apiClient";
 
 export const judgeApi = {
-  // 1. API: Lấy danh sách đội thi được phân công chấm cho Giám khảo
+  // 1. API: Load the teams assigned to a judge for scoring.
   async getAssignedTeams(teacherId: string) {
     const res = await apiClient.get(
       `/api/Judge/dashboard-assignments/${teacherId}`,
@@ -14,7 +14,7 @@ export const judgeApi = {
     return [];
   },
 
-  // 2. API: Lấy điểm cũ (Evaluation) dựa vào ID bài nộp
+  // 2. API: Load previous evaluations by submission id.
   async getEvaluationBySubmission(submissionId: string) {
     const res = await apiClient.get(
       `/api/Evaluation/submission/${submissionId}`,
@@ -22,7 +22,7 @@ export const judgeApi = {
     return res.data;
   },
 
-  // 3. API: Chấm điểm mới (Lần đầu)
+  // 3. API: Create a new evaluation.
   async createEvaluation(
     teacherId: string,
     payload: { submissionID: string; score: number; reason: string },
@@ -31,7 +31,7 @@ export const judgeApi = {
     return res.data;
   },
 
-  // 4. API: Sửa điểm (Cập nhật)
+  // 4. API: Update an existing evaluation.
   async updateEvaluation(
     teacherId: string,
     payload: { evaluationID: string; score: number; reason: string },
@@ -40,26 +40,26 @@ export const judgeApi = {
     return res.data;
   },
 
-  // 5. Lấy chi tiết Evaluation theo ID
+  // 5. Load evaluation details by id.
   async getEvaluationById(evaluationId: string) {
     const res = await apiClient.get(`/api/Evaluation/${evaluationId}`);
     return res.data;
   },
 
-  // 6. Lấy tất cả Evaluation (Cho Admin/Manager)
+  // 6. Load all evaluations for Admin/Manager views.
   async getAllEvaluations() {
     const res = await apiClient.get(`/api/Evaluation`);
     return res.data;
   },
 
-  // 7. API MỚI: Xóa điểm (Delete Evaluation)
+  // 7. Delete an evaluation.
   async deleteEvaluation(evaluationId: string) {
     const res = await apiClient.delete(`/api/Evaluation/${evaluationId}`);
     return res.data;
   },
 
   // ==========================================
-  // API PHÂN CÔNG GIÁM KHẢO VÀO TRACK (MỚI)
+  // APIs for assigning judges to tracks.
   // ==========================================
   async assignJudgeToTrack(trackId: string, judgeId: string) {
     const res = await apiClient.post(

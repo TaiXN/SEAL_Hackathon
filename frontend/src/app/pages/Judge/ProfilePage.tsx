@@ -38,7 +38,7 @@ export function ProfilePage() {
         id: loadingToastId,
       });
     } catch (error) {
-      console.error("Lỗi BE khi logout nhưng vẫn clear FE:", error);
+      console.error("Backend logout failed, clearing frontend session anyway:", error);
       toast.error("Something went wrong, but you have been logged out.", {
         id: loadingToastId,
       });
@@ -57,7 +57,7 @@ export function ProfilePage() {
       return;
     }
     const loadingToastId = toast.loading("Sending password change request...");
-    console.log("Tao đang gửi cái này đi nè:", {
+    console.log("Submitting password change payload:", {
       oldPassword,
       newPassword,
       confirmPassword,
@@ -77,7 +77,7 @@ export function ProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error) {
-      console.error("Lỗi đổi mật khẩu:", error);
+      console.error("Password change failed:", error);
       toast.error(
         "Password change failed! Please check that your old password is correct.",
         {
@@ -115,7 +115,7 @@ export function ProfilePage() {
           >
             <div className="text-right">
               <h2 className="text-sm font-bold text-slate-900">
-                GK. Nguyễn Văn A
+                Judge Nguyen Van A
               </h2>
             </div>
             <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-slate-200">
@@ -141,7 +141,9 @@ export function ProfilePage() {
               <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-md">
                 <User size={40} className="text-slate-300" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Nguyễn Văn A</h3>
+              <h3 className="text-xl font-bold text-slate-900">
+                Nguyen Van A
+              </h3>
               <p className="text-blue-600 font-bold text-sm mt-1">
                 Judging Panel
               </p>
@@ -171,7 +173,7 @@ export function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Nguyễn Văn A"
+                    defaultValue="Nguyen Van A"
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   />
                 </div>
@@ -191,7 +193,7 @@ export function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Đại học FPT (HCM Campus)"
+                    defaultValue="FPT University (HCM Campus)"
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   />
                 </div>
@@ -221,7 +223,7 @@ export function ProfilePage() {
                 <Key size={18} className="text-slate-600" /> Change Password
               </h3>
               <div className="space-y-4">
-                {/* Ô Mật khẩu hiện tại */}
+                {/* Current password field */}
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? "text" : "password"}
@@ -243,7 +245,7 @@ export function ProfilePage() {
                   </button>
                 </div>
 
-                {/* Ô Mật khẩu mới */}
+                {/* New password field */}
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}
@@ -261,7 +263,7 @@ export function ProfilePage() {
                   </button>
                 </div>
 
-                {/* Ô Xác nhận mật khẩu mới */}
+                {/* Confirm new password field */}
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
