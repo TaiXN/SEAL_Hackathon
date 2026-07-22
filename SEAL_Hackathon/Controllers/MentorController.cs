@@ -91,5 +91,36 @@ namespace SEAL_Hackathon.Controllers
 
             return BadRequest("Error while deleting mentor.");
         }
+
+        [HttpGet("assigned-teams/{mentorId}")]
+        public async Task<IActionResult> GetAssignedTeams(string mentorId)
+        {
+            if (string.IsNullOrEmpty(mentorId))
+            {
+                return BadRequest("Please provide a valid Mentor ID.");
+            }
+
+            List<MentorAssignedTeamAPIViewModel> result = await _mentor.GetAssignedTeamsByMentorAsync(mentorId);
+
+            if (result == null)
+            {
+                return NotFound($"Cannot find a Mentor with ID: {mentorId}, or this Mentor has not been assigned to any Track.");
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("contact/{teamId}")]
+        public async Task<IActionResult> GetMentorContact(string teamId)
+        {
+            if (string.IsNullOrEmpty(teamId)) return BadRequest("Invalid Team ID.");
+
+            var result = await _mentor.GetMentorContactByTeamAsync(teamId);
+
+            if (result == null)
+                return NotFound("No mentor has been assigned to this team's track yet.");
+
+            return Ok(result);
+        }
     }
 }
