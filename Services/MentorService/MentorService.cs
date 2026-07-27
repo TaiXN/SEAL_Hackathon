@@ -138,7 +138,7 @@ namespace Services.MentorService
                             TeamName = teamDb.TeamName,
                             TrackId = trackDb.TrackId,
                             TrackName = trackDb.TrackName,
-                            EventName = eventName 
+                            EventName = eventName
                         });
                     }
                 }
@@ -178,5 +178,109 @@ namespace Services.MentorService
                 return null;
             }
         }
+
+        public async Task<MentorTeamDetailAPIViewModel> GetTeamDetailForMentorAsync(string teamId)
+        {
+            try
+            {
+                Team teamDb = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+                if (teamDb == null) return null;
+
+                TeamInRound teamInRoundDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
+
+                string roundName = string.Empty;
+                string trackName = string.Empty;
+                string eventName = string.Empty;
+
+                string urlGithub = string.Empty;
+                string urlDemo = string.Empty;
+                string urlSlide = string.Empty;
+
+                if (teamInRoundDb != null)
+                {
+                    Submission submissionDb = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRoundDb.Id);
+
+                    if (submissionDb != null)
+                    {
+                        urlGithub = submissionDb.Urlgithub;
+                        urlDemo = submissionDb.Urldemo;
+                        urlSlide = submissionDb.Urlslide;
+                    }
+
+                    Round roundDb = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == teamInRoundDb.RoundId);
+                    if (roundDb != null)
+                    {
+                        roundName = roundDb.RoundName;
+                    }
+
+                    Track trackDb = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == teamInRoundDb.TrackId);
+                    if (trackDb != null)
+                    {
+                        trackName = trackDb.TrackName;
+
+                        Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == trackDb.EventId);
+                        if (eventDb != null)
+                        {
+                            eventName = eventDb.EventName;
+                        }
+                    }
+                }
+
+                List<string> memberNames = new List<string>();
+                List<string> processedStudentIds = new List<string>();
+                string leaderEmail = string.Empty;
+
+                List<TeamMember> teamMembersDb = await _uow.TeamMember.GetAllAsync(m => m.TeamId == teamId && m.InviteStatus == true);
+
+                foreach (TeamMember tm in teamMembersDb)
+                {
+                    if (processedStudentIds.Contains(tm.StudentId))
+                    {
+                        continue;
+                    }
+
+                    processedStudentIds.Add(tm.StudentId);
+
+                    Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == tm.StudentId);
+
+                    if (accountDb != null)
+                    {
+                        string displayName = accountDb.FullName;
+
+                        if (tm.IsLeader == true)
+                        {
+                            displayName += " (Leader)";
+                            leaderEmail = accountDb.Email;
+                        }
+
+                        memberNames.Add(displayName);
+                    }
+                }
+
+   
+                MentorTeamDetailAPIViewModel result = new MentorTeamDetailAPIViewModel()
+                {
+                    TeamId = teamDb.TeamId,
+                    TeamName = teamDb.TeamName,
+                    EventName = eventName,
+                    TrackName = trackName,
+                    RoundName = roundName,
+
+                    UrlGithub = urlGithub,
+                    UrlDemo = urlDemo,
+                    UrlSlide = urlSlide,
+
+                    LeaderEmail = leaderEmail,
+                    MemberNames = memberNames
+                };
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
     }
 }

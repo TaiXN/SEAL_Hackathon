@@ -122,5 +122,23 @@ namespace SEAL_Hackathon.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("team-detail/{teamId}")]
+        public async Task<IActionResult> GetTeamDetail(string teamId)
+        {
+            if (string.IsNullOrEmpty(teamId))
+            {
+                return BadRequest("Team ID không hợp lệ.");
+            }
+
+            MentorTeamDetailAPIViewModel result = await _mentor.GetTeamDetailForMentorAsync(teamId);
+
+            if (result == null)
+            {
+                return NotFound($"Không tìm thấy thông tin chi tiết cho đội có ID: {teamId}");
+            }
+
+            return Ok(result);
+        }
     }
 }
