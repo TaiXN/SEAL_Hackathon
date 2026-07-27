@@ -15,22 +15,18 @@ const RequireAuth = () => {
   const currentRole = role?.toLowerCase()?.trim();
 
   if (currentRole === "admin") {
-    // Admin không được lọt vào player, judge, gateway
     if (!currentPath.startsWith("/admin")) {
       return <Navigate to="/admin/dashboard" replace />;
     }
-  } else if (currentRole === "judge" || currentRole === "teacher") {
-    // Judge không được lọt vào admin, player, gateway
+  } else if (currentRole === "judge") {
     if (!currentPath.startsWith("/judge")) {
       return <Navigate to="/judge" replace />;
     }
   } else if (currentRole === "player") {
-    // Player không được lọt vào admin, judge
     if (currentPath.startsWith("/admin") || currentPath.startsWith("/judge")) {
       return <Navigate to="/player" replace />;
     }
   } else {
-    // Lạ lạ thì kick ra login
     return <Navigate to="/login" replace />;
   }
 

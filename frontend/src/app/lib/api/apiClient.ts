@@ -1,13 +1,15 @@
 import axios from "axios";
 import { useAuthStore } from "../../stores/auth.store";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 const apiClient = axios.create({
-  baseURL: "https://seal.cosplane.io.vn",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
-  // BẮT BUỘC BẬT ĐỂ TRÌNH DUYỆT TỰ GỬI COOKIE (CHỨA REFRESH TOKEN)
   withCredentials: true,
+  timeout: 15000,
 });
 
 let isRefreshing = false;
@@ -50,6 +52,7 @@ apiClient.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
+            originalRequest._retry = true;
             originalRequest.headers.Authorization = "Bearer " + token;
             return apiClient(originalRequest);
           })
@@ -62,10 +65,11 @@ apiClient.interceptors.response.use(
       try {
         // BẮN API RỖNG: Không body, không biến. Trình duyệt tự nhét Cookie vào.
         const res = await axios.post(
-          "https://seal.cosplane.io.vn/api/Auth/refresh-token",
+          `${API_BASE_URL}/api/Auth/refresh-token`,
           {},
           {
             withCredentials: true,
+            timeout: 15000,
           },
         );
 

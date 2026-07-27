@@ -18,6 +18,7 @@ import {
   Trophy,
   Medal,
   Users,
+  Plus,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import apiClient from "../../lib/api/apiClient";
@@ -217,6 +218,86 @@ export function EventDetailsPage() {
     loadTeamsAndScores();
   }, [event, eventRounds, reloadKey]);
 
+  // --- HANDLER XỬ LÝ ROUND ---
+  const handleEditRound = async (round: any) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Edit Round Details",
+      html: `
+        <div style="text-align: left;">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b;">ROUND NAME</label>
+          <input id="sw-rname" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.roundName}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">TOP N PROMOTION</label>
+          <input id="sw-topn" type="number" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.topNPromotion ?? round.TopNPromotion ?? 0}">
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Save Changes",
+      preConfirm: () => {
+        return {
+          roundName: (document.getElementById("sw-rname") as HTMLInputElement)
+            .value,
+          topNPromotion: Number(
+            (document.getElementById("sw-topn") as HTMLInputElement).value,
+          ),
+        };
+      },
+    });
+
+    if (formValues) {
+      try {
+        const roundId = round.roundID || round.roundId || round.id;
+        await apiClient.put(`/api/Round`, {
+          roundID: roundId,
+          eventID: id,
+          roundName: formValues.roundName,
+          topNPromotion: formValues.topNPromotion,
+          maxTeam: round.maxTeam || 0,
+          roundIndex: round.roundIndex ?? round.RoundIndex,
+          startDate: round.startDate || round.StartDate,
+          endDate: round.endDate || round.EndDate,
+          criteriaSetID: round.criteriaSetID || round.criteriaSetId,
+        });
+
+        Swal.fire({
+          icon: "success",
+          title: "Updated!",
+          timer: 1200,
+          showConfirmButton: false,
+        });
+        // Gọi lại hàm loadCriteria() để refetch lại data hiển thị (vì hàm loadCriteria đang chứa eventRounds)
+        loadCriteria();
+      } catch (e: any) {
+        Swal.fire("Error", `Update failed: ${getServerMsg(e)}`, "error");
+      }
+    }
+  };
+
+  const handleDeleteRound = async (round: any) => {
+    const roundId = round.roundID || round.roundId || round.id;
+    const ok = await Swal.fire({
+      title: "Delete Round?",
+      text: `Are you sure you want to delete ${round.roundName}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+    });
+
+    if (ok.isConfirmed) {
+      try {
+        await apiClient.delete(`/api/Round/${roundId}`);
+        Swal.fire({
+          icon: "success",
+          title: "Deleted!",
+          timer: 1200,
+          showConfirmButton: false,
+        });
+        loadCriteria();
+      } catch (e: any) {
+        Swal.fire("Error", `Delete failed: ${getServerMsg(e)}`, "error");
+      }
+    }
+  };
   const handleEditTrack = async (track: any) => {
     const { value: newName } = await Swal.fire({
       title: "Rename Track",
@@ -449,6 +530,76 @@ export function EventDetailsPage() {
     }
   };
 
+  // --- THÊM TRACK & TOPIC MỚI ---
+  const handleAddTrack = async () => {
+    const { value: trackName } = await Swal.fire({
+      title: "Add New Track",
+      input: "text",
+      inputPlaceholder: "Enter track name...",
+      showCancelButton: true,
+      confirmButtonText: "Add Track",
+      confirmButtonColor: "#0a192f",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-6 py-2",
+        cancelButton: "rounded-xl font-bold px-6 py-2",
+      },
+    });
+
+    if (trackName) {
+      try {
+        await apiClient.post("/api/Track", {
+          eventId: id,
+          trackName: trackName.trim(),
+        });
+        Swal.fire({
+          icon: "success",
+          title: "Added!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+        setReloadKey((k) => k + 1); // Load lại dữ liệu
+      } catch (error) {
+        Swal.fire("Error", "Could not add track.", "error");
+      }
+    }
+  };
+
+  const handleAddTopic = async (track: any) => {
+    const { value: topicName } = await Swal.fire({
+      title: "Add Topic",
+      input: "text",
+      inputPlaceholder: "Enter topic name...",
+      showCancelButton: true,
+      confirmButtonText: "Add Topic",
+      confirmButtonColor: "#0a192f",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-6 py-2",
+        cancelButton: "rounded-xl font-bold px-6 py-2",
+      },
+    });
+
+    if (topicName) {
+      try {
+        const trackId = track.trackID || track.trackId || track.id;
+        await apiClient.post("/api/Topic/topic", {
+          trackID: trackId,
+          topicDetail: topicName.trim(),
+        });
+        Swal.fire({
+          icon: "success",
+          title: "Added!",
+          timer: 1000,
+          showConfirmButton: false,
+        });
+        setReloadKey((k) => k + 1); // Load lại dữ liệu
+      } catch (error) {
+        Swal.fire("Error", "Could not add topic.", "error");
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!id || !event) return;
     if (!event.semester) {
@@ -499,8 +650,22 @@ export function EventDetailsPage() {
   const handleNextRound = async () => {
     if (!id || eventRounds.length === 0) return;
 
-    const curRoundIndex = Number(event?.currentRound);
+    // --- ĐOẠN CODE ĐÃ FIX ---
+    // Lấy giá trị thô từ Backend (ví dụ: 1 hoặc 2)
+    const rawCurrentRound = Number(event?.currentRound);
+
+    // Quy đổi về index mảng (0-based) bằng cách dò roundIndex
+    let curRoundIndex = eventRounds.findIndex(
+      (r: any) => Number(r.roundIndex ?? r.RoundIndex) === rawCurrentRound,
+    );
+
+    // Fallback: Nếu không khớp roundIndex, tự động lùi 1 đơn vị
+    if (curRoundIndex === -1) {
+      curRoundIndex = rawCurrentRound > 0 ? rawCurrentRound - 1 : 0;
+    }
+
     const currentRoundObj = eventRounds[curRoundIndex];
+    // ------------------------
 
     if (!currentRoundObj) {
       return Swal.fire(
@@ -937,18 +1102,49 @@ export function EventDetailsPage() {
       </div>
     );
 
+  // --- ĐOẠN CODE ĐÃ FIX LỖI ROUND 4 ---
   const numRounds = eventRounds.length || 2;
-  const curRound = Number(event?.currentRound);
+  const rawCurrentRound = Number(event?.currentRound);
+
+  let curRound = 0;
+
+  if (eventRounds.length > 0) {
+    const foundIndex = eventRounds.findIndex(
+      (r: any) => Number(r.roundIndex ?? r.RoundIndex) === rawCurrentRound,
+    );
+
+    if (foundIndex !== -1) {
+      curRound = foundIndex;
+    } else {
+      // FIX: Nếu không tìm thấy, kiểm tra xem nó đang ở trước vòng 1 hay sau vòng cuối
+      const firstRoundIdx = Number(
+        eventRounds[0].roundIndex ?? eventRounds[0].RoundIndex,
+      );
+      const lastRoundIdx = Number(
+        eventRounds[eventRounds.length - 1].roundIndex ??
+          eventRounds[eventRounds.length - 1].RoundIndex,
+      );
+
+      if (rawCurrentRound < firstRoundIdx) {
+        curRound = 0; // Sự kiện mới tinh, Backend trả 0 -> Ép về vòng đầu tiên
+      } else if (rawCurrentRound > lastRoundIdx) {
+        curRound = numRounds; // Lớn hơn vòng cuối -> Đã kết thúc
+      } else {
+        curRound = 0; // An toàn nhất vẫn là vòng đầu
+      }
+    }
+  }
+
   const isEnded = curRound >= numRounds;
   const currentRoundName =
     curRound < 0
       ? "Upcoming"
-      : curRound >= numRounds
+      : isEnded
         ? "Concluded"
         : eventRounds[curRound]?.roundName || `Round ${curRound + 1}`;
+  // ----------------------------------------------
 
   // TÍNH TOÁN VÒNG ĐANG XEM Ở BẢNG XẾP HẠNG
-  // Nếu đã kết thúc, lấy vòng cuối (numRounds - 1)
   const displayRoundIndex = isEnded ? numRounds - 1 : curRound;
   const canShowLeaderboard = displayRoundIndex >= 0 && eventRounds.length > 0;
   const displayRoundObj = canShowLeaderboard
@@ -960,6 +1156,8 @@ export function EventDetailsPage() {
     displayRoundObj?.TopNPromotion ??
     0;
   const isLastRound = displayRoundIndex === numRounds - 1;
+  // ----------------------------------------------
+  // ------------------------
 
   return (
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
@@ -1030,66 +1228,98 @@ export function EventDetailsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                    Current Status
-                  </label>
-                  <div
-                    className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-between shadow-sm ${curRound < 0 ? "bg-amber-50 border-amber-200 text-amber-700" : isEnded ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-blue-50 border-blue-200 text-blue-700"}`}
-                  >
-                    <span className="text-sm">{currentRoundName}</span>
-                    <span
-                      className={`text-[10px] px-2.5 py-1 rounded-md uppercase tracking-widest font-extrabold ${curRound < 0 ? "bg-amber-200 text-amber-900" : isEnded ? "bg-slate-200 text-slate-600" : "bg-blue-200 text-blue-800"}`}
-                    >
-                      Round {curRound < 0 ? 0 : curRound}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                    Season
-                  </label>
-                  <select
-                    disabled={isEnded}
-                    value={event.semester || ""}
-                    onChange={(e) =>
-                      setEvent({ ...event, semester: e.target.value })
-                    }
-                    className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl outline-none font-semibold text-[#0a192f] text-sm appearance-none ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer"}`}
-                  >
-                    <option value="" disabled>
-                      Select Season
-                    </option>
-                    <option value="Spring">Spring</option>
-                    <option value="Summer">Summer</option>
-                    <option value="Fall">Fall</option>
-                    <option value="Winter">Winter</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                    Year
-                  </label>
-                  <input
-                    disabled={isEnded}
-                    type="number"
-                    value={event.year || ""}
-                    onChange={(e) =>
-                      setEvent({
-                        ...event,
-                        year: parseInt(e.target.value) || 2026,
-                      })
-                    }
-                    className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl outline-none font-semibold text-[#0a192f] text-sm ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"}`}
-                  />
+              {/* HIỂN THỊ CURRENT STATUS NGẮN GỌN */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                  Current Status
+                </label>
+                <div
+                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${curRound < 0 ? "bg-amber-50 border-amber-200 text-amber-700" : isEnded ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-blue-50 border-blue-200 text-blue-700"}`}
+                >
+                  <span className="text-sm uppercase tracking-widest">
+                    {currentRoundName}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* QUẢN LÝ CÁC VÒNG THI */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <h3 className="text-xl font-extrabold text-[#0a192f] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <FastForward size={20} strokeWidth={2.5} />
+              </div>
+              Tournament Rounds
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {eventRounds.map((r, idx) => (
+                <div
+                  key={r.roundID || r.roundId || r.id}
+                  className="p-6 bg-slate-50/50 border border-slate-200 rounded-2xl relative group"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                        Index: {r.roundIndex ?? r.RoundIndex}
+                      </span>
+                      <h4 className="font-extrabold text-[#0a192f] text-lg">
+                        {r.roundName}
+                      </h4>
+                    </div>
+                    {!isEnded && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditRound(r)}
+                          className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-100 rounded-lg shadow-sm"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRound(r)}
+                          className="p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-100 rounded-lg shadow-sm"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-sm font-semibold text-slate-600">
+                    <p className="flex justify-between">
+                      <span>Advance Top N:</span>
+                      {/* FIX: Bắt tất cả các case viết hoa/thường từ API */}
+                      <span className="text-blue-600">
+                        {r.topNPromotion ??
+                          r.topNpromotion ??
+                          r.TopNPromotion ??
+                          0}
+                      </span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Max Teams:</span>{" "}
+                      <span className="text-[#0a192f]">{r.maxTeam ?? 0}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* NÚT ADD TRACK NẰM Ở ĐÂY */}
+          <div className="flex justify-between items-center px-2">
+            <h3 className="text-xl font-extrabold text-[#0a192f] ml-2">
+              Event Tracks
+            </h3>
+            {!isEnded && (
+              <button
+                onClick={handleAddTrack}
+                className="px-5 py-2.5 bg-blue-50 text-blue-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-blue-100 transition-colors"
+              >
+                <Plus size={16} strokeWidth={3} /> Add Track
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {tracks.length > 0 ? (
               tracks.map((track: any, idx: number) => (
@@ -1163,6 +1393,15 @@ export function EventDetailsPage() {
                         <span className="text-xs text-slate-400 font-medium">
                           No topics added yet.
                         </span>
+                      )}
+                      {/* NÚT ADD TOPIC CHO TỪNG TRACK */}
+                      {!isEnded && (
+                        <button
+                          onClick={() => handleAddTopic(track)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 text-slate-400 rounded-xl text-xs font-bold hover:border-blue-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Plus size={14} strokeWidth={3} /> Add Topic
+                        </button>
                       )}
                     </div>
                   </div>

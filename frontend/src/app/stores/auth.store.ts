@@ -18,7 +18,6 @@ export const useAuthStore = create<AuthState>()(
         accessToken: null,
         role: null,
 
-        // Chỉ lưu Access Token và Role, bơ luôn Refresh Token
         setTokens: (access, role) => set({ accessToken: access, role: role }),
 
         updateAccessToken: (access) => set({ accessToken: access }),

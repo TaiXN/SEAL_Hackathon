@@ -40,14 +40,6 @@ export const authApi = {
     };
   },
 
-  async refreshToken(): Promise<AuthTokens> {
-    const res = await apiClient.post("/api/Auth/refreshtoken");
-    return {
-      accessToken: res.data.accessToken,
-      refreshToken: res.data.refreshToken,
-    };
-  },
-
   async checkToken(): Promise<boolean | string> {
     const res = await apiClient.post("/api/Auth/checktoken");
     return res.data;

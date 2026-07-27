@@ -10,6 +10,7 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Scale,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -37,7 +38,7 @@ interface RubricItem {
   weight: number;
 }
 
-// Đã bổ sung setName và onSetNameChange
+// Component RubricPanel giữ nguyên
 function RubricPanel({
   title,
   setName,
@@ -69,8 +70,6 @@ function RubricPanel({
         <h4 className="font-extrabold text-[#0a192f] text-lg shrink-0">
           {title}
         </h4>
-
-        {/* Ô NHẬP TÊN BỘ TIÊU CHÍ */}
         <div className="flex items-center gap-3 w-full flex-1 min-w-0">
           <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest shrink-0">
             Set Name
@@ -79,7 +78,7 @@ function RubricPanel({
             type="text"
             value={setName}
             onChange={(e) => onSetNameChange(e.target.value)}
-            placeholder="e.g., SEAL Hackathon - Prelim Rubric"
+            placeholder="e.g., Round Rubric Set..."
             className="w-full min-w-0 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
           />
         </div>
@@ -96,8 +95,8 @@ function RubricPanel({
                 type="text"
                 value={r.name}
                 onChange={(e) => updateItem(r.id, { name: e.target.value })}
-                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
-                placeholder="Criterion Name (e.g., Innovation)"
+                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="Criterion Name"
               />
               <div className="relative w-24">
                 <input
@@ -115,7 +114,6 @@ function RubricPanel({
               <button
                 onClick={() => removeItem(r.id)}
                 className="text-slate-300 hover:text-red-500 p-2.5 bg-white border border-slate-100 rounded-xl hover:bg-red-50 transition-colors shadow-sm"
-                title="Remove Criteria"
               >
                 <Trash2 size={16} strokeWidth={2.5} />
               </button>
@@ -126,8 +124,8 @@ function RubricPanel({
               onChange={(e) =>
                 updateItem(r.id, { description: e.target.value })
               }
-              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-600 font-medium focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
-              placeholder="Description or grading guide (optional)"
+              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-600 font-medium focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              placeholder="Description (optional)"
             />
           </div>
         ))}
@@ -149,12 +147,6 @@ function RubricPanel({
           {total}%
         </span>
       </div>
-      {!isValid && (
-        <p className="text-[11px] text-red-500 mt-3 flex items-center gap-1.5 font-bold">
-          <AlertCircle size={14} strokeWidth={2.5} /> Total weight must be
-          exactly 100% to save.
-        </p>
-      )}
     </div>
   );
 }
@@ -162,61 +154,60 @@ function RubricPanel({
 export function CreateEvents() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(1);
-
   const [savedEventId, setSavedEventId] = useState<string | null>(null);
-  const [savedPrelimSetId, setSavedPrelimSetId] = useState<string | null>(null);
-  const [savedFinalSetId, setSavedFinalSetId] = useState<string | null>(null);
 
+  // Tab 1 State
   const [eventForm, setEventForm] = useState({
     eventName: "",
     season: "Fall",
     year: 2026,
   });
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
 
+  // Tab 2 State
   const [tracks, setTracks] = useState<any[]>([
     { id: 1, name: "", topics: [] },
   ]);
   const [topicInputs, setTopicInputs] = useState<{ [key: number]: string }>({});
+  const [isSavingTracks, setIsSavingTracks] = useState(false);
 
-  // Cập nhật state rubrics để chứa tên bộ tiêu chí
-  const [rubrics, setRubrics] = useState<{
-    prelim: { setName: string; items: RubricItem[] };
-    final: { setName: string; items: RubricItem[] };
-  }>({
-    prelim: {
-      setName: "",
-      items: [
-        { id: 1, name: "Innovation & Creativity", description: "", weight: 50 },
-        { id: 2, name: "Practicality", description: "", weight: 50 },
-      ],
+  // ==========================================
+  // MEGA STATE TÍCH HỢP CHO ROUNDS & RUBRICS
+  // ==========================================
+  const [dynamicRounds, setDynamicRounds] = useState<any[]>([
+    {
+      id: Date.now(),
+      roundName: "Preliminary Round",
+      startDate: "",
+      endDate: "",
+      maxTeam: 40,
+      topAdvance: 10,
+      rubricMode: "new",
+      reuseSetId: "",
+      rubric: {
+        setName: "Preliminary Rubric Set",
+        items: [
+          { id: 1, name: "Innovation", description: "", weight: 50 },
+          { id: 2, name: "Practicality", description: "", weight: 50 },
+        ],
+      },
     },
-    final: {
-      setName: "",
-      items: [
-        { id: 3, name: "Overall Completeness", description: "", weight: 100 },
-      ],
-    },
-  });
+  ]);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  const [isSavingRubrics, setIsSavingRubrics] = useState(false);
-
-  const [rubricMode, setRubricMode] = useState<"new" | "reuse">("new");
+  // Data for Reuse Rubrics
   const [availableSets, setAvailableSets] = useState<any[]>([]);
   const [loadingSets, setLoadingSets] = useState(false);
-  const [loadSetsError, setLoadSetsError] = useState<string | null>(null);
-  const [reusePrelimSetId, setReusePrelimSetId] = useState<string>("");
-  const [reuseFinalSetId, setReuseFinalSetId] = useState<string>("");
+  const [hasLoadedSets, setHasLoadedSets] = useState(false);
 
   const loadAvailableSets = async () => {
     try {
       setLoadingSets(true);
-      setLoadSetsError(null);
       const [setsRaw, critRaw] = await Promise.all([
         criteriaApi.getAllSet(),
         criteriaApi.getAllCriteria(),
       ]);
       const critMap = buildCriteriaMap(critRaw);
-
       const baseSets = getList(setsRaw)
         .map((s: any) => ({
           setId: grabSetId(s),
@@ -228,81 +219,47 @@ export function CreateEvents() {
         criteriaApi.getSetById(setId),
       );
       setAvailableSets(enriched);
+      setHasLoadedSets(true);
     } catch (e) {
-      setLoadSetsError("Failed to load existing rubric sets.");
-      Swal.fire("Error", "Failed to load existing rubric sets.", "error");
+      console.error(e);
     } finally {
       setLoadingSets(false);
     }
   };
 
-  const switchRubricMode = (mode: "new" | "reuse") => {
-    setRubricMode(mode);
-    if (mode === "reuse" && availableSets.length === 0) loadAvailableSets();
-  };
-
-  const [rounds, setRounds] = useState({
-    prelim: { startDate: "", endDate: "", maxTeams: 40, topAdvance: 10 },
-    final: { endDate: "" },
-  });
-  const [isSavingRounds, setIsSavingRounds] = useState(false);
-  const [isSavingEvent, setIsSavingEvent] = useState(false);
-  const [isSavingTracks, setIsSavingTracks] = useState(false);
-
-  // ===================== SAVE LOGIC =====================
+  // --- SAVE EVENT ---
   const handleSaveEvent = async () => {
     if (!eventForm.eventName.trim())
       return Swal.fire("Required", "Please enter the event name!", "warning");
-
     setIsSavingEvent(true);
     try {
       Swal.fire({
         title: "Saving Event...",
         didOpen: () => Swal.showLoading(),
       });
-
       const payload = {
         eventName: eventForm.eventName.trim(),
         season: eventForm.season,
         year: Number(eventForm.year),
+        currentRound: 0,
       };
-
       if (savedEventId) {
-        try {
-          await eventApi.updateEvent(savedEventId, payload);
-        } catch (e) {}
+        await eventApi.updateEvent(savedEventId, payload);
       } else {
         try {
           const res: any = await eventApi.createEvent(payload as any);
-          let eventId = extractId(res);
-          if (!eventId) throw new Error("No ID");
-          setSavedEventId(eventId);
+          setSavedEventId(extractId(res) || null);
         } catch (error) {
           const allEvents = getList(await eventApi.getAllEvents());
-          const matchedEvent = [...allEvents]
+          const matched = [...allEvents]
             .reverse()
             .find((e: any) => (e.name || e.eventName) === payload.eventName);
-          const foundId = extractId(matchedEvent);
-          if (!foundId) throw error;
-          setSavedEventId(foundId);
+          setSavedEventId(extractId(matched) || null);
         }
       }
-
-      // Auto-fill Rubric Set Names if they are empty
-      setRubrics((prev) => ({
-        prelim: {
-          ...prev.prelim,
-          setName: prev.prelim.setName || `${payload.eventName} - Prelim Set`,
-        },
-        final: {
-          ...prev.final,
-          setName: prev.final.setName || `${payload.eventName} - Final Set`,
-        },
-      }));
-
       Swal.fire({
         icon: "success",
-        title: "Success!",
+        title: "Saved!",
         showConfirmButton: false,
         timer: 1000,
       });
@@ -314,112 +271,41 @@ export function CreateEvents() {
     }
   };
 
+  // --- SAVE TRACKS ---
   const handleSaveTracks = async () => {
     if (!savedEventId)
-      return Swal.fire(
-        "Error",
-        "Please save the event on Tab 1 first!",
-        "error",
-      );
-
+      return Swal.fire("Error", "Please save event on Tab 1 first!", "error");
     setIsSavingTracks(true);
     try {
       Swal.fire({
         title: "Syncing Tracks...",
         didOpen: () => Swal.showLoading(),
       });
-      const topicFails: string[] = [];
-      const allTracksRaw = await trackTopicApi.getAllTracks();
-      const existingTracks = getList(allTracksRaw).filter(
-        (t) => String(t.eventId || t.eventID) === String(savedEventId),
-      );
-
       for (const track of tracks) {
         if (!track.name.trim()) continue;
-
-        const matchedTrack = existingTracks.find(
-          (t) =>
-            (t.trackName || t.name || "")?.toLowerCase() ===
-            track.name.trim().toLowerCase(),
-        );
-        let currentTrackId = pickTrackId(matchedTrack);
-
+        const trackRes: any = await trackTopicApi.createTrack({
+          eventId: savedEventId,
+          trackName: track.name.trim(),
+        } as any);
+        const currentTrackId = pickTrackId(trackRes);
         if (currentTrackId) {
-          try {
-            await trackTopicApi.updateTrack(currentTrackId, {
-              eventId: savedEventId,
-              trackName: track.name.trim(),
-            } as any);
-          } catch (e) {}
-        } else {
-          try {
-            const trackRes: any = await trackTopicApi.createTrack({
-              eventId: savedEventId,
-              trackName: track.name.trim(),
-            } as any);
-            currentTrackId = pickTrackId(trackRes);
-          } catch (e: any) {}
-        }
-
-        if (!currentTrackId) {
-          const refetchTracks = getList(await trackTopicApi.getAllTracks());
-          const refetchMatch = [...refetchTracks]
-            .reverse()
-            .find(
-              (t) =>
-                (t.trackName || t.name || "")?.trim().toLowerCase() ===
-                  track.name.trim().toLowerCase() &&
-                String(t.eventId || t.eventID) === String(savedEventId),
-            );
-          currentTrackId = pickTrackId(refetchMatch);
-        }
-
-        if (!currentTrackId || String(currentTrackId) === String(savedEventId))
-          continue;
-
-        let existingTopics: any[] = [];
-        try {
-          existingTopics = getList(await trackTopicApi.getAllTopics()).filter(
-            (t) => String(t.trackID || t.trackId) === String(currentTrackId),
-          );
-        } catch (e) {}
-
-        for (const topic of track.topics) {
-          const name = String(topic).trim();
-          if (!name) continue;
-          const isExist = existingTopics.some(
-            (t) =>
-              (t.topicDetail || t.name || "")?.trim().toLowerCase() ===
-              name.toLowerCase(),
-          );
-          if (isExist) continue;
-          try {
-            await trackTopicApi.createTopic({
-              trackID: currentTrackId,
-              topicDetail: name,
-            } as any);
-          } catch (e: any) {
-            topicFails.push(`"${name}"`);
+          for (const topic of track.topics) {
+            await trackTopicApi
+              .createTopic({
+                trackID: currentTrackId,
+                topicDetail: String(topic).trim(),
+              } as any)
+              .catch(() => {});
           }
         }
       }
-
-      if (topicFails.length > 0) {
-        Swal.fire(
-          "Warning",
-          `Failed to create some topics (might already exist):<br><br>` +
-            topicFails.join("<br>"),
-          "warning",
-        );
-      } else {
-        Swal.fire({
-          icon: "success",
-          title: "Tracks Saved!",
-          showConfirmButton: false,
-          timer: 1000,
-        });
-      }
-      setActiveTab(3);
+      Swal.fire({
+        icon: "success",
+        title: "Tracks Saved!",
+        showConfirmButton: false,
+        timer: 1000,
+      });
+      setActiveTab(3); // Next is Rounds
     } catch (error) {
       Swal.fire("Error", "Error saving tracks!", "error");
     } finally {
@@ -427,105 +313,70 @@ export function CreateEvents() {
     }
   };
 
-  const handleSaveRubrics = async () => {
-    if (rubricMode === "reuse") {
-      if (!reusePrelimSetId || !reuseFinalSetId)
+  // --- TRANSITION TỪ ROUND SANG RUBRIC ---
+  const handleContinueToRubrics = () => {
+    const isValid = dynamicRounds.every(
+      (r) => r.roundName.trim() && r.startDate && r.endDate,
+    );
+    if (!isValid)
+      return Swal.fire(
+        "Required",
+        "Please fill in all names and dates for your rounds!",
+        "warning",
+      );
+    // Chỉ nhảy tab, không lưu API vội
+    setActiveTab(4);
+    if (!hasLoadedSets) loadAvailableSets();
+  };
+
+  // --- FINAL PUBLISH (SAVE RUBRICS + ROUNDS CÙNG LÚC) ---
+  const handlePublishAll = async () => {
+    // Validate bộ tiêu chí
+    for (const round of dynamicRounds) {
+      if (round.rubricMode === "reuse" && !round.reuseSetId) {
         return Swal.fire(
           "Required",
-          "Please select a rubric set for both Prelim and Final rounds!",
-          "warning",
-        );
-
-      const prelimSet = availableSets.find(
-        (s) => String(s.setId) === String(reusePrelimSetId),
-      );
-      const finalSet = availableSets.find(
-        (s) => String(s.setId) === String(reuseFinalSetId),
-      );
-      const prelimTotal = sumWeight(prelimSet?.items || []);
-      const finalTotal = sumWeight(finalSet?.items || []);
-
-      if (prelimTotal !== 100 || finalTotal !== 100)
-        return Swal.fire(
-          "Invalid Weight",
-          `Prelim total is ${prelimTotal}% and Final total is ${finalTotal}%. Must be exactly 100%.`,
-          "error",
-        );
-    } else {
-      // Validate Custom Rubrics
-      if (!rubrics.prelim.setName.trim() || !rubrics.final.setName.trim()) {
-        return Swal.fire(
-          "Required",
-          "Please provide a Set Name for both Preliminary and Final rubrics!",
+          `Please select a rubric set for ${round.roundName}!`,
           "warning",
         );
       }
-
-      if (
-        rubrics.prelim.items.some((r) => !r.name.trim()) ||
-        rubrics.final.items.some((r) => !r.name.trim())
-      )
-        return Swal.fire(
-          "Required",
-          "Please enter names for all criteria!",
-          "warning",
-        );
-      const prelimTotal = sumWeight(rubrics.prelim.items);
-      const finalTotal = sumWeight(rubrics.final.items);
-      if (prelimTotal !== 100 || finalTotal !== 100)
-        return Swal.fire(
-          "Invalid Weight",
-          `Prelim total is ${prelimTotal}% and Final total is ${finalTotal}%. Must be exactly 100%.`,
-          "error",
-        );
+      if (round.rubricMode === "new") {
+        if (!round.rubric.setName.trim())
+          return Swal.fire(
+            "Required",
+            `Please enter a set name for ${round.roundName}!`,
+            "warning",
+          );
+        if (sumWeight(round.rubric.items) !== 100)
+          return Swal.fire(
+            "Invalid Weight",
+            `Rubric total for ${round.roundName} must be 100%!`,
+            "error",
+          );
+      }
     }
 
-    setIsSavingRubrics(true);
+    setIsPublishing(true);
     try {
       Swal.fire({
-        title: "Saving Rubrics...",
+        title: "Publishing Tournament...",
+        text: "Creating rubrics and configuring timeline...",
         didOpen: () => Swal.showLoading(),
       });
 
-      const syncSet = async (
-        rubricList: RubricItem[],
-        setName: string,
-        existingSetId: string | null,
-      ) => {
+      // Hàm helper để tạo 1 bộ tiêu chí
+      const syncSet = async (rubricList: RubricItem[], setName: string) => {
         const criteriaMap = await Promise.all(
           rubricList.map(async (r) => {
             let cId = null;
-            const description =
-              r.description.trim() || DEFAULT_CRITERIA_DESCRIPTION;
             try {
               const res = await criteriaApi.createCriterion({
                 criteriaName: r.name.trim(),
-                description,
+                description:
+                  r.description.trim() || DEFAULT_CRITERIA_DESCRIPTION,
               } as any);
               cId = extractId(res);
             } catch (e) {}
-
-            if (!cId) {
-              const allC = getList(await criteriaApi.getAllCriteria());
-              const found = [...allC]
-                .reverse()
-                .find(
-                  (c: any) =>
-                    (c.criteriaName || c.name || "").trim().toLowerCase() ===
-                    r.name.trim().toLowerCase(),
-                );
-              cId = extractId(found);
-              if (cId) {
-                try {
-                  await criteriaApi.updateCriterion(cId, {
-                    criteriaID: cId,
-                    criteriaId: cId,
-                    criteriaName: r.name.trim(),
-                    description,
-                  } as any);
-                } catch (e) {}
-              }
-            }
             return {
               criteriaId: cId,
               CriteriaId: cId,
@@ -535,162 +386,56 @@ export function CreateEvents() {
           }),
         );
 
-        const payload = {
-          setName: setName.trim(),
-          isDefault: true,
-          criteriaList: criteriaMap,
-          CriteriaList: criteriaMap,
-        };
-        let setId = existingSetId;
-
-        if (setId) {
-          try {
-            await criteriaApi.updateSet(setId, payload as any);
-          } catch (e) {}
-        } else {
-          try {
-            const res = await criteriaApi.createSet(payload as any);
-            setId = extractId(res);
-          } catch (e) {}
-          if (!setId) {
-            const allS = getList(await criteriaApi.getAllSet());
-            const foundSet = [...allS]
-              .reverse()
-              .find(
-                (s: any) =>
-                  (s.setName || s.name || "").trim().toLowerCase() ===
-                  setName.trim().toLowerCase(),
-              );
-            setId = extractId(foundSet);
-          }
-        }
+        let setId = null;
+        try {
+          const res = await criteriaApi.createSet({
+            setName: setName.trim(),
+            isDefault: true,
+            criteriaList: criteriaMap,
+          } as any);
+          setId = extractId(res);
+        } catch (e) {}
         return setId;
       };
 
-      let pId: string | null;
-      let fId: string | null;
-      if (rubricMode === "reuse") {
-        pId = reusePrelimSetId;
-        fId = reuseFinalSetId;
-      } else {
-        pId = await syncSet(
-          rubrics.prelim.items,
-          rubrics.prelim.setName,
-          savedPrelimSetId,
-        );
-        fId = await syncSet(
-          rubrics.final.items,
-          rubrics.final.setName,
-          savedFinalSetId,
-        );
-      }
-
-      setSavedPrelimSetId(pId);
-      setSavedFinalSetId(fId);
-
-      Swal.fire({
-        icon: "success",
-        title: "Rubrics Saved!",
-        showConfirmButton: false,
-        timer: 1000,
-      });
-      setActiveTab(4);
-    } catch (error) {
-      Swal.fire("Error", "Failed to save Rubrics!", "error");
-    } finally {
-      setIsSavingRubrics(false);
-    }
-  };
-
-  const handleSaveRounds = async () => {
-    if (!savedEventId || !savedPrelimSetId || !savedFinalSetId)
-      return Swal.fire(
-        "Error",
-        "Please complete all previous tabs first!",
-        "error",
-      );
-    if (
-      !rounds.prelim.startDate ||
-      !rounds.prelim.endDate ||
-      !rounds.final.endDate
-    )
-      return Swal.fire(
-        "Required",
-        "Please fill in all date and time fields!",
-        "warning",
-      );
-
-    const dStart = new Date(rounds.prelim.startDate);
-    const dPrelimEnd = new Date(rounds.prelim.endDate);
-    const dFinalEnd = new Date(rounds.final.endDate);
-
-    if (
-      isNaN(dStart.getTime()) ||
-      isNaN(dPrelimEnd.getTime()) ||
-      isNaN(dFinalEnd.getTime())
-    )
-      return Swal.fire("Invalid", "Date/Time is invalid.", "warning");
-    if (dPrelimEnd <= dStart)
-      return Swal.fire(
-        "Timeline Error",
-        "Prelim End Date must be after Prelim Start Date.",
-        "warning",
-      );
-    if (dFinalEnd <= dPrelimEnd)
-      return Swal.fire(
-        "Timeline Error",
-        "Final End Date must be after Prelim End Date.",
-        "warning",
-      );
-
-    setIsSavingRounds(true);
-    try {
-      Swal.fire({ title: "Finalizing...", didOpen: () => Swal.showLoading() });
+      // Duyệt qua từng vòng thi để tạo
       const toIso = (dateStr: string) => new Date(dateStr).toISOString();
+      for (let i = 0; i < dynamicRounds.length; i++) {
+        const round = dynamicRounds[i];
+        let finalSetId = round.reuseSetId;
 
-      const prelimPayload = {
-        eventID: savedEventId,
-        roundName: "Preliminary Round",
-        startDate: toIso(rounds.prelim.startDate),
-        endDate: toIso(rounds.prelim.endDate),
-        topNPromotion: Number(rounds.prelim.topAdvance),
-        maxTeam: Number(rounds.prelim.maxTeams),
-        roundIndex: 0,
-        criteriaSetID: savedPrelimSetId,
-      };
-      const finalPayload = {
-        eventID: savedEventId,
-        roundName: "Final Round",
-        startDate: toIso(rounds.prelim.endDate),
-        endDate: toIso(rounds.final.endDate),
-        topNPromotion: 1,
-        maxTeam: Number(rounds.prelim.topAdvance),
-        roundIndex: 1,
-        criteriaSetID: savedFinalSetId,
-      };
+        // Nếu chọn tạo mới -> Tạo bộ tiêu chí trước
+        if (round.rubricMode === "new") {
+          finalSetId = await syncSet(round.rubric.items, round.rubric.setName);
+        }
 
-      await roundApi.createRound(prelimPayload as any);
-      await roundApi.createRound(finalPayload as any);
+        // Tạo vòng thi tương ứng, link với bộ tiêu chí vừa tạo
+        const payload = {
+          eventID: savedEventId,
+          roundName: round.roundName.trim(),
+          startDate: toIso(round.startDate),
+          endDate: toIso(round.endDate),
+          topNPromotion: Number(round.topAdvance),
+          maxTeam: Number(round.maxTeam),
+          roundIndex: i + 1, // Đánh index 1, 2, 3... cho khớp logic
+          criteriaSetID: finalSetId,
+        };
+        await roundApi.createRound(payload as any);
+      }
 
       Swal.fire({
         icon: "success",
         title: "All Set!",
-        text: "The event has been successfully initialized and published.",
+        text: "The event timeline and rubrics have been fully configured.",
         confirmButtonColor: "#0a192f",
-        customClass: { confirmButton: "rounded-xl font-bold px-6 py-2.5" },
       }).then(() => navigate("/admin/events"));
-    } catch (error: any) {
-      Swal.fire(
-        "Error",
-        "Server rejected the timeline configuration.",
-        "error",
-      );
+    } catch (error) {
+      Swal.fire("Error", "Failed to finalize the tournament.", "error");
     } finally {
-      setIsSavingRounds(false);
+      setIsPublishing(false);
     }
   };
 
-  // ===================== RENDER =====================
   return (
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       <div className="max-w-5xl mx-auto space-y-8">
@@ -705,33 +450,27 @@ export function CreateEvents() {
           </div>
           <button
             onClick={() => navigate("/admin/events")}
-            className="px-6 py-3.5 bg-white border border-slate-200 text-sm font-bold rounded-2xl hover:bg-slate-50 text-slate-600 shadow-sm transition-all"
+            className="px-6 py-3.5 bg-white border border-slate-200 text-sm font-bold rounded-2xl hover:bg-slate-50 shadow-sm"
           >
             Cancel & Return
           </button>
         </div>
 
         <div className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[600px] flex flex-col">
-          {/* TABS MENU */}
+          {/* TABS CẬP NHẬT LẠI THỨ TỰ */}
           <div className="flex border-b border-slate-100 px-4 bg-slate-50/50 pt-2">
             {[
               { id: 1, name: "1. Event Info", isSaved: !!savedEventId },
-              { id: 2, name: "2. Tracks & Topics", isSaved: false },
-              { id: 3, name: "3. Rubrics", isSaved: !!savedPrelimSetId },
-              { id: 4, name: "4. Tournament Rounds", isSaved: false },
+              { id: 2, name: "2. Tracks & Topics", isSaved: activeTab > 2 },
+              { id: 3, name: "3. Tournament Rounds", isSaved: activeTab > 3 },
+              { id: 4, name: "4. Grading Rubrics", isSaved: false },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 disabled={tab.id > 1 && !savedEventId}
                 className={`flex-1 px-4 py-4 text-sm font-extrabold border-b-[3px] transition-all flex items-center justify-center gap-2
-                  ${
-                    activeTab === tab.id
-                      ? "border-[#0a192f] text-[#0a192f] bg-white rounded-t-2xl"
-                      : tab.isSaved
-                        ? "border-transparent text-emerald-600 hover:bg-white rounded-t-2xl"
-                        : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white rounded-t-2xl"
-                  }`}
+                  ${activeTab === tab.id ? "border-[#0a192f] text-[#0a192f] bg-white rounded-t-2xl" : tab.isSaved ? "border-transparent text-emerald-600 hover:bg-white rounded-t-2xl" : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-40 rounded-t-2xl"}`}
               >
                 {tab.isSaved && activeTab !== tab.id && (
                   <CheckCircle2 size={16} />
@@ -745,13 +484,10 @@ export function CreateEvents() {
           </div>
 
           <div className="p-10 flex-1 bg-white">
-            {/* TAB 1: EVENT INFO */}
+            {/* TAB 1 & 2 GIỮ NGUYÊN CODE Ở TRÊN */}
             {activeTab === 1 && (
               <div className="space-y-8 max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
                 <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                  <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-6">
-                    Basic Configuration
-                  </h3>
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
@@ -766,8 +502,7 @@ export function CreateEvents() {
                             eventName: e.target.value,
                           })
                         }
-                        placeholder="e.g., SEAL Hackathon Fall 2026..."
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-5">
@@ -783,7 +518,7 @@ export function CreateEvents() {
                               season: e.target.value,
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none cursor-pointer appearance-none"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
                         >
                           <option value="Spring">Spring</option>
                           <option value="Summer">Summer</option>
@@ -804,7 +539,7 @@ export function CreateEvents() {
                               year: Number(e.target.value),
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
                         />
                       </div>
                     </div>
@@ -813,16 +548,12 @@ export function CreateEvents() {
                     <button
                       onClick={handleSaveEvent}
                       disabled={isSavingEvent}
-                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl flex items-center gap-2"
                     >
                       {isSavingEvent ? (
                         <Loader2 size={18} className="animate-spin" />
                       ) : (
-                        <Save size={18} strokeWidth={2.5} />
-                      )}
-                      {isSavingEvent ? "Saving..." : "Save & Continue"}
-                      {!isSavingEvent && (
-                        <ArrowRight size={18} strokeWidth={2.5} />
+                        "Save & Continue"
                       )}
                     </button>
                   </div>
@@ -830,10 +561,9 @@ export function CreateEvents() {
               </div>
             )}
 
-            {/* TAB 2: TRACKS */}
             {activeTab === 2 && (
               <div className="space-y-8 max-w-3xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-center bg-white p-2">
+                <div className="flex justify-between items-center mb-6">
                   <h3 className="text-2xl font-extrabold text-[#0a192f]">
                     Competition Tracks
                   </h3>
@@ -844,27 +574,25 @@ export function CreateEvents() {
                         { id: Date.now(), name: "", topics: [] },
                       ])
                     }
-                    className="px-5 py-2.5 bg-blue-50 text-blue-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-blue-100 transition-colors"
+                    className="px-5 py-2.5 bg-blue-50 text-blue-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-blue-100"
                   >
                     <Plus size={16} strokeWidth={3} /> Add Track
                   </button>
                 </div>
-
                 <div className="space-y-6">
                   {tracks.map((t, idx) => (
                     <div
                       key={t.id}
-                      className="p-8 bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative group transition-all hover:border-blue-100"
+                      className="p-8 bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
                     >
                       <button
                         onClick={() =>
                           setTracks(tracks.filter((tr) => tr.id !== t.id))
                         }
-                        className="absolute top-6 right-6 text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors"
+                        className="absolute top-6 right-6 text-slate-300 hover:text-red-500 p-2"
                       >
                         <Trash2 size={20} />
                       </button>
-
                       <div className="mb-6 w-3/4">
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
                           Track Name #{idx + 1}
@@ -881,11 +609,9 @@ export function CreateEvents() {
                               ),
                             )
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-base font-bold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
-                          placeholder="e.g., Web App, AI/ML, IoT..."
+                          className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold outline-none"
                         />
                       </div>
-
                       <div>
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-3">
                           Sub-topics
@@ -894,7 +620,7 @@ export function CreateEvents() {
                           {t.topics.map((topic: string, i: number) => (
                             <span
                               key={i}
-                              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-sm"
+                              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold"
                             >
                               {topic}
                               <button
@@ -913,7 +639,7 @@ export function CreateEvents() {
                                     ),
                                   )
                                 }
-                                className="text-slate-400 hover:text-red-500 transition-colors"
+                                className="text-slate-400 hover:text-red-500"
                               >
                                 <X size={14} strokeWidth={3} />
                               </button>
@@ -950,432 +676,395 @@ export function CreateEvents() {
                               setTopicInputs({ ...topicInputs, [t.id]: "" });
                             }
                           }}
-                          placeholder="Type a topic and press Enter..."
-                          className="w-full px-5 py-3 bg-slate-50/80 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                          placeholder="Type and press Enter..."
+                          className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none"
                         />
                       </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-8 mt-8 border-t border-slate-100">
+                  <button
+                    onClick={handleSaveTracks}
+                    disabled={isSavingTracks}
+                    className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl flex items-center gap-2"
+                  >
+                    {isSavingTracks ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      "Save Tracks & Continue"
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: TOURNAMENT ROUNDS (ĐÃ ĐƯỢC CHUYỂN LÊN TRƯỚC) */}
+            {activeTab === 3 && (
+              <div className="space-y-8 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                  <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-2xl font-extrabold text-[#0a192f]">
+                      Tournament Timeline
+                    </h3>
+                    <button
+                      onClick={() =>
+                        setDynamicRounds([
+                          ...dynamicRounds,
+                          {
+                            id: Date.now(),
+                            roundName: `Round ${dynamicRounds.length + 1}`,
+                            startDate: "",
+                            endDate: "",
+                            maxTeam: 40,
+                            topAdvance: 10,
+                            rubricMode: "new",
+                            reuseSetId: "",
+                            rubric: {
+                              setName: `Round ${dynamicRounds.length + 1} Rubric`,
+                              items: [
+                                {
+                                  id: 1,
+                                  name: "Criteria",
+                                  weight: 100,
+                                  description: "",
+                                },
+                              ],
+                            },
+                          },
+                        ])
+                      }
+                      className="px-5 py-2.5 bg-emerald-50 text-emerald-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-emerald-100 transition-all"
+                    >
+                      <Plus size={16} strokeWidth={3} /> Add Round
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {dynamicRounds.map((round, index) => (
+                      <div
+                        key={round.id}
+                        className="bg-slate-50/50 border border-slate-200 rounded-3xl p-6 relative group"
+                      >
+                        {index > 0 && (
+                          <button
+                            onClick={() =>
+                              setDynamicRounds(
+                                dynamicRounds.filter((r) => r.id !== round.id),
+                              )
+                            }
+                            className="absolute top-6 right-6 text-slate-300 hover:text-red-500 p-2 rounded-xl transition-colors bg-white shadow-sm border border-slate-100"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                        <div className="w-2/3 mb-5">
+                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                            Round Name
+                          </label>
+                          <input
+                            type="text"
+                            value={round.roundName}
+                            onChange={(e) =>
+                              setDynamicRounds(
+                                dynamicRounds.map((r) =>
+                                  r.id === round.id
+                                    ? { ...r, roundName: e.target.value }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-extrabold text-[#0a192f] outline-none focus:border-blue-400"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-5 mb-5">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                              Start Date
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={round.startDate}
+                              onChange={(e) =>
+                                setDynamicRounds(
+                                  dynamicRounds.map((r) =>
+                                    r.id === round.id
+                                      ? { ...r, startDate: e.target.value }
+                                      : r,
+                                  ),
+                                )
+                              }
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                              End Date
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={round.endDate}
+                              onChange={(e) =>
+                                setDynamicRounds(
+                                  dynamicRounds.map((r) =>
+                                    r.id === round.id
+                                      ? { ...r, endDate: e.target.value }
+                                      : r,
+                                  ),
+                                )
+                              }
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-5 border-t border-slate-200 pt-5">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                              Max Teams
+                            </label>
+                            <input
+                              type="number"
+                              value={round.maxTeam}
+                              onChange={(e) =>
+                                setDynamicRounds(
+                                  dynamicRounds.map((r) =>
+                                    r.id === round.id
+                                      ? {
+                                          ...r,
+                                          maxTeam: Number(e.target.value),
+                                        }
+                                      : r,
+                                  ),
+                                )
+                              }
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-extrabold outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                              Advance Top N
+                            </label>
+                            <input
+                              type="number"
+                              value={round.topAdvance}
+                              onChange={(e) =>
+                                setDynamicRounds(
+                                  dynamicRounds.map((r) =>
+                                    r.id === round.id
+                                      ? {
+                                          ...r,
+                                          topAdvance: Number(e.target.value),
+                                        }
+                                      : r,
+                                  ),
+                                )
+                              }
+                              className="w-full px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-extrabold outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end pt-8 mt-8 border-t border-slate-100">
+                    <button
+                      onClick={handleContinueToRubrics}
+                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg flex items-center gap-2"
+                    >
+                      Continue to Rubrics{" "}
+                      <ArrowRight size={18} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: RUBRICS (HIỂN THỊ TỰ ĐỘNG THEO SỐ ROUNDS) */}
+            {activeTab === 4 && (
+              <div className="space-y-8 max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-extrabold text-[#0a192f] mb-2">
+                    Grading Rubrics
+                  </h3>
+                  <p className="text-slate-500 text-sm font-medium">
+                    Please configure or select a rubric set for each round.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {dynamicRounds.map((round) => (
+                    <div
+                      key={round.id}
+                      className="border border-slate-200 rounded-[2rem] p-1 bg-slate-50/50 shadow-sm flex flex-col"
+                    >
+                      <div className="flex items-center justify-between px-6 py-4">
+                        <div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Target Round
+                          </span>
+                          <h4 className="font-extrabold text-[#0a192f] text-base">
+                            {round.roundName}
+                          </h4>
+                        </div>
+                        <div className="flex bg-slate-200/60 p-1 rounded-xl">
+                          <button
+                            onClick={() =>
+                              setDynamicRounds(
+                                dynamicRounds.map((r) =>
+                                  r.id === round.id
+                                    ? { ...r, rubricMode: "new" }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${round.rubricMode === "new" ? "bg-white text-[#0a192f] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                          >
+                            New
+                          </button>
+                          <button
+                            onClick={() =>
+                              setDynamicRounds(
+                                dynamicRounds.map((r) =>
+                                  r.id === round.id
+                                    ? { ...r, rubricMode: "reuse" }
+                                    : r,
+                                ),
+                              )
+                            }
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${round.rubricMode === "reuse" ? "bg-white text-[#0a192f] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                          >
+                            Reuse
+                          </button>
+                        </div>
+                      </div>
+
+                      {round.rubricMode === "new" ? (
+                        <div className="flex-1">
+                          <RubricPanel
+                            title="Custom Set"
+                            setName={round.rubric.setName}
+                            onSetNameChange={(name) =>
+                              setDynamicRounds(
+                                dynamicRounds.map((r) =>
+                                  r.id === round.id
+                                    ? {
+                                        ...r,
+                                        rubric: { ...r.rubric, setName: name },
+                                      }
+                                    : r,
+                                ),
+                              )
+                            }
+                            items={round.rubric.items}
+                            onChange={(items) =>
+                              setDynamicRounds(
+                                dynamicRounds.map((r) =>
+                                  r.id === round.id
+                                    ? { ...r, rubric: { ...r.rubric, items } }
+                                    : r,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 p-8 bg-white rounded-b-[2rem] border-t border-slate-100 flex flex-col justify-center">
+                          {loadingSets ? (
+                            <div className="flex items-center justify-center gap-2 text-slate-400 font-bold text-sm">
+                              <Loader2 size={18} className="animate-spin" />{" "}
+                              Loading archive...
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                                Select Existing Set
+                              </label>
+                              <select
+                                value={round.reuseSetId}
+                                onChange={(e) =>
+                                  setDynamicRounds(
+                                    dynamicRounds.map((r) =>
+                                      r.id === round.id
+                                        ? { ...r, reuseSetId: e.target.value }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-blue-400"
+                              >
+                                <option value="" disabled>
+                                  -- Choose a Rubric Set --
+                                </option>
+                                {availableSets.map((s) => (
+                                  <option key={s.setId} value={s.setId}>
+                                    {s.setName}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {/* UI THÊM MỚI: HIỂN THỊ CHI TIẾT CÁC TIÊU CHÍ BÊN DƯỚI DROPDOWN */}
+                              {round.reuseSetId &&
+                                availableSets.find(
+                                  (s) =>
+                                    String(s.setId) ===
+                                    String(round.reuseSetId),
+                                ) && (
+                                  <div className="mt-6 pt-4 border-t border-slate-100 space-y-3">
+                                    {availableSets
+                                      .find(
+                                        (s) =>
+                                          String(s.setId) ===
+                                          String(round.reuseSetId),
+                                      )
+                                      ?.items.map((it: any, i: number) => (
+                                        <div
+                                          key={i}
+                                          className="p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-sm"
+                                        >
+                                          <div className="flex justify-between items-center mb-1">
+                                            <span className="font-bold text-slate-800 text-sm">
+                                              {it.name}
+                                            </span>
+                                            <span className="font-extrabold text-[#0a192f] bg-slate-200 px-2 py-0.5 rounded-md text-xs">
+                                              {it.score}%
+                                            </span>
+                                          </div>
+                                          {it.description && (
+                                            <p className="text-xs text-slate-500 font-medium">
+                                              {it.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 <div className="flex justify-between pt-8 mt-8 border-t border-slate-100">
                   <button
-                    onClick={() => setActiveTab(1)}
-                    className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-colors"
+                    onClick={() => setActiveTab(3)}
+                    className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-2xl hover:bg-slate-50"
                   >
-                    ← Back
+                    ← Back to Rounds
                   </button>
                   <button
-                    onClick={handleSaveTracks}
-                    disabled={isSavingTracks}
-                    className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={handlePublishAll}
+                    disabled={isPublishing}
+                    className="px-8 py-3.5 bg-emerald-600 text-white text-sm font-extrabold rounded-2xl shadow-lg flex items-center gap-2"
                   >
-                    {isSavingTracks ? (
+                    {isPublishing ? (
                       <Loader2 size={18} className="animate-spin" />
                     ) : (
-                      <Save size={18} strokeWidth={2.5} />
+                      <CheckCircle2 size={18} strokeWidth={2.5} />
                     )}
-                    {isSavingTracks ? "Saving..." : "Save Tracks & Continue"}
-                    {!isSavingTracks && (
-                      <ArrowRight size={18} strokeWidth={2.5} />
-                    )}
+                    {isPublishing ? "Initializing..." : "Publish Event"}
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: RUBRICS */}
-            {activeTab === 3 && (
-              <div className="space-y-8 max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-extrabold text-[#0a192f] mb-4">
-                    Grading Rubrics
-                  </h3>
-
-                  <div className="inline-flex bg-slate-100 p-1 rounded-2xl">
-                    <button
-                      onClick={() => switchRubricMode("new")}
-                      className={`px-6 py-2.5 text-sm font-extrabold rounded-xl transition-all ${
-                        rubricMode === "new"
-                          ? "bg-white text-[#0a192f] shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      Create New Sets
-                    </button>
-                    <button
-                      onClick={() => switchRubricMode("reuse")}
-                      className={`px-6 py-2.5 text-sm font-extrabold rounded-xl transition-all ${
-                        rubricMode === "reuse"
-                          ? "bg-white text-[#0a192f] shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      Use Existing Sets
-                    </button>
-                  </div>
-                </div>
-
-                {rubricMode === "new" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <RubricPanel
-                      title="Preliminary Round"
-                      setName={rubrics.prelim.setName}
-                      onSetNameChange={(name) =>
-                        setRubrics((prev) => ({
-                          ...prev,
-                          prelim: { ...prev.prelim, setName: name },
-                        }))
-                      }
-                      items={rubrics.prelim.items}
-                      onChange={(items) =>
-                        setRubrics((prev) => ({
-                          ...prev,
-                          prelim: { ...prev.prelim, items },
-                        }))
-                      }
-                    />
-                    <RubricPanel
-                      title="Final Round"
-                      setName={rubrics.final.setName}
-                      onSetNameChange={(name) =>
-                        setRubrics((prev) => ({
-                          ...prev,
-                          final: { ...prev.final, setName: name },
-                        }))
-                      }
-                      items={rubrics.final.items}
-                      onChange={(items) =>
-                        setRubrics((prev) => ({
-                          ...prev,
-                          final: { ...prev.final, items },
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-
-                {rubricMode === "reuse" && (
-                  <div className="bg-white border border-slate-100 rounded-[2rem] p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                    {loadingSets && (
-                      <div className="flex items-center justify-center gap-3 py-16 text-sm font-bold text-slate-400 uppercase tracking-widest">
-                        <Loader2
-                          size={20}
-                          className="animate-spin text-[#0a192f]"
-                        />
-                        Loading Rubric Archive...
-                      </div>
-                    )}
-
-                    {!loadingSets && loadSetsError && (
-                      <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-                        <AlertCircle
-                          size={32}
-                          className="text-red-400"
-                          strokeWidth={1.5}
-                        />
-                        <p className="text-sm text-red-500 font-bold">
-                          {loadSetsError}
-                        </p>
-                        <button
-                          onClick={loadAvailableSets}
-                          className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
-                        >
-                          <RefreshCw size={14} className="inline mr-2" /> Try
-                          Again
-                        </button>
-                      </div>
-                    )}
-
-                    {!loadingSets &&
-                      !loadSetsError &&
-                      availableSets.length === 0 && (
-                        <div className="text-center py-16">
-                          <p className="text-base text-slate-400 font-medium">
-                            No existing rubrics found in the database. Please
-                            create new ones.
-                          </p>
-                        </div>
-                      )}
-
-                    {!loadingSets &&
-                      !loadSetsError &&
-                      availableSets.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {(["prelim", "final"] as const).map((slot) => {
-                            const isPrelim = slot === "prelim";
-                            const selectedId = isPrelim
-                              ? reusePrelimSetId
-                              : reuseFinalSetId;
-                            const setSel = isPrelim
-                              ? setReusePrelimSetId
-                              : setReuseFinalSetId;
-                            const picked = availableSets.find(
-                              (s) => String(s.setId) === String(selectedId),
-                            );
-                            const pickedTotal = picked
-                              ? sumWeight(picked.items)
-                              : 0;
-
-                            return (
-                              <div
-                                key={slot}
-                                className="bg-slate-50/50 border border-slate-200 rounded-2xl p-6"
-                              >
-                                <h4 className="font-extrabold text-[#0a192f] mb-4">
-                                  {isPrelim
-                                    ? "Preliminary Round"
-                                    : "Final Round"}
-                                </h4>
-                                <select
-                                  value={selectedId}
-                                  onChange={(e) => setSel(e.target.value)}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
-                                >
-                                  <option value="">
-                                    -- Select a rubric set --
-                                  </option>
-                                  {availableSets.map((s) => (
-                                    <option key={s.setId} value={s.setId}>
-                                      {s.setName}
-                                    </option>
-                                  ))}
-                                </select>
-
-                                {picked && (
-                                  <div className="mt-6">
-                                    <div className="space-y-3">
-                                      {picked.items.length === 0 ? (
-                                        <p className="text-sm text-slate-400 italic">
-                                          This set is empty.
-                                        </p>
-                                      ) : (
-                                        picked.items.map(
-                                          (it: any, i: number) => (
-                                            <div
-                                              key={it.criteriaId || i}
-                                              className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm"
-                                            >
-                                              <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-slate-800 text-sm">
-                                                  {it.name}
-                                                </span>
-                                                <span className="font-extrabold text-[#0a192f] bg-slate-100 px-2 py-0.5 rounded-md text-xs">
-                                                  {it.score}%
-                                                </span>
-                                              </div>
-                                              {it.description && (
-                                                <p className="text-xs text-slate-500 font-medium">
-                                                  {it.description}
-                                                </p>
-                                              )}
-                                            </div>
-                                          ),
-                                        )
-                                      )}
-                                    </div>
-                                    <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between font-bold text-sm">
-                                      <span className="text-slate-500">
-                                        Total Weight:
-                                      </span>
-                                      <span
-                                        className={
-                                          pickedTotal === 100
-                                            ? "text-emerald-600"
-                                            : "text-red-500"
-                                        }
-                                      >
-                                        {pickedTotal}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                  </div>
-                )}
-
-                <div className="flex justify-between pt-8 mt-8 border-t border-slate-100">
-                  <button
-                    onClick={() => setActiveTab(2)}
-                    className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-colors"
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    onClick={handleSaveRubrics}
-                    disabled={isSavingRubrics}
-                    className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isSavingRubrics ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Save size={18} strokeWidth={2.5} />
-                    )}
-                    {isSavingRubrics ? "Saving..." : "Save Rubrics & Continue"}
-                    {!isSavingRubrics && (
-                      <ArrowRight size={18} strokeWidth={2.5} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 4: ROUNDS */}
-            {activeTab === 4 && (
-              <div className="space-y-8 max-w-3xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                  <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-8 text-center">
-                    Tournament Timeline Configuration
-                  </h3>
-
-                  <div className="space-y-8">
-                    {/* PRELIM */}
-                    <div className="bg-slate-50/50 border border-slate-200 rounded-3xl p-6">
-                      <h4 className="font-extrabold text-[#0a192f] text-lg mb-5 flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>{" "}
-                        Round 0: Preliminary
-                      </h4>
-                      <div className="grid grid-cols-2 gap-5 mb-5">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                            Opening Time
-                          </label>
-                          <input
-                            type="datetime-local"
-                            value={rounds.prelim.startDate}
-                            onChange={(e) =>
-                              setRounds({
-                                ...rounds,
-                                prelim: {
-                                  ...rounds.prelim,
-                                  startDate: e.target.value,
-                                },
-                              })
-                            }
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                            Closing Time
-                          </label>
-                          <input
-                            type="datetime-local"
-                            value={rounds.prelim.endDate}
-                            onChange={(e) =>
-                              setRounds({
-                                ...rounds,
-                                prelim: {
-                                  ...rounds.prelim,
-                                  endDate: e.target.value,
-                                },
-                              })
-                            }
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-5 border-t border-slate-200 pt-5">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                            Max Teams Limit
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={rounds.prelim.maxTeams}
-                            onChange={(e) =>
-                              setRounds({
-                                ...rounds,
-                                prelim: {
-                                  ...rounds.prelim,
-                                  maxTeams: Number(e.target.value),
-                                },
-                              })
-                            }
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                            Advance Top N to Final
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={rounds.prelim.topAdvance}
-                            onChange={(e) =>
-                              setRounds({
-                                ...rounds,
-                                prelim: {
-                                  ...rounds.prelim,
-                                  topAdvance: Number(e.target.value),
-                                },
-                              })
-                            }
-                            className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm font-extrabold text-blue-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/20 transition-all"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* FINAL */}
-                    <div className="bg-slate-50/50 border border-slate-200 rounded-3xl p-6">
-                      <h4 className="font-extrabold text-[#0a192f] text-lg mb-2 flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>{" "}
-                        Round 1: Final
-                      </h4>
-                      <p className="text-xs font-medium text-slate-500 mb-5 leading-relaxed">
-                        The Final round automatically begins right after the
-                        Preliminary round closes, inheriting the Top{" "}
-                        {rounds.prelim.topAdvance} teams.
-                      </p>
-                      <div className="space-y-2 w-1/2">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                          Final Closing Time
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={rounds.final.endDate}
-                          onChange={(e) =>
-                            setRounds({
-                              ...rounds,
-                              final: {
-                                ...rounds.final,
-                                endDate: e.target.value,
-                              },
-                            })
-                          }
-                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between pt-8 mt-8 border-t border-slate-100">
-                    <button
-                      onClick={() => setActiveTab(3)}
-                      className="px-6 py-3.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-colors"
-                    >
-                      ← Back
-                    </button>
-                    <button
-                      onClick={handleSaveRounds}
-                      disabled={isSavingRounds}
-                      className="px-8 py-3.5 bg-emerald-600 text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {isSavingRounds ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <CheckCircle2 size={18} strokeWidth={2.5} />
-                      )}
-                      {isSavingRounds ? "Initializing..." : "Publish Event"}
-                    </button>
-                  </div>
                 </div>
               </div>
             )}

@@ -72,7 +72,6 @@ export function AuthLayout() {
     { id: "player", name: "Participant (Player)" },
   ];
 
-  // CLICK OUTSIDE ĐỂ ĐÓNG DROPDOWN
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (roleRef.current && !roleRef.current.contains(event.target as Node)) {

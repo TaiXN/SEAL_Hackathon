@@ -31,10 +31,6 @@ import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
 
 export const router = createBrowserRouter([
-  // =========================================================
-  // 🚨 KHU VỰC UN-AUTH: CHỈ DÀNH CHO NGƯỜI CHƯA ĐĂNG NHẬP
-  // Những ai đã có Token mà mò về 2 trang này sẽ bị đá văng về Dashboard!
-  // =========================================================
   {
     element: <RequireUnAuth />,
     children: [
@@ -42,10 +38,6 @@ export const router = createBrowserRouter([
       { path: "/login", element: <AuthLayout /> },
     ],
   },
-
-  // =========================================================
-  // 🔒 KHU VỰC BẢO MẬT: BẮT BUỘC PHẢI QUA REQUIREAUTH KIỂM TRA
-  // =========================================================
   {
     element: <RequireAuth />,
     children: [
