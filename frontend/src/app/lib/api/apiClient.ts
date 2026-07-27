@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (
         originalRequest.url.includes("/login") ||
-        originalRequest.url.includes("/refresh-token")
+        originalRequest.url.includes("/refreshtoken")
       ) {
         return Promise.reject(error);
       }
@@ -65,7 +65,7 @@ apiClient.interceptors.response.use(
       try {
         // BẮN API RỖNG: Không body, không biến. Trình duyệt tự nhét Cookie vào.
         const res = await axios.post(
-          `${API_BASE_URL}/api/Auth/refresh-token`,
+          `${API_BASE_URL}/api/Auth/refreshtoken`,
           {},
           {
             withCredentials: true,

@@ -684,20 +684,68 @@ export function EventDetailsPage() {
       0;
     const isLastRound = curRoundIndex === eventRounds.length - 1;
 
-    const actionText = isLastRound
-      ? "This action will officially conclude the tournament and finalize all results."
-      : `The system will automatically advance the Top ${topN} teams with the highest scores to the next round.`;
+    if (isLastRound) {
+      const lastRoundIndex = Number(
+        currentRoundObj.roundIndex ?? currentRoundObj.RoundIndex ?? rawCurrentRound,
+      );
+
+      const result = await Swal.fire({
+        title: "Conclude Tournament?",
+        html: "The server has no automated \"conclude\" step yet, so this will <b>manually mark the event as ended</b> and lock all further editing. The current leaderboard of the final round becomes the official final result. This cannot be undone from this screen.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#0a192f",
+        cancelButtonColor: "#cbd5e1",
+        confirmButtonText: "Yes, Force Conclude",
+        cancelButtonText: "Cancel",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-2",
+          cancelButton: "rounded-xl font-bold px-6 py-2 text-slate-700",
+        },
+      });
+
+      if (!result.isConfirmed) return;
+
+      try {
+        setIsLoading(true);
+        await eventApi.updateEvent(id, {
+          eventName: event.name,
+          season: event.semester,
+          year: Number(event.year),
+          currentRound: lastRoundIndex + 1,
+        } as any);
+        Swal.fire({
+          icon: "success",
+          title: "Concluded!",
+          text: "The event has been marked as ended.",
+          confirmButtonColor: "#0a192f",
+          customClass: { confirmButton: "rounded-xl font-bold px-6 py-2" },
+        });
+        const updatedData = await eventApi.getEventById(id);
+        setEvent(updatedData);
+      } catch (error: any) {
+        Swal.fire(
+          "Error",
+          `Failed to conclude event. ${getServerMsg(error)}`,
+          "error",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    const actionText = `The system will automatically advance the Top ${topN} teams with the highest scores to the next round.`;
 
     const result = await Swal.fire({
-      title: isLastRound ? "Conclude Tournament?" : "Advance to Next Round?",
+      title: "Advance to Next Round?",
       text: `${actionText} This action cannot be undone!`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#0a192f",
       cancelButtonColor: "#cbd5e1",
-      confirmButtonText: isLastRound
-        ? "Yes, Conclude Event!"
-        : "Yes, Advance Teams!",
+      confirmButtonText: "Yes, Advance Teams!",
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
@@ -1566,7 +1614,7 @@ export function EventDetailsPage() {
               </div>
             )}
 
-            {deletedCriteria.length > 0 && (
+            {deletedCriteria.length > 0 && !isEnded && (
               <div className="mt-8 border-t border-slate-100 pt-6">
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <RotateCcw size={14} strokeWidth={2.5} /> Recover Deleted
@@ -1596,6 +1644,7 @@ export function EventDetailsPage() {
 
           {/* ========================================================= */}
           {/* SECTION: BẢNG XẾP HẠNG TRỰC TIẾP & NÚT CHUYỂN VÒNG (MỚI) */}
+
           {/* ========================================================= */}
           {canShowLeaderboard && (
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
@@ -1750,18 +1799,26 @@ export function EventDetailsPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleNextRound}
-                    disabled={
-                      isLoading || isLoadingTeams || roundTeams.length === 0
-                    }
-                    className="w-full sm:w-auto px-8 py-4 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FastForward size={18} strokeWidth={2.5} />
-                    {isLastRound
-                      ? "Conclude Tournament & Finalize Results"
-                      : `Advance Top ${advanceTopN} Teams to Next Round`}
-                  </button>
+                  <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={handleNextRound}
+                      disabled={
+                        isLoading || isLoadingTeams || roundTeams.length === 0
+                      }
+                      className="w-full sm:w-auto px-8 py-4 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FastForward size={18} strokeWidth={2.5} />
+                      {isLastRound
+                        ? "Force Conclude Event"
+                        : `Advance Top ${advanceTopN} Teams to Next Round`}
+                    </button>
+                    {isLastRound && (
+                      <p className="text-xs text-slate-400 font-medium text-right max-w-xs">
+                        No backend "conclude" step exists yet — this manually
+                        marks the event as ended on the frontend.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
