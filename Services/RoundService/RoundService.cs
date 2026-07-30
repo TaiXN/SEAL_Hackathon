@@ -35,6 +35,11 @@ namespace Services.RoundService
                     return false;
                 }
 
+                if (info.TopNPromotion < 0)
+                {
+                    return false;
+                }
+
                 List<Round> existingRounds = await _uow.Round.GetAllQueryable()
               .Where(e => e.EventId == info.EventID)
               .ToListAsync();
@@ -167,6 +172,11 @@ namespace Services.RoundService
         {
             try
             {
+                if (info.TopNPromotion < 0)
+                {
+                    return false;
+                }
+
                 Round roundDb = await _uow.Round.GetFirstOrDefaultAsync(q => q.RoundId.Equals(info.RoundID));
                 if (roundDb == null)
                 {

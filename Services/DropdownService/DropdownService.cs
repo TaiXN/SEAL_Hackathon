@@ -2,6 +2,7 @@
 using DataAccess.Repositories.UnitOfWork;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
 namespace Services.DropdownService
@@ -35,6 +36,8 @@ namespace Services.DropdownService
             }).ToList();
         }
 
+
+
         public async Task<List<TopicDropdownAPIViewModel>> GetTopicsByTrackAsync(string trackId)
         {
             var topics = await _uow.Topic.GetAllAsync(t => t.TrackId == trackId && t.IsActive == true);
@@ -44,5 +47,51 @@ namespace Services.DropdownService
                 TopicName = t.TopicDetail
             }).ToList();
         }
+
+        public async Task<List<TrackDropdownAPIViewModel>> GetTracksByTeamAsync(string teamId)
+        {
+            List<string> trackIds = await _uow.TeamInRound.GetAllQueryable()
+                .Where(tr => tr.TeamId == teamId)
+                .Select(tr => tr.TrackId)
+                .Distinct()
+                .ToListAsync();
+
+            if (!trackIds.Any()) return new List<TrackDropdownAPIViewModel>();
+
+            List<TrackDropdownAPIViewModel> teamTracks = await _uow.Track.GetAllQueryable()
+                .Where(t => trackIds.Contains(t.TrackId) && t.IsActive == true)
+                .Select(t => new TrackDropdownAPIViewModel
+                {
+                    TrackId = t.TrackId,
+                    TrackName = t.TrackName
+                })
+                .ToListAsync();
+
+            return teamTracks;
+        }
+
+        public async Task<List<RoundDropdownAPIViewModel>> GetRoundsByTeamAndTrackAsync(string teamId, string trackId)
+        {
+            List<string> roundIds = await _uow.TeamInRound.GetAllQueryable()
+                .Where(tr => tr.TeamId == teamId && tr.TrackId == trackId)
+                .Select(tr => tr.RoundId)
+                .Distinct()
+                .ToListAsync();
+
+            if (!roundIds.Any()) return new List<RoundDropdownAPIViewModel>();
+
+            List<RoundDropdownAPIViewModel> teamRounds = await _uow.Round.GetAllQueryable()
+                .Where(r => roundIds.Contains(r.RoundId) && r.IsActive == true)
+                .Select(r => new RoundDropdownAPIViewModel
+                {
+                    RoundId = r.RoundId,
+                    RoundName = r.RoundName
+                })
+                .ToListAsync();
+
+            return teamRounds;
+        }
+
+
     }
 }

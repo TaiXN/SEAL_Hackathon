@@ -95,12 +95,17 @@ namespace Services.PrizeService
             }
         }
 
-        public async Task<List<PrizeAPIViewModel>> GetPrizesByEventIdAsync(string eventId)
+        public async Task<List<PrizeAPIViewModel>> GetPrizesByEventNameAsync(string eventName)
         {
             try
             {
+                List<string> matchedEventIds = await _uow.Event.GetAllQueryable()
+                    .Where(e => e.EventName.Contains(eventName))
+                    .Select(e => e.EventId)
+                    .ToListAsync();
+
                 List<Prize> result = await _uow.Prize.GetAllQueryable()
-                    .Where(p => p.EventId == eventId)
+                    .Where(p => matchedEventIds.Contains(p.EventId))
                     .ToListAsync();
 
                 return result.Select(p => new PrizeAPIViewModel

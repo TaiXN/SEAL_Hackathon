@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using APIViewModels.Dropdown;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.DropdownService;
 using System;
@@ -60,6 +61,21 @@ namespace API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet("team/{teamId}/tracks")]
+        public async Task<IActionResult> GetTracksByTeamAsync(string teamId)
+        {
+            List<TrackDropdownAPIViewModel> result = await _dropdownService.GetTracksByTeamAsync(teamId);
+            return Ok(result);
+        }
+
+
+        [HttpGet("team/{teamId}/track/{trackId}/rounds")]
+        public async Task<IActionResult> GetRoundsByTeamAndTrackAsync(string teamId, string trackId)
+        {
+            List<RoundDropdownAPIViewModel> result = await _dropdownService.GetRoundsByTeamAndTrackAsync(teamId, trackId);
+            return Ok(result);
         }
     }
 }

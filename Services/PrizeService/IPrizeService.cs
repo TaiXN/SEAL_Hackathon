@@ -11,7 +11,7 @@ namespace Services.PrizeService
         Task<(bool IsSuccess, string Message)> CreatePrizeAsync(CreatePrizeAPIViewModel request);
         Task<List<PrizeAPIViewModel>> GetAllPrizesAsync();
         Task<PrizeAPIViewModel> GetPrizeByIdAsync(string prizeId);
-        Task<List<PrizeAPIViewModel>> GetPrizesByEventIdAsync(string eventId);
+        Task<List<PrizeAPIViewModel>> GetPrizesByEventNameAsync(string eventName);
         Task<(bool IsSuccess, string Message)> UpdatePrizeAsync(string prizeId, UpdatePrizeAPIViewModel request);
         Task<(bool IsSuccess, string Message)> DeletePrizeAsync(string prizeId);
         Task<(bool IsSuccess, string Message)> ReActivePrizeAsync(string prizeId);

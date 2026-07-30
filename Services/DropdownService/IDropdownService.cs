@@ -9,5 +9,8 @@ namespace Services.DropdownService
         Task<List<EventDropdownAPIViewModel>> GetActiveEventsAsync();
         Task<List<TrackDropdownAPIViewModel>> GetTracksByEventAsync(string eventId);
         Task<List<TopicDropdownAPIViewModel>> GetTopicsByTrackAsync(string trackId);
+        Task<List<TrackDropdownAPIViewModel>> GetTracksByTeamAsync(string teamId);
+        Task<List<RoundDropdownAPIViewModel>> GetRoundsByTeamAndTrackAsync(string teamId, string trackId);
+
     }
 }
