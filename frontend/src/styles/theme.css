@@ -119,6 +119,29 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * FPT brand palette — scoped to Admin pages only (see src/app/pages/Admin/*).
+ * Namespaced as `fpt-*` so it never overrides the generic shadcn tokens
+ * above (--primary, --secondary, ...), which Player/Judge screens rely on.
+ */
+@theme {
+  --color-fpt-orange: #f26f21;
+  --color-fpt-orange-dark: #d85f17;
+  --color-fpt-orange-soft: #fff1e8;
+  --color-fpt-blue: #1f5eff;
+  --color-fpt-green: #00b894;
+  --color-fpt-yellow: #ffc928;
+  --color-fpt-bg: #f7f8fb;
+  --color-fpt-surface: #ffffff;
+  --color-fpt-surface-soft: #f4f7fb;
+  --color-fpt-border: #dde5f0;
+  --color-fpt-border-strong: #c6d2e3;
+  --color-fpt-text: #071225;
+  --color-fpt-muted: #5f6f89;
+  --color-fpt-muted-2: #8fa0bb;
+  --color-fpt-danger: #ef4444;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -44,10 +44,15 @@ export const extractId = (obj: any): string | null => {
   );
 };
 
-/** Lấy CHÍNH XÁC trackId của một track object (không bao giờ nhầm sang eventId) */
+/**
+ * Lấy CHÍNH XÁC trackId của một track object (không bao giờ nhầm sang eventId).
+ * ⚠️ Một số endpoint bọc response trong { data: {...} } — phải dò cả hai lớp,
+ * nếu không currentTrackId sẽ luôn null và bước tạo Topic bị bỏ qua âm thầm.
+ */
 export const pickTrackId = (obj: any): string | null => {
   if (!obj) return null;
-  return obj.trackId || obj.trackID || obj.id || null;
+  const d = obj.data ?? obj;
+  return d?.trackId || d?.trackID || d?.id || obj.trackId || obj.trackID || obj.id || null;
 };
 
 const looksLikeGuid = (v: unknown): v is string =>

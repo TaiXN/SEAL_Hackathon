@@ -155,13 +155,13 @@ export function AdminPrizesPage() {
       html: `
         <div class="text-left px-2 mt-4">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
-          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="e.g., First Prize">
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="e.g., First Prize">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description / Reward</label>
-          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="Details about the prize...">
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Details about the prize...">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Target Event</label>
-          <select id="sw-event" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none cursor-pointer">
+          <select id="sw-event" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
             <option value="" disabled selected>-- Select an Event --</option>
             ${eventOptions}
           </select>
@@ -173,7 +173,7 @@ export function AdminPrizesPage() {
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
-        confirmButton: "rounded-xl font-bold px-8 py-3 bg-[#0a192f]",
+        confirmButton: "rounded-xl font-bold px-8 py-3 bg-fpt-orange",
         cancelButton:
           "rounded-xl font-bold px-8 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
       },
@@ -224,10 +224,10 @@ export function AdminPrizesPage() {
       html: `
         <div class="text-left px-2 mt-4">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
-          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
         </div>
       `,
       focusConfirm: false,
@@ -236,7 +236,7 @@ export function AdminPrizesPage() {
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
-        confirmButton: "rounded-xl font-bold px-8 py-3 bg-[#0a192f]",
+        confirmButton: "rounded-xl font-bold px-8 py-3 bg-fpt-orange",
         cancelButton:
           "rounded-xl font-bold px-8 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200",
       },
@@ -411,7 +411,7 @@ export function AdminPrizesPage() {
               <strong class="text-lg font-black text-[#0a192f] mt-1 inline-block">${prize.prizeName}</strong>
             </p>
             <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Recipient Team</label>
-            <select id="sw-team" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none cursor-pointer">
+            <select id="sw-team" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
               <option value="" disabled selected>-- Click to select Team --</option>
               ${teamOptions}
             </select>
@@ -474,7 +474,7 @@ export function AdminPrizesPage() {
           </div>
           <button
             onClick={handleCreatePrize}
-            className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+            className="flex items-center gap-2 px-8 py-3.5 bg-fpt-orange text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-fpt-orange-dark hover:-translate-y-0.5 active:translate-y-0 transition-all"
           >
             <Plus size={20} strokeWidth={2.5} /> Add Prize
           </button>
@@ -482,13 +482,13 @@ export function AdminPrizesPage() {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6">
           <div className="flex items-center gap-4 w-full sm:w-auto">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-3 bg-fpt-orange-soft text-fpt-orange rounded-xl">
               <Filter size={20} />
             </div>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 min-w-[280px] w-full cursor-pointer transition-all"
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[280px] w-full cursor-pointer transition-all"
             >
               <option value="">🏆 All Events</option>
               {events.map((e) => (
@@ -506,7 +506,7 @@ export function AdminPrizesPage() {
               placeholder="Search prize name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-xl pl-12 pr-5 py-3 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-xl pl-12 pr-5 py-3 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
             />
           </div>
         </div>
@@ -533,7 +533,17 @@ export function AdminPrizesPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              className={`grid grid-cols-1 gap-6 ${
+                activePrizes.length >= 3
+                  ? "md:grid-cols-2 lg:grid-cols-3"
+                  : activePrizes.length === 2
+                    ? "md:grid-cols-2"
+                    : activePrizes.length === 1
+                      ? "max-w-sm mx-auto w-full"
+                      : ""
+              }`}
+            >
               {activePrizes.length === 0 && !error ? (
                 <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-[2rem] bg-white">
                   <Gift
@@ -607,14 +617,14 @@ export function AdminPrizesPage() {
                           className={`flex-1 font-bold text-sm py-2.5 rounded-xl border-2 transition-all ${
                             isAwarded
                               ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed"
-                              : "bg-white text-[#0a192f] border-slate-100 hover:border-[#0a192f] hover:bg-slate-50"
+                              : "bg-white text-[#0a192f] border-slate-100 hover:border-fpt-orange hover:bg-slate-50"
                           }`}
                         >
                           {isAwarded ? "Already Awarded" : "Award Prize"}
                         </button>
                         <button
                           onClick={() => handleEditPrize(prize)}
-                          className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                          className="p-3 bg-fpt-orange-soft text-fpt-orange rounded-xl hover:bg-fpt-orange/15 transition-colors"
                           title="Edit Prize"
                         >
                           <Pencil size={18} />

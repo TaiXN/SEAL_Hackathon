@@ -1,13 +1,38 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowRight, Check, ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowRight, Check, ArrowLeft, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
 import { authApi } from "../lib/api/authApi";
 import Swal from "sweetalert2";
 import { playerApi } from "../lib/api/playerApi";
+import { getServerMsg } from "../lib/utils/criteriaHelpers";
 
 type AuthView = "login" | "register";
+
+// Password rules required by the backend (>= 8 chars) + FE security recommendations
+const PASSWORD_RULES: { test: (pw: string) => boolean; label: string }[] = [
+  {
+    test: (pw) => pw.length >= 8,
+    label: "At least 8 characters (12-16 recommended)",
+  },
+  {
+    test: (pw) => /[A-Z]/.test(pw),
+    label: "At least 1 uppercase letter (A-Z)",
+  },
+  {
+    test: (pw) => /[a-z]/.test(pw),
+    label: "At least 1 lowercase letter (a-z)",
+  },
+  { test: (pw) => /[0-9]/.test(pw), label: "At least 1 digit (0-9)" },
+  {
+    test: (pw) => /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\/;'`~]/.test(pw),
+    label: "At least 1 special character (!, @, #, $, %,...)",
+  },
+];
+
+const getPasswordErrors = (pw: string): string[] =>
+  PASSWORD_RULES.filter((rule) => !rule.test(pw)).map((rule) => rule.label);
 
 export function AuthLayout() {
   const setTokens = useAuthStore((state) => state.setTokens);
@@ -16,7 +41,7 @@ export function AuthLayout() {
 
   const [view, setView] = useState<AuthView>("login");
 
-  // ĐÓN LỆNH TỪ TRANG CHỦ
+  // Receive navigation command from the home page
   useEffect(() => {
     if (location.state?.view) {
       setView(location.state.view as AuthView);
@@ -26,18 +51,26 @@ export function AuthLayout() {
   // ================= STATES =================
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [role, setRole] = useState("player");
-  const [isRoleOpen, setIsRoleOpen] = useState(false); // State cho Custom Dropdown Role
+  const [isRoleOpen, setIsRoleOpen] = useState(false); // State for Custom Role Dropdown
 
   const [regEmail, setRegEmail] = useState("");
   const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regPasswordErrors, setRegPasswordErrors] = useState<string[]>([]);
+  const [regPasswordTouched, setRegPasswordTouched] = useState(false);
+  const [regConfirmTouched, setRegConfirmTouched] = useState(false);
   const [regFullName, setRegFullName] = useState("");
   const [regAddress, setRegAddress] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regUniversityId, setRegUniversityId] = useState("");
-  const [isUniOpen, setIsUniOpen] = useState(false); // State cho Custom Dropdown University
+  const [isUniOpen, setIsUniOpen] = useState(false); // State for Custom University Dropdown
+
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
   const roleRef = useRef<HTMLDivElement>(null);
   const uniRef = useRef<HTMLDivElement>(null);
@@ -79,6 +112,7 @@ export function AuthLayout() {
   // ================= HANDLERS =================
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
     const loadingToastId = toast.loading("Verifying credentials...");
     const credentials = { email: loginEmail, password: loginPassword };
 
@@ -109,12 +143,30 @@ export function AuthLayout() {
       const errorMsg =
         error.response?.data?.message || "An error occurred during login!";
       toast.dismiss(loadingToastId);
+      setLoginError(errorMsg);
       Swal.fire("Error", errorMsg, "error");
     }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!/^\d{10}$/.test(regPhone.trim())) {
+      Swal.fire("Error", "Phone number must be exactly 10 digits!", "warning");
+      return;
+    }
+
+    const passwordErrors = getPasswordErrors(regPassword);
+    setRegPasswordTouched(true);
+    setRegPasswordErrors(passwordErrors);
+    if (passwordErrors.length > 0) {
+      Swal.fire(
+        "Password does not meet requirements",
+        "Please check the password rules shown below the field.",
+        "warning",
+      );
+      return;
+    }
 
     if (regPassword !== regConfirmPassword) {
       Swal.fire("Error", "Passwords do not match!", "error");
@@ -144,10 +196,7 @@ export function AuthLayout() {
       setLoginEmail(regEmail);
       setRole("player");
     } catch (error: any) {
-      const errorMsg =
-        error.response?.data?.message ||
-        error.response?.data ||
-        "Unable to register account.";
+      const errorMsg = getServerMsg(error) || "Unable to register account.";
       toast.error(errorMsg, { id: loadingToastId });
       Swal.fire("Error", errorMsg, "error");
     }
@@ -191,7 +240,7 @@ export function AuthLayout() {
                 </p>
               </div>
 
-              {/* CUSTOM DROPDOWN CHỌN ROLE */}
+              {/* CUSTOM ROLE DROPDOWN */}
               <div className="mb-6 relative" ref={roleRef}>
                 <label className="text-sm font-bold text-slate-700 mb-2 block uppercase tracking-wider">
                   Select Role
@@ -243,9 +292,16 @@ export function AuthLayout() {
                     type="email"
                     required
                     placeholder="name@example.com"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all font-medium"
+                    className={`block w-full px-4 py-3 border rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all font-medium ${
+                      loginError
+                        ? "bg-red-50 border-red-400 focus:ring-red-500/10 focus:border-red-500 text-red-900"
+                        : "bg-slate-50 border-slate-200 focus:ring-slate-900/10 focus:border-slate-900"
+                    }`}
                     value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onChange={(e) => {
+                      setLoginEmail(e.target.value);
+                      if (loginError) setLoginError("");
+                    }}
                   />
                 </div>
 
@@ -256,15 +312,44 @@ export function AuthLayout() {
                   >
                     Password
                   </label>
-                  <input
-                    id="login-password"
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all font-medium"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      type={showLoginPassword ? "text" : "password"}
+                      required
+                      placeholder="••••••••"
+                      className={`block w-full px-4 py-3 pr-11 border rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all font-medium ${
+                        loginError
+                          ? "bg-red-50 border-red-400 focus:ring-red-500/10 focus:border-red-500 text-red-900"
+                          : "bg-slate-50 border-slate-200 focus:ring-slate-900/10 focus:border-slate-900"
+                      }`}
+                      value={loginPassword}
+                      onChange={(e) => {
+                        setLoginPassword(e.target.value);
+                        if (loginError) setLoginError("");
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                      aria-label={
+                        showLoginPassword ? "Hide password" : "Show password"
+                      }
+                      tabIndex={-1}
+                    >
+                      {showLoginPassword ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
+                  {loginError && (
+                    <p className="text-xs font-bold text-red-600 pt-1">
+                      {loginError}
+                    </p>
+                  )}
                 </div>
 
                 <button
@@ -311,7 +396,7 @@ export function AuthLayout() {
                     id="reg-fullname"
                     type="text"
                     required
-                    placeholder="John Doe"
+                    placeholder="Nguyen Van A"
                     className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
@@ -326,11 +411,17 @@ export function AuthLayout() {
                     <input
                       id="reg-phone"
                       type="tel"
+                      inputMode="numeric"
                       required
                       placeholder="0901234567"
+                      maxLength={10}
+                      pattern="\d{10}"
+                      title="Phone number must be exactly 10 digits"
                       className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
+                      onChange={(e) =>
+                        setRegPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      }
                     />
                   </div>
                   <div className="space-y-1.5 flex-1">
@@ -364,7 +455,7 @@ export function AuthLayout() {
                   />
                 </div>
 
-                {/* CUSTOM DROPDOWN CHỌN TRƯỜNG ĐẠI HỌC */}
+                {/* CUSTOM UNIVERSITY DROPDOWN */}
                 <div className="space-y-1.5 relative" ref={uniRef}>
                   <label className="text-[13px] font-bold text-slate-700">
                     University
@@ -430,31 +521,116 @@ export function AuthLayout() {
                     <label className="text-[13px] font-bold text-slate-700">
                       Password
                     </label>
-                    <input
-                      id="reg-password"
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                    />
+                    <div className="relative">
+                      <input
+                        id="reg-password"
+                        type={showRegPassword ? "text" : "password"}
+                        required
+                        placeholder="••••••••"
+                        className={`block w-full px-4 py-2.5 pr-11 border rounded-xl text-sm transition-all focus:bg-white ${
+                          regPasswordTouched && regPasswordErrors.length > 0
+                            ? "bg-red-50 border-red-400 focus:border-red-500 text-red-900"
+                            : "bg-slate-50 border-slate-200 focus:border-slate-900"
+                        }`}
+                        value={regPassword}
+                        onChange={(e) => {
+                          setRegPassword(e.target.value);
+                          setRegPasswordErrors(getPasswordErrors(e.target.value));
+                        }}
+                        onBlur={() => setRegPasswordTouched(true)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={
+                          showRegPassword ? "Hide password" : "Show password"
+                        }
+                        tabIndex={-1}
+                      >
+                        {showRegPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5 flex-1">
                     <label className="text-[13px] font-bold text-slate-700">
-                      Confirm Pwd
+                      Confirm Password
                     </label>
-                    <input
-                      id="reg-confirm"
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)} // <-- ĐÃ SỬA LẠI CHỖ NÀY
-                    />
+                    <div className="relative">
+                      <input
+                        id="reg-confirm"
+                        type={showRegConfirmPassword ? "text" : "password"}
+                        required
+                        placeholder="••••••••"
+                        className={`block w-full px-4 py-2.5 pr-11 border rounded-xl text-sm transition-all focus:bg-white ${
+                          regConfirmTouched &&
+                          regConfirmPassword.length > 0 &&
+                          regConfirmPassword !== regPassword
+                            ? "bg-red-50 border-red-400 focus:border-red-500 text-red-900"
+                            : "bg-slate-50 border-slate-200 focus:border-slate-900"
+                        }`}
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        onBlur={() => setRegConfirmTouched(true)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirmPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={
+                          showRegConfirmPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                        tabIndex={-1}
+                      >
+                        {showRegConfirmPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {regPasswordTouched &&
+                  regConfirmTouched &&
+                  regConfirmPassword.length > 0 &&
+                  regConfirmPassword !== regPassword && (
+                    <p className="text-xs font-bold text-red-600 -mt-2">
+                      Confirm password does not match.
+                    </p>
+                  )}
+
+                {regPasswordTouched && (
+                  <ul className="-mt-1 space-y-1 rounded-xl bg-slate-50 p-3">
+                    {PASSWORD_RULES.map((rule) => {
+                      const passed = rule.test(regPassword);
+                      return (
+                        <li
+                          key={rule.label}
+                          className={`flex items-center gap-2 text-xs font-medium ${
+                            passed ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {passed ? (
+                            <Check size={14} className="flex-shrink-0" />
+                          ) : (
+                            <span className="flex-shrink-0 w-3.5 text-center">
+                              ✕
+                            </span>
+                          )}
+                          {rule.label}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
 
                 <button
                   type="submit"

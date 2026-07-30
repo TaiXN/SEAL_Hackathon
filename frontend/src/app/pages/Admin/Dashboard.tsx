@@ -200,7 +200,7 @@ export function Dashboard() {
               onClick={() => fetchData(true)}
               disabled={isRefreshing}
               title="Refresh"
-              className="p-2.5 bg-white border-2 border-slate-200 text-slate-400 hover:text-[#0a192f] hover:border-[#0a192f] rounded-xl shadow-sm transition-all active:translate-y-1"
+              className="p-2.5 bg-white border-2 border-slate-200 text-slate-400 hover:text-fpt-orange hover:border-fpt-orange rounded-xl shadow-sm transition-all active:translate-y-1"
             >
               <RefreshCw
                 size={20}
@@ -220,14 +220,14 @@ export function Dashboard() {
         {/* NÚT BẤM 3D VẬT LÝ */}
         <button
           onClick={() => navigate("/admin/events/create")}
-          className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-black rounded-2xl border-2 border-[#0a192f] border-b-[6px] hover:bg-slate-800 hover:border-b-black active:border-b-[2px] active:translate-y-[4px] transition-all shadow-sm"
+          className="flex items-center gap-2 px-8 py-3.5 bg-fpt-orange text-white text-sm font-black rounded-2xl border-2 border-fpt-orange border-b-[6px] hover:bg-fpt-orange-dark hover:border-b-fpt-orange-dark active:border-b-[2px] active:translate-y-[4px] transition-all shadow-sm"
         >
           <Plus size={20} strokeWidth={3} /> Create New Event
         </button>
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -253,13 +253,13 @@ export function Dashboard() {
       {/* TÌM KIẾM VÀ LỌC */}
       <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+          <div className="p-3 bg-fpt-orange-soft text-fpt-orange rounded-xl">
             <FilterIcon size={20} strokeWidth={2.5} />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 min-w-[200px] w-full cursor-pointer transition-all"
+            className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[200px] w-full cursor-pointer transition-all"
           >
             <option value="all">All Events</option>
             <option value="ongoing">Ongoing</option>
@@ -278,7 +278,7 @@ export function Dashboard() {
             placeholder="Search by name, semester, year..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-xl pl-12 pr-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
+            className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-xl pl-12 pr-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
           />
         </div>
       </div>
@@ -312,7 +312,9 @@ export function Dashboard() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div
+            className={`grid grid-cols-1 gap-8 ${displayEvents.length > 1 ? "lg:grid-cols-2" : "max-w-2xl mx-auto w-full"}`}
+          >
             {displayEvents.map((e) => (
               <div
                 key={e.id}
@@ -321,7 +323,7 @@ export function Dashboard() {
                 {/* Header Card */}
                 <div className="p-8 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
                   <div className="pr-4">
-                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-blue-600 transition-colors leading-tight">
+                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-fpt-orange transition-colors leading-tight">
                       {e.name}
                     </h3>
                     <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-1.5">
@@ -347,7 +349,7 @@ export function Dashboard() {
                     <>
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-2">
-                          <span className="px-4 py-2 bg-[#0a192f] text-white rounded-xl text-sm font-extrabold shadow-sm">
+                          <span className="px-4 py-2 bg-fpt-orange text-white rounded-xl text-sm font-extrabold shadow-sm">
                             {e.curRound.roundName || "Round"}
                           </span>
                           <span className="text-[10px] px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 font-extrabold uppercase tracking-widest border border-slate-200 shadow-sm">

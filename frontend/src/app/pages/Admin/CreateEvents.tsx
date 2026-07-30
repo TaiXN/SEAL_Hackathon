@@ -94,7 +94,7 @@ function RubricPanel({
             value={setName}
             onChange={(e) => onSetNameChange(e.target.value)}
             placeholder="e.g., Round Rubric Set..."
-            className="w-full min-w-0 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+            className="w-full min-w-0 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
           />
         </div>
       </div>
@@ -110,7 +110,7 @@ function RubricPanel({
                 type="text"
                 value={r.name}
                 onChange={(e) => updateItem(r.id, { name: e.target.value })}
-                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
                 placeholder="Criterion Name"
               />
               <div className="relative w-28 shrink-0">
@@ -120,7 +120,7 @@ function RubricPanel({
                   onChange={(e) =>
                     updateItem(r.id, { weight: Number(e.target.value) })
                   }
-                  className="w-full pl-3 pr-8 py-2.5 text-sm text-center bg-white border border-slate-200 rounded-xl font-black text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="w-full pl-3 pr-8 py-2.5 text-sm text-center bg-white border border-slate-200 rounded-xl font-black text-[#0a192f] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
                   %
@@ -139,14 +139,14 @@ function RubricPanel({
               onChange={(e) =>
                 updateItem(r.id, { description: e.target.value })
               }
-              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-600 font-medium focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="w-full px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none text-slate-600 font-medium focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
               placeholder="Description (optional)"
             />
           </div>
         ))}
         <button
           onClick={addItem}
-          className="text-xs font-extrabold text-blue-600 hover:text-blue-800 mt-2 flex items-center gap-1.5 px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-colors bg-white border border-blue-100 shadow-sm"
+          className="text-xs font-extrabold text-fpt-orange-dark hover:text-fpt-orange mt-2 flex items-center gap-1.5 px-4 py-2.5 rounded-xl hover:bg-fpt-orange-soft transition-colors bg-white border border-fpt-orange/20 shadow-sm"
         >
           <Plus size={14} strokeWidth={3} /> Add Criterion
         </button>
@@ -316,7 +316,16 @@ export function CreateEvents() {
           eventId: savedEventId,
           trackName: track.name.trim(),
         } as any);
-        const currentTrackId = pickTrackId(trackRes);
+        let currentTrackId = pickTrackId(trackRes);
+        // Backend đôi khi trả response thiếu field ID mong đợi dù đã tạo
+        // thành công -> dò lại theo tên để không bị bỏ sót bước tạo Topic.
+        if (!currentTrackId) {
+          const allTracks = getList(await trackTopicApi.getAllTracks());
+          const matched = [...allTracks]
+            .reverse()
+            .find((t: any) => (t.trackName || t.name) === track.name.trim());
+          currentTrackId = pickTrackId(matched) || extractId(matched);
+        }
         if (currentTrackId) {
           for (const topic of track.topics) {
             await trackTopicApi
@@ -460,7 +469,7 @@ export function CreateEvents() {
         icon: "success",
         title: "All Set!",
         text: "The event timeline and rubrics have been fully configured.",
-        confirmButtonColor: "#0a192f",
+        confirmButtonColor: "#f26f21",
       }).then(() => navigate("/admin/events"));
     } catch (error) {
       Swal.fire(
@@ -497,7 +506,7 @@ export function CreateEvents() {
           {/* TABS CẬP NHẬT LẠI THỨ TỰ */}
           <div className="flex border-b border-slate-100 px-4 bg-slate-50/50 pt-2">
             {[
-              { id: 1, name: "1. Event Info", isSaved: !!savedEventId },
+              { id: 1, name: "1. Event Information", isSaved: !!savedEventId },
               { id: 2, name: "2. Tracks & Topics", isSaved: activeTab > 2 },
               { id: 3, name: "3. Tournament Rounds", isSaved: activeTab > 3 },
               { id: 4, name: "4. Grading Rubrics", isSaved: false },
@@ -507,7 +516,7 @@ export function CreateEvents() {
                 onClick={() => setActiveTab(tab.id)}
                 disabled={tab.id > 1 && !savedEventId}
                 className={`flex-1 px-4 py-4 text-sm font-extrabold border-b-[3px] transition-all flex items-center justify-center gap-2
-                  ${activeTab === tab.id ? "border-[#0a192f] text-[#0a192f] bg-white rounded-t-2xl" : tab.isSaved ? "border-transparent text-emerald-600 hover:bg-white rounded-t-2xl" : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-40 rounded-t-2xl"}`}
+                  ${activeTab === tab.id ? "border-fpt-orange text-fpt-orange bg-white rounded-t-2xl" : tab.isSaved ? "border-transparent text-emerald-600 hover:bg-white rounded-t-2xl" : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-40 rounded-t-2xl"}`}
               >
                 {tab.isSaved && activeTab !== tab.id && (
                   <CheckCircle2 size={16} />
@@ -532,6 +541,7 @@ export function CreateEvents() {
                       </label>
                       <input
                         type="text"
+                        placeholder="SEAL HACKATHON SUMMER 2026"
                         value={eventForm.eventName}
                         onChange={(e) =>
                           setEventForm({
@@ -539,7 +549,7 @@ export function CreateEvents() {
                             eventName: e.target.value,
                           })
                         }
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-fpt-orange"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-5">
@@ -555,7 +565,7 @@ export function CreateEvents() {
                               season: e.target.value,
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-fpt-orange"
                         >
                           <option value="Spring">Spring</option>
                           <option value="Summer">Summer</option>
@@ -576,7 +586,7 @@ export function CreateEvents() {
                               year: Number(e.target.value),
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-blue-400"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:border-fpt-orange"
                         />
                       </div>
                     </div>
@@ -585,7 +595,7 @@ export function CreateEvents() {
                     <button
                       onClick={handleSaveEvent}
                       disabled={isSavingEvent}
-                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl flex items-center gap-2"
+                      className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-bold rounded-2xl flex items-center gap-2"
                     >
                       {isSavingEvent ? (
                         <Loader2 size={18} className="animate-spin" />
@@ -611,7 +621,7 @@ export function CreateEvents() {
                         { id: Date.now(), name: "", topics: [] },
                       ])
                     }
-                    className="px-5 py-2.5 bg-blue-50 text-blue-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-blue-100"
+                    className="px-5 py-2.5 bg-fpt-orange-soft text-fpt-orange-dark text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-fpt-orange/15"
                   >
                     <Plus size={16} strokeWidth={3} /> Add Track
                   </button>
@@ -632,9 +642,10 @@ export function CreateEvents() {
                       </button>
                       <div className="mb-6 w-3/4">
                         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                          Track Name #{idx + 1}
+                          Track Name {idx + 1}
                         </label>
                         <input
+                          placeholder="IOT"
                           type="text"
                           value={t.name}
                           onChange={(e) =>
@@ -724,7 +735,7 @@ export function CreateEvents() {
                   <button
                     onClick={handleSaveTracks}
                     disabled={isSavingTracks}
-                    className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl flex items-center gap-2"
+                    className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-bold rounded-2xl flex items-center gap-2"
                   >
                     {isSavingTracks ? (
                       <Loader2 size={18} className="animate-spin" />
@@ -811,7 +822,7 @@ export function CreateEvents() {
                                 ),
                               )
                             }
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-extrabold text-[#0a192f] outline-none focus:border-blue-400"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-extrabold text-[#0a192f] outline-none focus:border-fpt-orange"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-5 mb-5">
@@ -896,7 +907,7 @@ export function CreateEvents() {
                                   ),
                                 )
                               }
-                              className="w-full px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-extrabold outline-none"
+                              className="w-full px-4 py-3 bg-fpt-blue/10 border border-fpt-blue/25 text-fpt-blue rounded-xl text-sm font-extrabold outline-none"
                             />
                           </div>
                         </div>
@@ -906,7 +917,7 @@ export function CreateEvents() {
                   <div className="flex justify-end pt-8 mt-8 border-t border-slate-100">
                     <button
                       onClick={handleContinueToRubrics}
-                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg flex items-center gap-2"
+                      className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-bold rounded-2xl shadow-lg flex items-center gap-2"
                     >
                       Continue to Rubrics{" "}
                       <ArrowRight size={18} strokeWidth={2.5} />
@@ -928,7 +939,9 @@ export function CreateEvents() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div
+                  className={`grid grid-cols-1 gap-8 ${dynamicRounds.length > 1 ? "lg:grid-cols-2" : "max-w-2xl mx-auto w-full"}`}
+                >
                   {dynamicRounds.map((round) => (
                     <div
                       key={round.id}
@@ -1027,7 +1040,7 @@ export function CreateEvents() {
                                     ),
                                   )
                                 }
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-blue-400"
+                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold outline-none focus:border-fpt-orange"
                               >
                                 <option value="" disabled>
                                   -- Choose a Rubric Set --

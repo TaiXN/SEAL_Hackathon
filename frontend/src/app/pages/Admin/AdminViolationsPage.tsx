@@ -327,7 +327,7 @@ export function AdminViolationsPage() {
             <select
               value={selectedEventId}
               onChange={(e) => handleSelectEvent(e.target.value)}
-              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
             >
               <option value="">-- Select Event --</option>
               {eventOptions.map((ev) => (
@@ -341,7 +341,7 @@ export function AdminViolationsPage() {
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <option value="">
                 {selectedEventId
@@ -388,13 +388,13 @@ export function AdminViolationsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search team name..."
-                className="w-full pl-11 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="w-full pl-11 pr-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-5 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-600 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
+              className="px-5 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-600 outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
             >
               <option value="All Status">All Status</option>
               <option value="Pending">Pending</option>
@@ -472,7 +472,7 @@ export function AdminViolationsPage() {
                                 onClick={() =>
                                   handleApprove(team.id, team.name)
                                 }
-                                className="px-5 py-2.5 bg-[#0a192f] text-white text-xs font-extrabold rounded-xl hover:bg-slate-800 flex items-center gap-1.5 transition-all shadow-md shadow-slate-900/10"
+                                className="px-5 py-2.5 bg-fpt-orange text-white text-xs font-extrabold rounded-xl hover:bg-fpt-orange-dark flex items-center gap-1.5 transition-all shadow-md shadow-slate-900/10"
                               >
                                 <CheckCircle2 size={16} strokeWidth={2.5} />{" "}
                                 Approve

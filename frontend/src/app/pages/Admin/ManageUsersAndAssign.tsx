@@ -115,7 +115,7 @@ export function ManageUsersAndAssign() {
         icon: "success",
         title: "Account Created!",
         html: "Redirecting to Assignment tab...",
-        confirmButtonColor: "#0a192f",
+        confirmButtonColor: "#f26f21",
         customClass: {
           popup: "rounded-[2rem]",
           confirmButton: "rounded-xl font-bold px-8 py-3",
@@ -374,7 +374,7 @@ export function ManageUsersAndAssign() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`whitespace-nowrap px-8 py-4 text-sm font-extrabold border-b-[3px] transition-all flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? "border-[#0a192f] text-[#0a192f] bg-white rounded-t-2xl shadow-sm"
+                    ? "border-fpt-orange text-fpt-orange bg-white rounded-t-2xl shadow-sm"
                     : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white rounded-t-2xl"
                 }`}
               >
@@ -477,7 +477,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Nguyen Van A"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -494,7 +494,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., teacher@fpt.edu.vn"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -511,7 +511,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., 0987654321"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -528,7 +528,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="Enter secure password"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-blue-600 placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-blue-600 placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -545,7 +545,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Software Engineering Dept."
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -578,7 +578,7 @@ export function ManageUsersAndAssign() {
                     <button
                       type="button"
                       onClick={handleCreateTeacher}
-                      className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
+                      className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-fpt-orange-dark hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
                     >
                       <Plus size={18} strokeWidth={2.5} /> Create Account
                     </button>
@@ -601,7 +601,7 @@ export function ManageUsersAndAssign() {
                     <select
                       value={selectedEventId}
                       onChange={(e) => setSelectedEventId(e.target.value)}
-                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
+                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
                     >
                       <option
                         value=""
@@ -637,7 +637,7 @@ export function ManageUsersAndAssign() {
                       <select
                         value={trackIdToManage}
                         onChange={(e) => setTrackIdToManage(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all"
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
                       >
                         <option
                           value=""
@@ -683,7 +683,7 @@ export function ManageUsersAndAssign() {
                           <button
                             onClick={loadAllTeachers}
                             disabled={isRefreshing}
-                            className="text-[11px] text-blue-600 font-extrabold flex items-center gap-1.5 hover:text-blue-800 transition-colors"
+                            className="text-[11px] text-fpt-orange-dark font-extrabold flex items-center gap-1.5 hover:text-fpt-orange transition-colors"
                           >
                             <RefreshCw
                               size={12}
@@ -700,7 +700,7 @@ export function ManageUsersAndAssign() {
                               teacherId: e.target.value,
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer appearance-none transition-all"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer appearance-none transition-all"
                         >
                           <option
                             value=""
@@ -754,7 +754,7 @@ export function ManageUsersAndAssign() {
                       <button
                         type="button"
                         onClick={handleAssignTeacher}
-                        className="w-full md:w-auto px-8 py-3.5 bg-[#0a192f] text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 active:translate-y-0 transition-all h-[52px] mb-0.5"
+                        className="w-full md:w-auto px-8 py-3.5 bg-fpt-orange text-white font-bold rounded-2xl hover:bg-fpt-orange-dark shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 active:translate-y-0 transition-all h-[52px] mb-0.5"
                       >
                         Assign Role
                       </button>

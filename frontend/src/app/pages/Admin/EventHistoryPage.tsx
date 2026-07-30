@@ -94,7 +94,7 @@ export function EventHistoryPage() {
           title: "Deleted!",
           text: "The event has been successfully removed.",
           icon: "success",
-          confirmButtonColor: "#0a192f",
+          confirmButtonColor: "#f26f21",
           customClass: { confirmButton: "rounded-xl font-bold px-6 py-2.5" },
         });
         setEvents((prevEvents) =>
@@ -127,7 +127,7 @@ export function EventHistoryPage() {
 
           <button
             onClick={() => navigate("create")}
-            className="flex items-center gap-2 px-8 py-3.5 bg-[#0a192f] text-white text-sm font-black rounded-2xl border-2 border-[#0a192f] border-b-[6px] hover:bg-slate-800 hover:border-b-black active:border-b-[2px] active:translate-y-[4px] transition-all"
+            className="flex items-center gap-2 px-8 py-3.5 bg-fpt-orange text-white text-sm font-black rounded-2xl border-2 border-fpt-orange border-b-[6px] hover:bg-fpt-orange-dark hover:border-b-fpt-orange-dark active:border-b-[2px] active:translate-y-[4px] transition-all"
           >
             <Plus size={20} strokeWidth={3} /> Initialize Event
           </button>
@@ -139,7 +139,7 @@ export function EventHistoryPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all appearance-none"
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all appearance-none"
             >
               <option value="All">All Statuses</option>
               <option value="Ongoing">Ongoing</option>
@@ -149,7 +149,7 @@ export function EventHistoryPage() {
             <select
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 cursor-pointer transition-all appearance-none"
+              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all appearance-none"
             >
               <option value="All">All Seasons</option>
               <option value="Spring">Spring</option>
@@ -165,7 +165,7 @@ export function EventHistoryPage() {
               placeholder="Search event name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-sm font-semibold text-[#0a192f] rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
+              className="w-full bg-slate-50 border border-slate-200 text-sm font-semibold text-[#0a192f] rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all placeholder:text-slate-400"
             />
           </div>
         </div>
@@ -211,7 +211,7 @@ export function EventHistoryPage() {
                       className="hover:bg-slate-50 transition-colors group"
                     >
                       <td className="px-8 py-5">
-                        <span className="font-black text-[#0a192f] text-lg group-hover:text-blue-600 transition-colors">
+                        <span className="font-black text-[#0a192f] text-lg group-hover:text-fpt-orange transition-colors">
                           {event.name || event.eventName}
                         </span>
                       </td>
@@ -239,7 +239,7 @@ export function EventHistoryPage() {
                       <td className="px-8 py-5 flex justify-end gap-2">
                         <button
                           onClick={() => navigate(`/admin/events/${event.id}`)}
-                          className="flex items-center gap-1.5 px-4 py-2 text-[#0a192f] bg-slate-100 border border-slate-200 hover:bg-[#0a192f] hover:text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                          className="flex items-center gap-1.5 px-4 py-2 text-[#0a192f] bg-slate-100 border border-slate-200 hover:bg-fpt-orange hover:text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                         >
                           <Eye size={16} strokeWidth={2.5} /> Manage
                         </button>

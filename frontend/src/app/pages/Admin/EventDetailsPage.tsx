@@ -19,6 +19,7 @@ import {
   Medal,
   Users,
   Plus,
+  Calendar,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import apiClient from "../../lib/api/apiClient";
@@ -64,6 +65,24 @@ const isNotFoundError = (e: any): boolean => {
   if (e?.response?.status === 404) return true;
   const msg = getServerMsg(e).toLowerCase();
   return msg.includes("not found") || msg.includes("không tìm thấy");
+};
+
+// Chuyển ISO string (UTC) sang định dạng cho input datetime-local (giờ local)
+const toDatetimeLocalValue = (isoStr: string): string => {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+// Định dạng ngày giờ để hiển thị đẹp trên UI (dd/mm/yyyy hh:mm)
+const formatDisplayDateTime = (isoStr: string): string => {
+  if (!isoStr) return "N/A";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "N/A";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 export function EventDetailsPage() {
@@ -220,6 +239,9 @@ export function EventDetailsPage() {
 
   // --- HANDLER XỬ LÝ ROUND ---
   const handleEditRound = async (round: any) => {
+    const startVal = toDatetimeLocalValue(round.startDate || round.StartDate);
+    const endVal = toDatetimeLocalValue(round.endDate || round.EndDate);
+
     const { value: formValues } = await Swal.fire({
       title: "Edit Round Details",
       html: `
@@ -228,18 +250,40 @@ export function EventDetailsPage() {
           <input id="sw-rname" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.roundName}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">TOP N PROMOTION</label>
           <input id="sw-topn" type="number" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.topNPromotion ?? round.TopNPromotion ?? 0}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">START DATE &amp; TIME</label>
+          <input id="sw-start" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${startVal}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">END DATE &amp; TIME</label>
+          <input id="sw-end" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${endVal}">
         </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: "Save Changes",
       preConfirm: () => {
+        const startInput = (
+          document.getElementById("sw-start") as HTMLInputElement
+        ).value;
+        const endInput = (
+          document.getElementById("sw-end") as HTMLInputElement
+        ).value;
+
+        if (!startInput || !endInput) {
+          Swal.showValidationMessage("Please select both start and end date/time");
+          return false;
+        }
+        if (new Date(endInput) <= new Date(startInput)) {
+          Swal.showValidationMessage("End date/time must be after start date/time");
+          return false;
+        }
+
         return {
           roundName: (document.getElementById("sw-rname") as HTMLInputElement)
             .value,
           topNPromotion: Number(
             (document.getElementById("sw-topn") as HTMLInputElement).value,
           ),
+          startDate: new Date(startInput).toISOString(),
+          endDate: new Date(endInput).toISOString(),
         };
       },
     });
@@ -254,8 +298,8 @@ export function EventDetailsPage() {
           topNPromotion: formValues.topNPromotion,
           maxTeam: round.maxTeam || 0,
           roundIndex: round.roundIndex ?? round.RoundIndex,
-          startDate: round.startDate || round.StartDate,
-          endDate: round.endDate || round.EndDate,
+          startDate: formValues.startDate,
+          endDate: formValues.endDate,
           criteriaSetID: round.criteriaSetID || round.criteriaSetId,
         });
 
@@ -308,7 +352,7 @@ export function EventDetailsPage() {
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
-        confirmButton: "rounded-xl font-bold px-6 py-2 bg-[#0a192f]",
+        confirmButton: "rounded-xl font-bold px-6 py-2 bg-fpt-orange",
         cancelButton:
           "rounded-xl font-bold px-6 py-2 bg-slate-100 text-slate-700",
       },
@@ -408,7 +452,7 @@ export function EventDetailsPage() {
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
-        confirmButton: "rounded-xl font-bold px-6 py-2 bg-[#0a192f]",
+        confirmButton: "rounded-xl font-bold px-6 py-2 bg-fpt-orange",
         cancelButton:
           "rounded-xl font-bold px-6 py-2 bg-slate-100 text-slate-700",
       },
@@ -538,7 +582,7 @@ export function EventDetailsPage() {
       inputPlaceholder: "Enter track name...",
       showCancelButton: true,
       confirmButtonText: "Add Track",
-      confirmButtonColor: "#0a192f",
+      confirmButtonColor: "#f26f21",
       customClass: {
         popup: "rounded-[2rem]",
         confirmButton: "rounded-xl font-bold px-6 py-2",
@@ -572,7 +616,7 @@ export function EventDetailsPage() {
       inputPlaceholder: "Enter topic name...",
       showCancelButton: true,
       confirmButtonText: "Add Topic",
-      confirmButtonColor: "#0a192f",
+      confirmButtonColor: "#f26f21",
       customClass: {
         popup: "rounded-[2rem]",
         confirmButton: "rounded-xl font-bold px-6 py-2",
@@ -635,7 +679,7 @@ export function EventDetailsPage() {
         Swal.fire({
           icon: "success",
           title: "Saved Successfully!",
-          confirmButtonColor: "#0a192f",
+          confirmButtonColor: "#f26f21",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -686,15 +730,17 @@ export function EventDetailsPage() {
 
     if (isLastRound) {
       const lastRoundIndex = Number(
-        currentRoundObj.roundIndex ?? currentRoundObj.RoundIndex ?? rawCurrentRound,
+        currentRoundObj.roundIndex ??
+          currentRoundObj.RoundIndex ??
+          rawCurrentRound,
       );
 
       const result = await Swal.fire({
         title: "Conclude Tournament?",
-        html: "The server has no automated \"conclude\" step yet, so this will <b>manually mark the event as ended</b> and lock all further editing. The current leaderboard of the final round becomes the official final result. This cannot be undone from this screen.",
+        html: 'The server has no automated "conclude" step yet, so this will <b>manually mark the event as ended</b> and lock all further editing. The current leaderboard of the final round becomes the official final result. This cannot be undone from this screen.',
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#0a192f",
+        confirmButtonColor: "#f26f21",
         cancelButtonColor: "#cbd5e1",
         confirmButtonText: "Yes, Force Conclude",
         cancelButtonText: "Cancel",
@@ -719,7 +765,7 @@ export function EventDetailsPage() {
           icon: "success",
           title: "Concluded!",
           text: "The event has been marked as ended.",
-          confirmButtonColor: "#0a192f",
+          confirmButtonColor: "#f26f21",
           customClass: { confirmButton: "rounded-xl font-bold px-6 py-2" },
         });
         const updatedData = await eventApi.getEventById(id);
@@ -743,7 +789,7 @@ export function EventDetailsPage() {
       text: `${actionText} This action cannot be undone!`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#0a192f",
+      confirmButtonColor: "#f26f21",
       cancelButtonColor: "#cbd5e1",
       confirmButtonText: "Yes, Advance Teams!",
       cancelButtonText: "Cancel",
@@ -762,7 +808,7 @@ export function EventDetailsPage() {
           icon: "success",
           title: "Success!",
           text: "Event status updated successfully.",
-          confirmButtonColor: "#0a192f",
+          confirmButtonColor: "#f26f21",
           customClass: { confirmButton: "rounded-xl font-bold px-6 py-2" },
         });
         const updatedData = await eventApi.getEventById(id);
@@ -904,7 +950,7 @@ export function EventDetailsPage() {
       cancelButtonText: "Cancel",
       customClass: {
         popup: "rounded-[2rem]",
-        confirmButton: "rounded-xl font-bold px-6 py-2.5 bg-[#0a192f]",
+        confirmButton: "rounded-xl font-bold px-6 py-2.5 bg-fpt-orange",
         cancelButton:
           "rounded-xl font-bold px-6 py-2.5 bg-slate-100 text-slate-700",
       },
@@ -1215,7 +1261,7 @@ export function EventDetailsPage() {
             <div className="flex items-center gap-4 mb-2">
               <button
                 onClick={() => navigate("/admin/events")}
-                className="text-slate-400 hover:text-[#0a192f] transition-colors p-2 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-slate-300"
+                className="text-slate-400 hover:text-fpt-orange transition-colors p-2 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-slate-300"
               >
                 <ArrowLeft size={24} />
               </button>
@@ -1272,7 +1318,7 @@ export function EventDetailsPage() {
                   type="text"
                   value={event.name || ""}
                   onChange={(e) => setEvent({ ...event, name: e.target.value })}
-                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#0a192f] text-base ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"}`}
+                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#0a192f] text-base ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
                 />
               </div>
 
@@ -1282,7 +1328,7 @@ export function EventDetailsPage() {
                   Current Status
                 </label>
                 <div
-                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${curRound < 0 ? "bg-amber-50 border-amber-200 text-amber-700" : isEnded ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-blue-50 border-blue-200 text-blue-700"}`}
+                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${curRound < 0 ? "bg-amber-50 border-amber-200 text-amber-700" : isEnded ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"}`}
                 >
                   <span className="text-sm uppercase tracking-widest">
                     {currentRoundName}
@@ -1301,7 +1347,15 @@ export function EventDetailsPage() {
               Tournament Rounds
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              className={`grid grid-cols-1 gap-6 ${
+                eventRounds.length >= 3
+                  ? "md:grid-cols-2 lg:grid-cols-3"
+                  : eventRounds.length === 2
+                    ? "md:grid-cols-2"
+                    : "max-w-md mx-auto w-full"
+              }`}
+            >
               {eventRounds.map((r, idx) => (
                 <div
                   key={r.roundID || r.roundId || r.id}
@@ -1320,7 +1374,7 @@ export function EventDetailsPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleEditRound(r)}
-                          className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-100 rounded-lg shadow-sm"
+                          className="p-2 text-slate-400 hover:text-fpt-orange bg-white border border-slate-100 rounded-lg shadow-sm"
                         >
                           <Pencil size={14} />
                         </button>
@@ -1337,7 +1391,7 @@ export function EventDetailsPage() {
                     <p className="flex justify-between">
                       <span>Advance Top N:</span>
                       {/* FIX: Bắt tất cả các case viết hoa/thường từ API */}
-                      <span className="text-blue-600">
+                      <span className="text-fpt-blue">
                         {r.topNPromotion ??
                           r.topNpromotion ??
                           r.TopNPromotion ??
@@ -1348,6 +1402,26 @@ export function EventDetailsPage() {
                       <span>Max Teams:</span>{" "}
                       <span className="text-[#0a192f]">{r.maxTeam ?? 0}</span>
                     </p>
+                    <div className="pt-2 mt-2 border-t border-slate-200 space-y-1.5">
+                      <p className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Calendar size={13} strokeWidth={2.5} /> Start:
+                        </span>
+                        <span className="text-[#0a192f] text-xs font-bold">
+                          {formatDisplayDateTime(
+                            r.startDate || r.StartDate,
+                          )}
+                        </span>
+                      </p>
+                      <p className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Calendar size={13} strokeWidth={2.5} /> End:
+                        </span>
+                        <span className="text-[#0a192f] text-xs font-bold">
+                          {formatDisplayDateTime(r.endDate || r.EndDate)}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1362,18 +1436,20 @@ export function EventDetailsPage() {
             {!isEnded && (
               <button
                 onClick={handleAddTrack}
-                className="px-5 py-2.5 bg-blue-50 text-blue-600 text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-blue-100 transition-colors"
+                className="px-5 py-2.5 bg-fpt-orange-soft text-fpt-orange-dark text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-fpt-orange/15 transition-colors"
               >
                 <Plus size={16} strokeWidth={3} /> Add Track
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            className={`grid grid-cols-1 gap-6 ${tracks.length > 1 ? "md:grid-cols-2" : tracks.length === 1 ? "max-w-xl mx-auto w-full" : ""}`}
+          >
             {tracks.length > 0 ? (
               tracks.map((track: any, idx: number) => (
                 <div
                   key={track.trackID || track.trackId || idx}
-                  className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-5 hover:border-blue-100 transition-colors"
+                  className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-5 hover:border-fpt-orange/30 transition-colors"
                 >
                   <div className="flex gap-4 items-center justify-between border-b border-slate-100 pb-4">
                     <div className="flex-1">
@@ -1389,7 +1465,7 @@ export function EventDetailsPage() {
                         <button
                           onClick={() => handleEditTrack(track)}
                           title="Rename Track"
-                          className="text-slate-400 hover:text-blue-600 p-2 rounded-xl hover:bg-blue-50 transition-colors bg-slate-50"
+                          className="text-slate-400 hover:text-fpt-orange p-2 rounded-xl hover:bg-fpt-orange-soft transition-colors bg-slate-50"
                         >
                           <Pencil size={16} strokeWidth={2.5} />
                         </button>
@@ -1419,7 +1495,7 @@ export function EventDetailsPage() {
                               <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => handleEditTopic(topic, track)}
-                                  className="text-slate-400 hover:text-blue-600"
+                                  className="text-slate-400 hover:text-fpt-orange"
                                   title="Edit Topic"
                                 >
                                   <Pencil size={12} strokeWidth={2.5} />
@@ -1446,7 +1522,7 @@ export function EventDetailsPage() {
                       {!isEnded && (
                         <button
                           onClick={() => handleAddTopic(track)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 text-slate-400 rounded-xl text-xs font-bold hover:border-blue-400 hover:text-blue-600 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 text-slate-400 rounded-xl text-xs font-bold hover:border-fpt-orange hover:text-fpt-orange transition-colors"
                         >
                           <Plus size={14} strokeWidth={3} /> Add Topic
                         </button>
@@ -1492,7 +1568,9 @@ export function EventDetailsPage() {
                 No rubric sets linked to this event.
               </p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div
+                className={`grid grid-cols-1 gap-6 ${criteriaSets.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto w-full"}`}
+              >
                 {criteriaSets.map((set: any, setIdx: number) => {
                   const total = sumWeight(set.items);
                   return (
@@ -1510,10 +1588,10 @@ export function EventDetailsPage() {
                               updateSetNameLocal(setIdx, e.target.value)
                             }
                             disabled={isEnded}
-                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isEnded ? "bg-transparent text-[#0a192f] cursor-not-allowed" : "bg-white border border-slate-200 text-[#0a192f] focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all shadow-sm"}`}
+                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isEnded ? "bg-transparent text-[#0a192f] cursor-not-allowed" : "bg-white border border-slate-200 text-[#0a192f] focus:border-fpt-orange focus:ring-2 focus:ring-fpt-orange/10 transition-all shadow-sm"}`}
                           />
                           {set.roundName && (
-                            <span className="text-[9px] px-2.5 py-1 rounded-md bg-[#0a192f] text-white font-bold uppercase tracking-widest shrink-0 shadow-sm">
+                            <span className="text-[9px] px-2.5 py-1 rounded-md bg-fpt-orange text-white font-bold uppercase tracking-widest shrink-0 shadow-sm">
                               {set.roundName}
                             </span>
                           )}
@@ -1564,7 +1642,7 @@ export function EventDetailsPage() {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isEnded ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"}`}
+                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isEnded ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#0a192f] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10"}`}
                                 />
                                 <span className="text-xs text-slate-400 font-bold">
                                   %
@@ -1574,7 +1652,7 @@ export function EventDetailsPage() {
                                 <div className="flex items-center gap-1 shrink-0 ml-2">
                                   <button
                                     onClick={() => handleEditCriterion(it)}
-                                    className="text-slate-300 hover:text-blue-600 p-2 rounded-xl hover:bg-blue-50 transition-colors"
+                                    className="text-slate-300 hover:text-fpt-orange p-2 rounded-xl hover:bg-fpt-orange-soft transition-colors"
                                   >
                                     <Pencil size={14} strokeWidth={2.5} />
                                   </button>
@@ -1602,7 +1680,7 @@ export function EventDetailsPage() {
                           <button
                             onClick={() => handleSaveSet(set)}
                             disabled={total !== 100 || !set.setName.trim()}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#0a192f] text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2 bg-fpt-orange text-white text-xs font-bold rounded-xl hover:bg-fpt-orange-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
                           >
                             <Save size={14} strokeWidth={2.5} /> Save Updates
                           </button>
@@ -1805,19 +1883,19 @@ export function EventDetailsPage() {
                       disabled={
                         isLoading || isLoadingTeams || roundTeams.length === 0
                       }
-                      className="w-full sm:w-auto px-8 py-4 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-8 py-4 bg-fpt-orange text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-fpt-orange-dark hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FastForward size={18} strokeWidth={2.5} />
                       {isLastRound
-                        ? "Force Conclude Event"
+                        ? "Conclude Event"
                         : `Advance Top ${advanceTopN} Teams to Next Round`}
                     </button>
-                    {isLastRound && (
+                    {/* {isLastRound && (
                       <p className="text-xs text-slate-400 font-medium text-right max-w-xs">
                         No backend "conclude" step exists yet — this manually
                         marks the event as ended on the frontend.
                       </p>
-                    )}
+                    )} */}
                   </div>
                 </div>
               )}

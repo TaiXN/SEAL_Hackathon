@@ -101,7 +101,7 @@ export function AdminLeaderboardPage() {
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose an Event --
@@ -125,7 +125,7 @@ export function AdminLeaderboardPage() {
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-50 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose a Round --
@@ -149,7 +149,7 @@ export function AdminLeaderboardPage() {
               value={selectedTrackId}
               onChange={(e) => setSelectedTrackId(e.target.value)}
               disabled={!selectedRoundId}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-50 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose a Track --

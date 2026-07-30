@@ -199,7 +199,7 @@ export function ProfilePage() {
             {/* ĐỔI MẬT KHẨU */}
             <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h3 className="text-xl font-extrabold text-[#0a192f] flex items-center gap-3 border-b border-slate-100 pb-5 mb-6">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div className="p-2 bg-fpt-orange-soft text-fpt-orange rounded-lg">
                   <Key size={20} strokeWidth={2.5} />
                 </div>
                 Change Password
@@ -219,12 +219,12 @@ export function ProfilePage() {
                       placeholder="Enter current password"
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowOldPassword(!showOldPassword)}
-                      className="absolute right-4 top-3.5 text-slate-400 hover:text-[#0a192f] transition-colors"
+                      className="absolute right-4 top-3.5 text-slate-400 hover:text-fpt-orange transition-colors"
                     >
                       {showOldPassword ? (
                         <EyeOff size={18} />
@@ -245,12 +245,12 @@ export function ProfilePage() {
                       placeholder="Enter new password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-4 top-3.5 text-slate-400 hover:text-[#0a192f] transition-colors"
+                      className="absolute right-4 top-3.5 text-slate-400 hover:text-fpt-orange transition-colors"
                     >
                       {showNewPassword ? (
                         <EyeOff size={18} />
@@ -271,14 +271,14 @@ export function ProfilePage() {
                       placeholder="Retype new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute right-4 top-3.5 text-slate-400 hover:text-[#0a192f] transition-colors"
+                      className="absolute right-4 top-3.5 text-slate-400 hover:text-fpt-orange transition-colors"
                     >
                       {showConfirmPassword ? (
                         <EyeOff size={18} />
@@ -292,7 +292,7 @@ export function ProfilePage() {
                 <div className="pt-4 border-t border-slate-100">
                   <button
                     type="submit"
-                    className="px-8 py-3.5 bg-[#0a192f] text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 transition-all w-full sm:w-auto"
+                    className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-fpt-orange-dark hover:-translate-y-0.5 active:translate-y-0 transition-all w-full sm:w-auto"
                   >
                     Update Password
                   </button>
