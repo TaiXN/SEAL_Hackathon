@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowRight, Check, ArrowLeft, ChevronDown, Eye, EyeOff } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  ArrowLeft,
+  ChevronDown,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
@@ -420,7 +427,9 @@ export function AuthLayout() {
                       className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
                       value={regPhone}
                       onChange={(e) =>
-                        setRegPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                        setRegPhone(
+                          e.target.value.replace(/\D/g, "").slice(0, 10),
+                        )
                       }
                     />
                   </div>
@@ -535,7 +544,9 @@ export function AuthLayout() {
                         value={regPassword}
                         onChange={(e) => {
                           setRegPassword(e.target.value);
-                          setRegPasswordErrors(getPasswordErrors(e.target.value));
+                          setRegPasswordErrors(
+                            getPasswordErrors(e.target.value),
+                          );
                         }}
                         onBlur={() => setRegPasswordTouched(true)}
                       />

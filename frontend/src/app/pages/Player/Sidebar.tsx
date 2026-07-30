@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
+  ChevronDown,
   LayoutDashboard,
   Users,
   LogOut,
@@ -23,6 +24,7 @@ export function Sidebar() {
   const [canSubmitProject, setCanSubmitProject] = useState(false);
   const [teamHistory, setTeamHistory] = useState<any[]>([]);
   const [activeTeamId, setActiveTeamId] = useState("");
+  const [teamsOpen, setTeamsOpen] = useState(true);
 
   const fetchPlayerTeamRole = async () => {
     try {
@@ -75,29 +77,31 @@ export function Sidebar() {
     String(team?.teamName || team?.TeamName || team?.name || "Unnamed Team");
 
   return (
-    <aside className="w-[280px] bg-white border-r border-gray-200 flex flex-col h-full shrink-0 relative z-30">
-      <div className="h-24 flex items-center px-8 shrink-0">
-        <Hexagon className="w-7 h-7 text-black fill-black mr-3 shrink-0" />
+    <aside className="w-[280px] min-h-screen self-stretch bg-white border-r border-slate-200 flex flex-col shrink-0 relative z-30 shadow-[12px_0_30px_rgba(15,23,42,0.04)]">
+      <div className="h-24 flex items-center px-7 shrink-0 border-b border-slate-100">
+        <div className="w-11 h-11 rounded-xl bg-[#f26f21] text-white flex items-center justify-center mr-3 shrink-0 shadow-sm">
+          <Hexagon className="w-6 h-6 fill-white" />
+        </div>
 
         <div className="flex flex-col">
-          <span className="font-extrabold text-2xl tracking-tighter text-black leading-none">
-            Hackathon
+          <span className="font-extrabold text-xl tracking-tight text-slate-950 leading-none">
+            FPT Hackathon
           </span>
-          <span className="text-[11px] font-bold text-gray-400 mt-1 uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-[#f26f21] mt-1 uppercase tracking-widest">
             {canSubmitProject ? "Team Leader" : "Team Member"}
           </span>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1 mt-4">
+      <nav className="flex-1 px-4 space-y-1 mt-5">
         <NavLink
           to="/player"
           end
           className={({ isActive }) =>
-            `flex items-center px-4 py-3.5 text-[15px] font-bold transition-all ${
+            `flex items-center px-4 py-3.5 text-[15px] font-bold transition-all rounded-lg ${
               isActive
-                ? "bg-black text-white"
-                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                ? "bg-[#f26f21] text-white shadow-sm"
+                : "text-slate-500 hover:bg-orange-50 hover:text-[#c2410c]"
             }`
           }
         >
@@ -105,28 +109,81 @@ export function Sidebar() {
           Dashboard
         </NavLink>
 
-        <NavLink
-          to="/player/team"
-          className={({ isActive }) =>
-            `flex items-center px-4 py-3.5 text-[15px] font-bold transition-all ${
-              isActive
-                ? "bg-black text-white"
-                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            }`
-          }
-        >
-          <Users className="w-5 h-5 mr-3" strokeWidth={2.5} />
-          My Team
-        </NavLink>
+        <div>
+          <div className="flex">
+            <NavLink
+              to="/player/team"
+              onClick={() => setTeamsOpen(true)}
+              className={({ isActive }) =>
+                `flex min-w-0 flex-1 items-center px-4 py-3.5 text-[15px] font-bold transition-all rounded-l-lg ${
+                  isActive
+                    ? "bg-[#f26f21] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-orange-50 hover:text-[#c2410c]"
+                }`
+              }
+            >
+              <Users className="w-5 h-5 mr-3 shrink-0" strokeWidth={2.5} />
+              <span className="truncate">My Team</span>
+            </NavLink>
+
+            {teamHistory.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTeamsOpen((open) => !open)}
+                className="w-12 flex items-center justify-center text-slate-500 hover:bg-orange-50 hover:text-[#c2410c] transition-colors rounded-r-lg"
+                aria-label={teamsOpen ? "Collapse teams" : "Expand teams"}
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    teamsOpen ? "rotate-180" : ""
+                  }`}
+                  strokeWidth={2.5}
+                />
+              </button>
+            )}
+          </div>
+
+          {teamHistory.length > 0 && teamsOpen && (
+            <div className="ml-8 mt-2 space-y-1 max-h-48 overflow-y-auto pr-1 border-l border-orange-100 pl-3">
+              {teamHistory.map((team) => {
+                const itemTeamId = getTeamId(team);
+                const isActive = itemTeamId && itemTeamId === activeTeamId;
+
+                return (
+                  <button
+                    type="button"
+                    key={itemTeamId || getTeamName(team)}
+                    onClick={() => handleSelectTeam(team)}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-xs font-bold transition-colors rounded-md ${
+                      isActive
+                        ? "bg-[#0b7a3b] text-white"
+                        : "text-slate-500 hover:bg-emerald-50 hover:text-[#0b7a3b]"
+                    }`}
+                    title={getTeamName(team)}
+                  >
+                    <span className="truncate">{getTeamName(team)}</span>
+                    <span
+                      className={`text-[9px] uppercase tracking-wider shrink-0 ${
+                        isActive ? "text-white/70" : "text-gray-400"
+                      }`}
+                    >
+                      {isLeaderTeam(team) ? "Lead" : "Mem"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {canSubmitProject && (
           <NavLink
             to="/player/submit"
             className={({ isActive }) =>
-              `flex items-center px-4 py-3.5 text-[15px] font-bold transition-all ${
+              `flex items-center px-4 py-3.5 text-[15px] font-bold transition-all rounded-lg ${
                 isActive
-                  ? "bg-black text-white"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  ? "bg-[#f26f21] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-orange-50 hover:text-[#c2410c]"
               }`
             }
           >
@@ -136,48 +193,11 @@ export function Sidebar() {
         )}
       </nav>
 
-      {teamHistory.length > 0 && (
-        <div className="px-4 pb-4">
-          <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Teams
-          </p>
-          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-            {teamHistory.map((team) => {
-              const itemTeamId = getTeamId(team);
-              const isActive = itemTeamId && itemTeamId === activeTeamId;
-
-              return (
-                <button
-                  type="button"
-                  key={itemTeamId || getTeamName(team)}
-                  onClick={() => handleSelectTeam(team)}
-                  className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left text-sm font-bold transition-colors ${
-                    isActive
-                      ? "bg-black text-white"
-                      : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                  title={getTeamName(team)}
-                >
-                  <span className="truncate">{getTeamName(team)}</span>
-                  <span
-                    className={`text-[9px] uppercase tracking-wider shrink-0 ${
-                      isActive ? "text-white/70" : "text-gray-400"
-                    }`}
-                  >
-                    {isLeaderTeam(team) ? "Lead" : "Mem"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <div className="shrink-0 px-4 pb-4">
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full flex items-center px-4 py-3.5 text-[15px] font-bold text-[#e03131] hover:bg-red-50 transition-colors text-left"
+          className="w-full flex items-center px-4 py-3.5 text-[15px] font-bold text-[#e03131] hover:bg-red-50 transition-colors text-left rounded-lg"
         >
           <LogOut className="w-5 h-5 mr-3" strokeWidth={2.5} />
           Logout

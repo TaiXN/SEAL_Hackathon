@@ -20,6 +20,7 @@ import { judgeApi } from "../../lib/api/judgeApi";
 import { roundApi } from "../../lib/api/roundApi";
 import { useAuthStore } from "../../stores/auth.store";
 
+// Safely normalize common API response shapes into an array.
 const getList = (res: any): any[] => {
   if (!res) return [];
   if (Array.isArray(res)) return res;
@@ -30,6 +31,7 @@ const getList = (res: any): any[] => {
   return [];
 };
 
+// Normalize ids before comparing values from different API shapes.
 const normalizeId = (id: any) =>
   String(id || "")
     .toLowerCase()
@@ -73,6 +75,7 @@ export function ScoringPage() {
     ] ||
     "";
 
+  // Data state
   const [submissionData, setSubmissionData] = useState({
     githubUrl: "",
     demoUrl: "",
@@ -80,7 +83,7 @@ export function ScoringPage() {
   });
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
 
-  // Tận dụng luôn ID nếu có từ Dashboard truyền sang
+  // Reuse the evaluation id passed from the dashboard when available.
   const [evaluationId, setEvaluationId] = useState<string>(
     teamFromList?.evaluationId ||
       teamFromList?.evaluationID ||
@@ -94,6 +97,7 @@ export function ScoringPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Keep the canonical submission id once it is resolved.
   const [actualSubmissionId, setActualSubmissionId] = useState(
     teamFromList?.submissionId || teamFromList?.submissionID || teamId || "",
   );
@@ -107,7 +111,9 @@ export function ScoringPage() {
       setIsLoading(true);
 
       try {
-        // 1. Fetch submission details
+        // ==========================================
+        // STEP 1: Load the team's submission information.
+        // ==========================================
         let finalRoundId = normalizeId(
           teamFromList?.roundId ||
             teamFromList?.roundID ||
@@ -176,10 +182,12 @@ export function ScoringPage() {
               );
           }
         } catch (e) {
-          console.warn("Error loading Submission:", e);
+          console.warn("Failed to load submissions:", e);
         }
 
-        // 2. Extract Criteria Set ID
+        // ==========================================
+        // STEP 2: Resolve the criteria set id.
+        // ==========================================
         let targetSetId = normalizeId(
           teamFromList?.criteriaSetId ||
             teamFromList?.CriteriaSetId ||
@@ -226,7 +234,9 @@ export function ScoringPage() {
           }
         }
 
-        // 3. Load Criteria Mapping
+        // ==========================================
+        // STEP 3: Load scoring criteria.
+        // ==========================================
         let isCriteriaLoaded = false;
         if (
           targetSetId &&
@@ -243,7 +253,7 @@ export function ScoringPage() {
               const cId = normalizeId(c.criteriaID || c.criteriaId || c.id);
               if (cId)
                 criteriaNameMap[cId] = {
-                  name: c.criteriaName || c.CriteriaName || "System Criterion",
+                  name: c.criteriaName || c.CriteriaName || "System Criteria",
                   desc: c.description || c.Description || "",
                 };
             });
@@ -277,7 +287,7 @@ export function ScoringPage() {
                   item.id;
                 const cId = normalizeId(rawCId);
                 const dictInfo = criteriaNameMap[cId] || {
-                  name: "System Criterion",
+                  name: "Evaluation Criteria",
                   desc: "",
                 };
                 return {
@@ -302,8 +312,7 @@ export function ScoringPage() {
               Swal.fire({
                 icon: "warning",
                 title: "Empty Criteria Set",
-                text: "This round has been assigned a criteria set, but it currently contains no grading items.",
-                customClass: { popup: "rounded-[2rem]" },
+                text: "Admin has not added any questions to this criteria set.",
               });
               isCriteriaLoaded = true;
             }
@@ -313,39 +322,56 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "Scoring Configuration Error",
-            text: "Could not load scoring rubric for this team. Please check the criteria configuration.",
-            customClass: { popup: "rounded-[2rem]" },
+            title: "Configuration Error",
+            text: "Could not load the criteria set. Please contact Admin!",
           });
         }
 
-        // 4. Load Saved Scores
+        // ==========================================
+        // STEP 4: Load the previously saved score.
+        // ==========================================
         try {
           if (actualSubmissionId) {
             const evalRes =
-              await judgeApi.getEvaluationBySubmission(actualSubmissionId);
-            const evalData = evalRes?.data || evalRes;
-            if (
-              evalData &&
-              (evalData.evaluationID ||
-                evalData.id ||
-                evalData.score !== undefined)
-            ) {
-              setEvaluationId(
-                evalData.evaluationID ||
-                  evalData.id ||
-                  evalData.evaluationId ||
-                  "",
-              );
-              setFeedback(evalData.reason || evalData.feedback || "");
-              setSavedScore(evalData.score);
+              await judgeApi.getEvaluationBySubmission(currentSubId);
+            let evalList = evalRes?.data ?? evalRes;
+
+            if (evalList) {
+              // Convert object responses to arrays when needed.
+              if (!Array.isArray(evalList)) {
+                if (Array.isArray(evalList.items)) evalList = evalList.items;
+                else if (Array.isArray(evalList.data)) evalList = evalList.data;
+                else evalList = [evalList];
+              }
+
+              if (Array.isArray(evalList) && evalList.length > 0) {
+                // Prefer the current judge's evaluation.
+                const myEval =
+                  evalList.find(
+                    (e: any) =>
+                      normalizeId(e.teacherId || e.teacherID || e.TeacherId) ===
+                      normalizeId(currentTeacherId),
+                  ) || evalList[0];
+
+                const foundEvalId =
+                  myEval?.evaluationID ||
+                  myEval?.evaluationId ||
+                  myEval?.id ||
+                  myEval?.EvaluationID;
+
+                if (foundEvalId) {
+                  setEvaluationId(String(foundEvalId));
+                  setFeedback(myEval?.reason || myEval?.feedback || "");
+                  setSavedScore(myEval?.score);
+                }
+              }
             }
           }
-        } catch {
-          /* Ignore if no previous score exists */
+        } catch (e) {
+          console.log("This team does not have a previous score.");
         }
       } catch (e) {
-        console.error("Global system error:", e);
+        console.error("Failed to load scoring data:", e);
       } finally {
         setIsLoading(false);
       }
@@ -353,6 +379,7 @@ export function ScoringPage() {
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
 
+  // Score calculation
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
     0,
@@ -379,70 +406,67 @@ export function ScoringPage() {
       return Swal.fire({
         icon: "error",
         title: "Authentication Error",
-        text: "System could not identify Judge ID. Please refresh or log in again.",
-        customClass: { popup: "rounded-[2rem]" },
+        text: "Judge ID was not found.",
       });
     if (criteriaList.length === 0)
       return Swal.fire({
         icon: "warning",
-        title: "Missing Rubric",
-        text: "No evaluation criteria found. Please contact Admin.",
-        customClass: { popup: "rounded-[2rem]" },
+        title: "Missing Score",
+        text: "Please enter a score greater than 0.",
       });
     if (displayScore === 0)
       return Swal.fire({
         icon: "warning",
-        title: "Invalid Score",
-        text: "Please enter a score greater than 0 before submitting.",
-        customClass: { popup: "rounded-[2rem]" },
-      });
-    if (!feedback.trim())
-      return Swal.fire({
-        icon: "warning",
         title: "Missing Feedback",
-        text: "Please provide feedback and comments for the team.",
-        customClass: { popup: "rounded-[2rem]" },
-      });
-    if (!actualSubmissionId)
-      return Swal.fire({
-        icon: "error",
-        title: "Data Error",
-        text: "Valid submission ID not found for this team.",
-        customClass: { popup: "rounded-[2rem]" },
+        text: "Please enter your feedback.",
       });
 
     try {
       setIsSaving(true);
       const basePayload = { score: displayScore, reason: feedback };
 
-      if (evaluationId)
-        await judgeApi.updateEvaluation(currentTeacherId, {
-          ...basePayload,
-          evaluationID: evaluationId,
-        });
-      else
-        await judgeApi.createEvaluation(currentTeacherId, {
-          ...basePayload,
-          submissionID: actualSubmissionId,
-        });
+      if (evaluationId) {
+        // Send PUT with the payload shape expected by the backend.
+        const updatePayload = {
+          score: scoreNum,
+          reason: feedback.trim(),
+          evaluationID: String(evaluationId),
+        };
+
+        await apiClient.put(
+          `/api/Evaluation/${currentTeacherId}`,
+          updatePayload,
+        );
+      } else {
+        // Create a new evaluation.
+        const createPayload = {
+          submissionID: String(actualSubmissionId),
+          score: scoreNum,
+          reason: feedback.trim(),
+        };
+
+        await apiClient.post(
+          `/api/Evaluation/${currentTeacherId}`,
+          createPayload,
+        );
+      }
 
       Swal.fire({
         icon: "success",
         title: "Score Saved Successfully!",
-        text: `The team's total score has been recorded as ${displayScore} points.`,
+        text: `The team has been scored: ${displayScore} points.`,
         timer: 2000,
         showConfirmButton: false,
         customClass: { popup: "rounded-[2rem]" },
       }).then(() => navigate("/judge"));
     } catch (error: any) {
-      console.error("Scoring submission error:", error);
+      console.error("Failed to save score:", error);
       Swal.fire({
         icon: "error",
-        title: "Failed to Save Score",
+        title: "Save Failed",
         text:
           error.response?.data?.message ||
-          "The system rejected the score submission at this time.",
-        customClass: { popup: "rounded-[2rem]" },
+          "The submitted data does not match the backend contract.",
       });
     } finally {
       setIsSaving(false);
@@ -451,9 +475,9 @@ export function ScoringPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f6f8]">
-        <p className="text-slate-400 font-extrabold animate-pulse tracking-wide">
-          Loading submission data and evaluation criteria...
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-400 font-bold animate-pulse">
+          Loading submission data...
         </p>
       </div>
     );
@@ -492,23 +516,23 @@ export function ScoringPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8 px-6">
-        {/* ================= LEFT COLUMN: SUBMISSION INFO ================= */}
-        <div className="lg:col-span-4 space-y-6">
-          <section className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-8 sticky top-32">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                <Activity size={24} strokeWidth={2.5} />
-              </div>
-              <div>
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                  Evaluating Team
-                </p>
-                <h2 className="text-xl font-extrabold text-[#0a192f] leading-tight">
-                  {teamFromList?.teamName ||
-                    teamFromList?.name ||
-                    "Anonymous Team"}
-                </h2>
+      <main className="max-w-6xl mx-auto mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
+        {/* ================= LEFT COLUMN ================= */}
+        <div className="lg:col-span-5 space-y-6">
+          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Activity className="w-6 h-6 text-blue-600" />
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Team Being Scored
+                  </p>
+                  <h2 className="text-xl font-extrabold text-slate-900">
+                    {teamFromList?.teamName ||
+                      teamFromList?.name ||
+                      "Unnamed Team"}
+                  </h2>
+                </div>
               </div>
             </div>
 
@@ -519,21 +543,22 @@ export function ScoringPage() {
                   strokeWidth={2.5}
                 />
                 <div>
-                  <p className="font-extrabold text-emerald-800 text-sm">
-                    Already Evaluated
+                  <p className="font-bold text-emerald-800 text-sm">
+                    Existing Score Found
                   </p>
-                  <p className="text-xs font-semibold text-emerald-600/80 mt-1.5 leading-relaxed">
-                    This team has been scored <b>{savedScore} points</b>. You
-                    can update the scores below.
+                  <p className="text-xs text-emerald-600 mt-1">
+                    This team has already been scored at{" "}
+                    <b>{savedScore} points</b>. To update it, enter the
+                    component scores again.
                   </p>
                 </div>
               </div>
             )}
 
             <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <GitBranch size={14} strokeWidth={2.5} /> Source Code (GitHub)
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <GitBranch size={14} /> Source Code (GitHub)
                 </p>
                 {submissionData.githubUrl ? (
                   <a
@@ -545,8 +570,8 @@ export function ScoringPage() {
                     {submissionData.githubUrl}
                   </a>
                 ) : (
-                  <p className="text-sm font-medium text-slate-400 italic">
-                    Not provided
+                  <p className="text-sm text-slate-400 italic">
+                    Not updated yet
                   </p>
                 )}
               </div>
@@ -565,15 +590,15 @@ export function ScoringPage() {
                     {submissionData.demoUrl}
                   </a>
                 ) : (
-                  <p className="text-sm font-medium text-slate-400 italic">
-                    Not provided
+                  <p className="text-sm text-slate-400 italic">
+                    Not updated yet
                   </p>
                 )}
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Download size={14} strokeWidth={2.5} /> Presentation (Slide)
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <Download size={14} /> Slide Deck
                 </p>
                 {submissionData.slideUrl ? (
                   <a
@@ -582,11 +607,11 @@ export function ScoringPage() {
                     rel="noreferrer"
                     className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all flex items-center gap-1.5"
                   >
-                    View Presentation Deck
+                    View Presentation Slides
                   </a>
                 ) : (
-                  <p className="text-sm font-medium text-slate-400 italic">
-                    Not provided
+                  <p className="text-sm text-slate-400 italic">
+                    Not updated yet
                   </p>
                 )}
               </div>
@@ -594,32 +619,24 @@ export function ScoringPage() {
           </section>
         </div>
 
-        {/* ================= RIGHT COLUMN: SCORING RUBRIC ================= */}
-        <div className="lg:col-span-8">
-          <section className="bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-8 lg:p-10">
-            <div className="border-b border-slate-100 pb-6 mb-8">
-              <h3 className="text-2xl font-extrabold text-[#0a192f] flex items-center gap-3">
-                <FileText
-                  className="text-blue-600"
-                  size={28}
-                  strokeWidth={2.5}
-                />{" "}
-                Evaluation Rubric
-              </h3>
-              <p className="text-sm text-slate-500 mt-2 font-medium">
-                Please enter the score for each criterion. The system will
-                automatically calculate the total.
-              </p>
-            </div>
+        {/* ================= RIGHT COLUMN ================= */}
+        <div className="lg:col-span-7">
+          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 lg:p-8">
+            <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2">
+              <FileText className="text-blue-600" /> Evaluation Rubric
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 font-medium">
+              Enter scores for each criterion. The system will calculate the
+              total.
+            </p>
 
             {criteriaList.length === 0 ? (
-              <div className="p-10 text-center bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-200">
-                <p className="text-slate-500 font-extrabold text-lg">
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <p className="text-slate-500 font-medium text-lg">
                   Empty Criteria Set
                 </p>
-                <p className="text-slate-400 mt-2 text-sm font-medium">
-                  This round currently has no grading criteria configured.
-                  Please contact the Administrator.
+                <p className="text-slate-400 mt-2 text-sm">
+                  This round does not have any scoring questions yet.
                 </p>
               </div>
             ) : (
@@ -638,11 +655,9 @@ export function ScoringPage() {
                           {crit.description}
                         </p>
                       )}
-                      <p className="text-[10px] font-extrabold text-slate-400 mt-3 uppercase tracking-widest bg-white inline-block px-2.5 py-1 rounded-lg border border-slate-100">
-                        Max Score:{" "}
-                        <span className="text-blue-600">
-                          {crit.maxScore} points
-                        </span>
+                      <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                        Maximum Score:{" "}
+                        <span className="text-blue-600">{crit.maxScore}</span>
                       </p>
                     </div>
                     <div className="relative w-36 shrink-0">
@@ -670,15 +685,15 @@ export function ScoringPage() {
               </div>
             )}
 
-            <div className="pt-8 mt-10 border-t border-slate-100">
-              <label className="block text-[11px] font-extrabold text-slate-400 mb-4 uppercase tracking-widest">
-                Feedback & Comments <span className="text-red-500">*</span>
+            <div className="pt-6 mt-6 border-t border-slate-100">
+              <label className="block text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider">
+                Feedback <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                className="w-full h-40 p-5 rounded-2xl border border-slate-200 outline-none text-sm transition-all resize-none bg-slate-50/80 text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 font-semibold placeholder:text-slate-400 placeholder:font-medium shadow-sm"
-                placeholder="Enter detailed feedback, strengths, weaknesses, and constructive comments for the team..."
+                className="w-full h-36 p-4 rounded-xl border outline-none text-sm transition-colors resize-none bg-slate-50 border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-medium"
+                placeholder="Enter detailed feedback..."
               ></textarea>
             </div>
 
@@ -690,7 +705,7 @@ export function ScoringPage() {
               >
                 <Save size={18} strokeWidth={2.5} />
                 {isSaving
-                  ? "Saving..."
+                  ? "Saving score..."
                   : evaluationId
                     ? "Update Score"
                     : "Submit Score"}

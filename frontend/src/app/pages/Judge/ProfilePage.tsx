@@ -37,7 +37,10 @@ export function ProfilePage() {
         id: loadingToastId,
       });
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error(
+        "Backend logout failed, clearing frontend session anyway:",
+        error,
+      );
       toast.error("Something went wrong, but you have been logged out.", {
         id: loadingToastId,
       });
@@ -56,6 +59,11 @@ export function ProfilePage() {
       return;
     }
     const loadingToastId = toast.loading("Sending password change request...");
+    console.log("Submitting password change payload:", {
+      oldPassword,
+      newPassword,
+      confirmPassword,
+    });
     try {
       await authApi.changePassword({
         oldPassword: oldPassword,
@@ -68,7 +76,7 @@ export function ProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (error) {
-      console.error("Password change error:", error);
+      console.error("Password change failed:", error);
       toast.error(
         "Password change failed! Please check your current password.",
         { id: loadingToastId },
@@ -102,7 +110,9 @@ export function ProfilePage() {
           <div className="w-px h-8 bg-slate-200"></div>
           <div className="flex items-center gap-4 cursor-default">
             <div className="text-right">
-              <h2 className="text-sm font-extrabold text-[#0a192f]">Judge</h2>
+              <h2 className="text-sm font-bold text-slate-900">
+                Judge Nguyen Van A
+              </h2>
             </div>
             <div className="w-10 h-10 bg-[#0a192f] text-white rounded-xl flex items-center justify-center font-black text-sm shadow-sm">
               J
@@ -127,11 +137,9 @@ export function ProfilePage() {
               <div className="w-28 h-28 bg-slate-50 rounded-[1.5rem] flex items-center justify-center mb-6 border border-slate-100 shadow-sm">
                 <User size={48} className="text-slate-300" />
               </div>
-              <h3 className="text-2xl font-extrabold text-[#0a192f] text-center leading-tight">
-                Judge Profile
-              </h3>
-              <p className="text-slate-500 font-bold text-sm mt-1 text-center">
-                Expert Panel
+              <h3 className="text-xl font-bold text-slate-900">Nguyen Van A</h3>
+              <p className="text-blue-600 font-bold text-sm mt-1">
+                Judging Panel
               </p>
 
               <div className="mt-6 w-full flex justify-center">
@@ -157,33 +165,55 @@ export function ProfilePage() {
                 </div>
                 Account Details
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {[
-                  { label: "Full Name", icon: User, val: "Judge" },
-                  {
-                    label: "Email Address",
-                    icon: Mail,
-                    val: "judge@fpt.edu.vn",
-                  },
-                  {
-                    label: "Organization",
-                    icon: Building,
-                    val: "FPT University",
-                  },
-                  { label: "Phone Number", icon: Phone, val: "—" },
-                ].map((item, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
-                      <item.icon size={14} strokeWidth={2.5} /> {item.label}
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      defaultValue={item.val}
-                      className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl text-sm font-bold text-slate-600 outline-none cursor-not-allowed"
-                    />
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <User size={14} /> Full Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue="Nguyen Van A"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Mail size={14} /> Email FPTU
+                  </label>
+                  <input
+                    type="email"
+                    defaultValue="anv@fpt.edu.vn"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building size={14} /> Organization / Club
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue="FPT University (HCM Campus)"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Phone size={14} /> Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue="0901234567"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={() => alert("Personal information updated!")}
+                  className="px-6 py-2.5 bg-[#0f172a] text-white text-sm font-bold rounded-lg hover:bg-black transition-colors shadow-sm"
+                >
+                  Update Information
+                </button>
               </div>
             </div>
 
@@ -194,52 +224,68 @@ export function ProfilePage() {
                 </div>
                 Change Password
               </h3>
-              <div className="space-y-5 max-w-md">
-                {[
-                  {
-                    label: "Current Password",
-                    state: oldPassword,
-                    setter: setOldPassword,
-                    show: showCurrentPassword,
-                    setShow: setShowCurrentPassword,
-                  },
-                  {
-                    label: "New Password",
-                    state: newPassword,
-                    setter: setNewPassword,
-                    show: showNewPassword,
-                    setShow: setShowNewPassword,
-                  },
-                  {
-                    label: "Confirm New Password",
-                    state: confirmPassword,
-                    setter: setConfirmPassword,
-                    show: showConfirmPassword,
-                    setShow: setShowConfirmPassword,
-                  },
-                ].map((field, idx) => (
-                  <div key={idx} className="space-y-2 relative">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      {field.label}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={field.show ? "text" : "password"}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        value={field.state}
-                        onChange={(e) => field.setter(e.target.value)}
-                        className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => field.setShow(!field.show)}
-                        className="absolute right-4 top-3.5 text-slate-400 hover:text-[#0a192f] transition-colors"
-                      >
-                        {field.show ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {/* Current password field */}
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    placeholder="Current Password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+
+                {/* New password field */}
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {/* Confirm new password field */}
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-8 border-t border-slate-100 pt-6">

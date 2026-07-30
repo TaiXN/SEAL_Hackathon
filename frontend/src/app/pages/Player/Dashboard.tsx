@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   Clock,
   Trophy,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
+import { MentorSupportCard } from "../../components/player/MentorSupportCard";
 import { teamApi } from "../../lib/api/teamApi";
 import { roundApi } from "../../lib/api/roundApi";
 import { leaderboardApi } from "../../lib/api/leaderboardApi";
@@ -26,7 +27,7 @@ import {
 } from "../../lib/utils/teamHelpers";
 
 // ==========================================
-// 1. HELPER FUNCTIONS gdsfgsdfgsdgs
+// 1. HELPER FUNCTIONS
 // ==========================================
 
 const getCurrentUserNameFromToken = (accessToken?: string | null) => {
@@ -51,7 +52,7 @@ const safeString = (val: any, fallback: string = ""): string => {
   return fallback;
 };
 
-// TRÍCH XUẤT TÊN ĐỘI AN TOÀN
+// TRÃCH XUáº¤T TÃŠN Äá»˜I AN TOÃ€N
 const extractTeamName = (obj: any): string => {
   if (!obj) return "Unknown";
   if (typeof obj.teamName === "string") return obj.teamName;
@@ -65,7 +66,7 @@ const extractTeamName = (obj: any): string => {
   return "Unknown";
 };
 
-// TRÍCH XUẤT ĐIỂM
+// TRÃCH XUáº¤T ÄIá»‚M
 const extractScore = (obj: any): number => {
   if (!obj) return 0;
   const s = obj.score ?? obj.Score ?? obj.totalScore ?? obj.TotalScore ?? 0;
@@ -188,13 +189,10 @@ const getRoundLabel = (
   index: number | null,
   fallbackRoundName: string,
 ): string => {
-  if (index === -1) return "Not Started";
-  if (index === 2) return "Event Ended";
   if (fallbackRoundName && fallbackRoundName !== "Current Round")
     return fallbackRoundName;
-  if (index === 0) return "Vòng bảng";
-  if (index === 1) return "Chung kết";
-  if (index !== null) return `Round ${index + 1}`;
+  if (index === 0) return "Not Started";
+  if (index !== null && index > 0) return `Round ${index}`;
   return "Not Registered";
 };
 
@@ -235,16 +233,14 @@ const getTeamNotice = (obj: any) => {
   if (message) {
     const tone = eliminated
       ? "danger"
-      : currentRoundIndex === -1
+      : currentRoundIndex === 0
         ? "warning"
         : "success";
     const title = eliminated
       ? "Team eliminated"
-      : currentRoundIndex === -1
+      : currentRoundIndex === 0
         ? "Event not started"
-        : currentRoundIndex === 2
-          ? "Event ended"
-          : "Team status";
+        : "Team status";
 
     return {
       tone,
@@ -253,21 +249,11 @@ const getTeamNotice = (obj: any) => {
     };
   }
 
-  if (currentRoundIndex === -1) {
+  if (currentRoundIndex === 0) {
     return {
       tone: "warning",
       title: "Event not started",
       message: "Your registered event has not started yet.",
-    };
-  }
-
-  if (currentRoundIndex === 2) {
-    return {
-      tone: eliminated ? "danger" : "success",
-      title: "Event ended",
-      message: eliminated
-        ? "Your team has been eliminated from the event."
-        : "The event has ended. Your team is still marked as qualified.",
     };
   }
 
@@ -279,7 +265,7 @@ const getTeamNotice = (obj: any) => {
     };
   }
 
-  if (currentRoundIndex === 0 || currentRoundIndex === 1) {
+  if (currentRoundIndex !== null && currentRoundIndex > 0) {
     return {
       tone: "success",
       title: "Still in competition",
@@ -356,7 +342,6 @@ export function Dashboard() {
   const [lbTracks, setLbTracks] = useState<any[]>([]);
   const [lbSelectedRound, setLbSelectedRound] = useState("");
   const [lbSelectedTrack, setLbSelectedTrack] = useState("");
-  const [activeMenus, setActiveMenus] = useState<any[]>([]); // Bổ sung activeMenus
 
   useEffect(() => {
     if (!deadline) return;
@@ -366,53 +351,6 @@ export function Dashboard() {
     );
     return () => clearInterval(timer);
   }, [deadline]);
-
-  // LOAD LIST MENU CHO BỘ LỌC LEADERBOARD BẰNG API ACTIVE MENUS
-  useEffect(() => {
-    const fetchLbFilters = async () => {
-      try {
-        const res = await roundApi.getActiveMenus();
-        const menus = normalizeList(res);
-        setActiveMenus(menus);
-        setLbRounds(menus);
-        setLbTracks([]); // Đợi người dùng chọn round
-      } catch (e) {
-        console.warn("Lỗi tải bộ lọc Leaderboard", e);
-      }
-    };
-    fetchLbFilters();
-  }, []);
-
-  // KHI SELECTED ROUND THAY ĐỔI -> CẬP NHẬT LẠI LIST TRACKS
-  useEffect(() => {
-    if (!lbSelectedRound) {
-      setLbTracks([]);
-      setLbSelectedTrack("");
-      return;
-    }
-    const foundRound = activeMenus.find(
-      (r) =>
-        r.roundId === lbSelectedRound ||
-        r.roundID === lbSelectedRound ||
-        r.id === lbSelectedRound,
-    );
-    if (foundRound && foundRound.tracks) {
-      setLbTracks(foundRound.tracks);
-      // Giữ nguyên track đã chọn nếu nó hợp lệ
-      const trackExists = foundRound.tracks.find(
-        (t: any) =>
-          t.trackId === lbSelectedTrack ||
-          t.trackID === lbSelectedTrack ||
-          t.id === lbSelectedTrack,
-      );
-      if (!trackExists) {
-        setLbSelectedTrack("");
-      }
-    } else {
-      setLbTracks([]);
-      setLbSelectedTrack("");
-    }
-  }, [lbSelectedRound, activeMenus]);
 
   // LOAD DASHBOARD INFO & LEADERBOARD
   const fetchDashboard = async () => {
@@ -451,11 +389,11 @@ export function Dashboard() {
         const infoRes = await teamApi.getTeamDashboard(activeTeamId);
         dashData = { ...dashData, ...unwrapData(infoRes) };
       } catch (err) {
-        console.warn("Không tải được /api/Team/{teamId}/info:", err);
+        console.warn("KhÃ´ng táº£i Ä‘Æ°á»£c /api/Team/{teamId}/info:", err);
       }
 
       // ==============================================================
-      // VÒNG LẶP DO THÁM: TÌM KIẾM THEO ACTIVE ROUNDS
+      // VÃ’NG Láº¶P DO THÃM: TÃŒM KIáº¾M THEO ACTIVE ROUNDS
       // ==============================================================
       let foundRoundId = extractRoundId(dashData);
       let foundTrackId = extractTrackId(dashData);
@@ -471,11 +409,11 @@ export function Dashboard() {
             const rId = round.roundID || round.id;
             if (!rId) continue;
 
-            // Gọi API lấy danh sách đội của từng vòng thi
+            // Gá»i API láº¥y danh sÃ¡ch Ä‘á»™i cá»§a tá»«ng vÃ²ng thi
             const detailsRes = await teamApi.getTeamDetailsInRound(rId);
             const detailsList = normalizeList(detailsRes);
 
-            // Dò tìm ID đội của mình trong danh sách đó
+            // DÃ² tÃ¬m ID Ä‘á»™i cá»§a mÃ¬nh trong danh sÃ¡ch Ä‘Ã³
             const matchRecord = detailsList.find(
               (item: any) =>
                 normalizeId(item.teamId || item.teamID) ===
@@ -489,7 +427,7 @@ export function Dashboard() {
               foundEventId = round.eventID || round.eventId;
               setCurrentRoundName(round.roundName || "");
 
-              // Gắn vào dashData để UI hiển thị
+              // Gáº¯n vÃ o dashData Ä‘á»ƒ UI hiá»ƒn thá»‹
               dashData.teamInRound = matchRecord;
               dashData.status = matchRecord.status || dashData.status;
               dashData.score = matchRecord.score;
@@ -497,7 +435,7 @@ export function Dashboard() {
             }
           }
         } catch (e) {
-          console.warn("Lỗi rà soát teamInRound:", e);
+          console.warn("Lá»—i rÃ  soÃ¡t teamInRound:", e);
         }
       }
 
@@ -510,12 +448,70 @@ export function Dashboard() {
 
       if (roundLabel !== "Not Registered") setCurrentRoundName(roundLabel);
 
-      // TỰ ĐỘNG SET BỘ LỌC NẾU TÌM THẤY ROUND VÀ TRACK
-      if (foundRoundId) setLbSelectedRound(foundRoundId);
-      if (foundTrackId) setLbSelectedTrack(foundTrackId);
+      try {
+        const teamTracks = normalizeList(
+          await teamApi.getTracksByTeam(activeTeamId),
+        );
+        setLbTracks(teamTracks);
+
+        const defaultTrack =
+          teamTracks.find(
+            (track: any) =>
+              normalizeId(track.trackID || track.trackId || track.id) ===
+              normalizeId(foundTrackId),
+          ) ||
+          teamTracks.find(
+            (track: any) =>
+              readString(track.trackName || track.name).toLowerCase() ===
+              extractTrackName(dashData).toLowerCase(),
+          ) ||
+          teamTracks[0];
+
+        const defaultTrackId = readString(
+          defaultTrack?.trackID || defaultTrack?.trackId || defaultTrack?.id,
+        );
+        setLbSelectedTrack(defaultTrackId);
+
+        if (defaultTrackId) {
+          const teamRounds = normalizeList(
+            await teamApi.getRoundsByTeamAndTrack(activeTeamId, defaultTrackId),
+          );
+          setLbRounds(teamRounds);
+
+          const defaultRound =
+            teamRounds.find(
+              (round: any) =>
+                normalizeId(round.roundID || round.roundId || round.id) ===
+                normalizeId(foundRoundId),
+            ) ||
+            teamRounds.find(
+              (round: any) =>
+                readString(round.roundName || round.name).toLowerCase() ===
+                roundLabel.toLowerCase(),
+            ) ||
+            teamRounds[0];
+
+          setLbSelectedRound(
+            readString(
+              defaultRound?.roundID ||
+                defaultRound?.roundId ||
+                defaultRound?.id,
+            ),
+          );
+        } else {
+          setLbRounds([]);
+          setLbSelectedRound("");
+        }
+      } catch (e) {
+        console.warn("Failed to load team-scoped leaderboard filters:", e);
+        setLbTracks([]);
+        setLbRounds([]);
+        setLbSelectedTrack("");
+        setLbSelectedRound("");
+      }
 
       // ==============================================================
-      // TẢI DỮ LIỆU DROPDOWN CHO FORM ĐĂNG KÝ
+      // Táº¢I Dá»® LIá»†U DROPDOWN CHO FORM ÄÄ‚NG KÃ
       // ==============================================================
       try {
         const eventsRes = await teamApi.getActiveEvents();
@@ -539,7 +535,7 @@ export function Dashboard() {
       if (foundTopicId) setSelectedTopic(String(foundTopicId));
 
       if (foundEventId || foundRoundId) {
-        // Mốc thời gian Đếm ngược
+        // Má»‘c thá»i gian Äáº¿m ngÆ°á»£c
         try {
           const countdownRes = await teamApi.getCountdown(activeTeamId);
           let dateStr = null;
@@ -573,7 +569,7 @@ export function Dashboard() {
         setTimeLeft(emptyTimeLeft);
       }
     } catch (error: any) {
-      console.error("Lỗi load Dashboard:", error);
+      console.error("Lá»—i load Dashboard:", error);
     } finally {
       setIsLoading(false);
     }
@@ -586,55 +582,76 @@ export function Dashboard() {
       window.removeEventListener("player-team-updated", fetchDashboard);
   }, []);
 
-  // GỌI LEADERBOARD KHI BỘ LỌC THAY ĐỔI
   useEffect(() => {
-    if (!dashboardData || activeMenus.length === 0) return;
+    let cancelled = false;
 
-    const wantedRoundId = normalizeId(extractRoundId(dashboardData));
-    const wantedRoundName = extractRoundName(dashboardData).toLowerCase();
-    const wantedTrackId = normalizeId(extractTrackId(dashboardData));
-    const wantedTrackName = extractTrackName(dashboardData).toLowerCase();
+    const loadRoundsForTeamTrack = async () => {
+      const activeTeamId = getTeamId(dashboardData);
+      if (!activeTeamId || !lbSelectedTrack) {
+        setLbRounds([]);
+        setLbSelectedRound("");
+        return;
+      }
 
-    const matchedRound = activeMenus.find((round) => {
-      const roundId = normalizeId(round.roundID || round.roundId || round.id);
-      const roundName = readString(round.roundName || round.name).toLowerCase();
-      return (
-        (wantedRoundId && roundId === wantedRoundId) ||
-        (wantedRoundName && roundName === wantedRoundName)
-      );
-    });
+      try {
+        const response = await teamApi.getRoundsByTeamAndTrack(
+          activeTeamId,
+          lbSelectedTrack,
+        );
+        if (cancelled) return;
 
-    if (!matchedRound) return;
+        const rounds = normalizeList(response);
+        setLbRounds(rounds);
 
-    const matchedRoundId = readString(
-      matchedRound.roundID || matchedRound.roundId || matchedRound.id,
-    );
-    const matchedRoundName = readString(
-      matchedRound.roundName || matchedRound.name,
-    );
-    const roundLabel = getRoundLabel(
-      extractCurrentRoundIndex(dashboardData),
-      matchedRoundName || extractRoundName(dashboardData),
-    );
+        const currentRoundId = normalizeId(extractRoundId(dashboardData));
+        const currentRoundLabel = getRoundLabel(
+          extractCurrentRoundIndex(dashboardData),
+          extractRoundName(dashboardData),
+        ).toLowerCase();
 
-    if (roundLabel !== "Not Registered") setCurrentRoundName(roundLabel);
-    if (matchedRoundId && !lbSelectedRound) setLbSelectedRound(matchedRoundId);
+        const selectedRoundStillExists = rounds.some(
+          (round: any) =>
+            normalizeId(round.roundID || round.roundId || round.id) ===
+            normalizeId(lbSelectedRound),
+        );
 
-    const matchedTracks = normalizeList(matchedRound.tracks);
-    const matchedTrack = matchedTracks.find((track: any) => {
-      const trackId = normalizeId(track.trackID || track.trackId || track.id);
-      const trackName = readString(track.trackName || track.name).toLowerCase();
-      return (
-        (wantedTrackId && trackId === wantedTrackId) ||
-        (wantedTrackName && trackName === wantedTrackName)
-      );
-    });
+        if (!selectedRoundStillExists) {
+          const defaultRound =
+            rounds.find(
+              (round: any) =>
+                normalizeId(round.roundID || round.roundId || round.id) ===
+                currentRoundId,
+            ) ||
+            rounds.find(
+              (round: any) =>
+                readString(round.roundName || round.name).toLowerCase() ===
+                currentRoundLabel,
+            ) ||
+            rounds[0];
 
-    const matchedTrackId = readString(
-      matchedTrack?.trackID || matchedTrack?.trackId || matchedTrack?.id,
-    );
-    if (matchedTrackId && !lbSelectedTrack) setLbSelectedTrack(matchedTrackId);
-  }, [dashboardData, activeMenus, lbSelectedRound, lbSelectedTrack]);
+          setLbSelectedRound(
+            readString(
+              defaultRound?.roundID ||
+                defaultRound?.roundId ||
+                defaultRound?.id,
+            ),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("Failed to load team rounds for leaderboard:", error);
+          setLbRounds([]);
+          setLbSelectedRound("");
+        }
+      }
+    };
+
+    loadRoundsForTeamTrack();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardData, lbSelectedTrack]);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -642,7 +659,7 @@ export function Dashboard() {
       try {
         let resData = [];
 
-        // Gọi thẳng Detail theo roundId và trackId
+        // Gá»i tháº³ng Detail theo roundId vÃ  trackId
         if (lbSelectedRound && lbSelectedTrack) {
           try {
             resData = await leaderboardApi.getLeaderboardDetail(
@@ -664,7 +681,7 @@ export function Dashboard() {
           setLeaderboard([]);
         }
       } catch (error) {
-        console.error("Lỗi lấy Leaderboard:", error);
+        console.error("Lá»—i láº¥y Leaderboard:", error);
         setLeaderboard([]);
       } finally {
         setIsLoadingLeaderboard(false);
@@ -692,7 +709,7 @@ export function Dashboard() {
   const hasInfoRegistration = hasEventRegistration;
   const teamNotice = hasInfoRegistration ? getTeamNotice(dashboardData) : null;
 
-  // Logic kiểm tra để hiển thị cho khung Current Round
+  // Logic kiá»ƒm tra Ä‘á»ƒ hiá»ƒn thá»‹ cho khung Current Round
   const hasSubmittedRegistration = Boolean(
     hasInfoRegistration || dashboardData?.teamInRound,
   );
@@ -709,16 +726,13 @@ export function Dashboard() {
     ? displayRoundName
     : "Pending...";
   const isRoundLive =
-    currentRoundIndex === 0 ||
-    currentRoundIndex === 1 ||
+    (currentRoundIndex !== null && currentRoundIndex > 0) ||
     (currentRoundIndex === null && isApprovedIntoRound && !eliminated);
   const roundDotClass = eliminated
     ? "bg-red-500"
-    : currentRoundIndex === -1
+    : currentRoundIndex === 0
       ? "bg-amber-500"
-      : currentRoundIndex === 2
-        ? "bg-slate-400"
-        : "bg-emerald-500";
+      : "bg-emerald-500";
 
   const handleEventChange = async (eventId: string) => {
     setSelectedEvent(eventId);
@@ -813,9 +827,12 @@ export function Dashboard() {
   }
 
   return (
-    <div className="animate-in fade-in duration-500 max-w-5xl">
+    <div className="animate-in fade-in duration-500 max-w-6xl">
       <header className="mb-10">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 text-[#c2410c] border border-orange-100 text-xs font-extrabold uppercase tracking-wider mb-4">
+          FPT Edu Hackathon
+        </div>
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-950">
           Welcome back, {safeString(loggedInName, "Player")}.
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
@@ -828,15 +845,15 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* ================= LEFT COLUMN (Ratio 8) ================= */}
         <div className="lg:col-span-8 space-y-8">
-          <section className="bg-card border border-border rounded-radius-lg p-6 shadow-sm">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-6 flex items-center gap-2">
+          <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" /> Current Round Countdown
             </h2>
 
             {deadline ? (
               timeLeft.isExpired ? (
                 <div className="bg-red-50 border border-red-200 text-red-600 font-bold px-4 py-3 rounded-radius-md inline-flex items-center gap-2">
-                  ⏳ The submission time for this round has ended!
+                  â³ The submission time for this round has ended!
                 </div>
               ) : (
                 <div className="flex items-center gap-4 sm:gap-6">
@@ -861,8 +878,8 @@ export function Dashboard() {
           </section>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white border border-border p-6 rounded-radius-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-[0.06] group-hover:opacity-10 transition-opacity">
                 <Trophy className="w-24 h-24 text-primary" />
               </div>
               <div className="relative z-10">
@@ -875,9 +892,9 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* KHUNG "CURRENT ROUND" CHUẨN THAY CHO "STATUS" */}
-            <div className="bg-white border border-border p-6 rounded-radius-lg shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            {/* KHUNG "CURRENT ROUND" CHUáº¨N THAY CHO "STATUS" */}
+            <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-[0.06] group-hover:opacity-10 transition-opacity">
                 <Target className="w-24 h-24 text-primary" />
               </div>
               <div className="relative z-10">
@@ -932,8 +949,8 @@ export function Dashboard() {
             </div>
           )}
 
-          <section className="bg-white border border-border rounded-radius-lg overflow-hidden shadow-sm mt-8">
-            <div className="p-6 border-b border-border bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <section className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mt-8">
+            <div className="p-6 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-primary" /> Leaderboard
@@ -946,8 +963,24 @@ export function Dashboard() {
               <div className="flex gap-2">
                 <select
                   className="w-32 border border-slate-200 bg-white rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-bold text-slate-700"
+                  value={lbSelectedTrack}
+                  onChange={(e) => setLbSelectedTrack(e.target.value)}
+                >
+                  <option value="">Select Track</option>
+                  {lbTracks.map((t) => {
+                    const tId = safeString(t.trackID || t.trackId || t.id);
+                    return (
+                      <option key={tId} value={tId}>
+                        {safeString(t.trackName)}
+                      </option>
+                    );
+                  })}
+                </select>
+                <select
+                  className="w-32 border border-slate-200 bg-white rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-bold text-slate-700"
                   value={lbSelectedRound}
                   onChange={(e) => setLbSelectedRound(e.target.value)}
+                  disabled={!lbSelectedTrack}
                 >
                   <option value="">Select Round</option>
                   {lbRounds.map((r) => {
@@ -955,21 +988,6 @@ export function Dashboard() {
                     return (
                       <option key={rId} value={rId}>
                         {safeString(r.roundName)}
-                      </option>
-                    );
-                  })}
-                </select>
-                <select
-                  className="w-32 border border-slate-200 bg-white rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-bold text-slate-700"
-                  value={lbSelectedTrack}
-                  onChange={(e) => setLbSelectedTrack(e.target.value)}
-                >
-                  <option value="">Select Category</option>
-                  {lbTracks.map((t) => {
-                    const tId = safeString(t.trackID || t.trackId || t.id);
-                    return (
-                      <option key={tId} value={tId}>
-                        {safeString(t.trackName)}
                       </option>
                     );
                   })}
@@ -984,7 +1002,7 @@ export function Dashboard() {
                 </div>
               ) : leaderboard.length === 0 ? (
                 <div className="p-8 text-center text-sm font-medium text-slate-500">
-                  Select a Round and Category to view the leaderboard, or scores
+                  Select a Track and Round to view the leaderboard, or scores
                   have not been updated yet.
                 </div>
               ) : (
@@ -1082,13 +1100,13 @@ export function Dashboard() {
         </div>
 
         {/* ================= RIGHT COLUMN (Ratio 4): REGISTRATION FORM ================= */}
-        <div className="lg:col-span-4">
-          <section className="bg-slate-50 border border-slate-200 rounded-radius-lg p-6 shadow-sm h-full flex flex-col">
+        <div className="lg:col-span-4 space-y-6">
+          <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2 shrink-0">
               <Map className="w-4 h-4 text-slate-400" /> Event & Track
             </h2>
 
-            <div className="flex-1 bg-white border border-slate-200 rounded-radius-lg p-6 shadow-sm space-y-5">
+            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-5">
               {!teamId ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">No Team Yet</p>
@@ -1099,19 +1117,17 @@ export function Dashboard() {
                 </div>
               ) : isActuallySubmitted ? (
                 <div className="space-y-4">
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-radius-md p-4">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg p-4">
                     <p className="font-bold flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5" /> Registration Locked!
                     </p>
                     <p className="text-sm mt-1">
-                      Below is the Event, Track, and Topic your team has
-                      registered for.
+                      Below is the Event and Track your team has registered for.
                     </p>
                   </div>
 
                   <InfoRow label="Event" value={eventName} />
                   <InfoRow label="Track" value={trackName} />
-                  <InfoRow label="Topic" value={topicName} />
                   <InfoRow label="Current Round" value={registeredRoundName} />
                 </div>
               ) : !currentUserIsLeader ? (
@@ -1230,7 +1246,7 @@ export function Dashboard() {
                     <button
                       onClick={handleSubmitRegistration}
                       disabled={isSubmittingRegistration}
-                      className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-radius-md hover:bg-blue-700 transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                      className="w-full bg-[#f26f21] text-white font-bold py-3.5 rounded-lg hover:bg-[#d85f16] transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
                     >
                       <Map className="w-4 h-4" />
                       {isSubmittingRegistration
@@ -1242,6 +1258,14 @@ export function Dashboard() {
               )}
             </div>
           </section>
+
+          <MentorSupportCard
+            teamId={teamId}
+            teamName={safeString(extractTeamName(dashboardData), "No team")}
+            trackName={trackName}
+            topicName={topicName}
+            canLoadMentor={hasInfoRegistration}
+          />
         </div>
       </div>
 
