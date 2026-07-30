@@ -31,6 +31,21 @@ import {
   DEFAULT_CRITERIA_DESCRIPTION,
 } from "../../lib/utils/criteriaHelpers";
 
+const getErrorMessage = (error: any, fallback: string): string => {
+  const data = error?.response?.data;
+  if (typeof data === "string" && data.trim()) return data;
+  if (data?.message) return data.message;
+  if (data?.title) return data.title;
+  if (data?.error) return data.error;
+  if (Array.isArray(data?.errors)) return data.errors.join(", ");
+  if (data?.errors && typeof data.errors === "object") {
+    const msgs = Object.values(data.errors).flat();
+    if (msgs.length) return msgs.join(", ");
+  }
+  if (error?.message) return error.message;
+  return fallback;
+};
+
 interface RubricItem {
   id: number;
   name: string;
@@ -98,16 +113,16 @@ function RubricPanel({
                 className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none font-bold text-[#0a192f] focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 placeholder="Criterion Name"
               />
-              <div className="relative w-24">
+              <div className="relative w-28 shrink-0">
                 <input
                   type="number"
                   value={r.weight}
                   onChange={(e) =>
                     updateItem(r.id, { weight: Number(e.target.value) })
                   }
-                  className="w-full px-3 py-2.5 pr-6 text-sm text-center bg-white border border-slate-200 rounded-xl font-black text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  className="w-full pl-3 pr-8 py-2.5 text-sm text-center bg-white border border-slate-200 rounded-xl font-black text-[#0a192f] outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
-                <span className="absolute right-3 top-2.5 text-slate-400 text-sm font-bold">
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">
                   %
                 </span>
               </div>
@@ -246,16 +261,26 @@ export function CreateEvents() {
       if (savedEventId) {
         await eventApi.updateEvent(savedEventId, payload);
       } else {
+        let newId: string | null = null;
         try {
           const res: any = await eventApi.createEvent(payload as any);
-          setSavedEventId(extractId(res) || null);
+          newId = extractId(res);
         } catch (error) {
+          newId = null;
+        }
+        // Backend đôi khi trả về response thiếu field ID mong đợi dù đã tạo
+        // thành công -> dò lại theo tên để không bị kẹt savedEventId = null.
+        if (!newId) {
           const allEvents = getList(await eventApi.getAllEvents());
           const matched = [...allEvents]
             .reverse()
             .find((e: any) => (e.name || e.eventName) === payload.eventName);
-          setSavedEventId(extractId(matched) || null);
+          newId = extractId(matched) || null;
         }
+        if (!newId) {
+          throw new Error("Could not resolve created event ID");
+        }
+        setSavedEventId(newId);
       }
       Swal.fire({
         icon: "success",
@@ -265,7 +290,11 @@ export function CreateEvents() {
       });
       setActiveTab(2);
     } catch (error) {
-      Swal.fire("Error", "Failed to save event information!", "error");
+      Swal.fire(
+        "Error",
+        getErrorMessage(error, "Failed to save event information!"),
+        "error",
+      );
     } finally {
       setIsSavingEvent(false);
     }
@@ -307,7 +336,11 @@ export function CreateEvents() {
       });
       setActiveTab(3); // Next is Rounds
     } catch (error) {
-      Swal.fire("Error", "Error saving tracks!", "error");
+      Swal.fire(
+        "Error",
+        getErrorMessage(error, "Error saving tracks!"),
+        "error",
+      );
     } finally {
       setIsSavingTracks(false);
     }
@@ -430,7 +463,11 @@ export function CreateEvents() {
         confirmButtonColor: "#0a192f",
       }).then(() => navigate("/admin/events"));
     } catch (error) {
-      Swal.fire("Error", "Failed to finalize the tournament.", "error");
+      Swal.fire(
+        "Error",
+        getErrorMessage(error, "Failed to finalize the tournament."),
+        "error",
+      );
     } finally {
       setIsPublishing(false);
     }

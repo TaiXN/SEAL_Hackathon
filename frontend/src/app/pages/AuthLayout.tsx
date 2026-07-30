@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowRight, Check, ArrowLeft, Mail, ChevronDown } from "lucide-react";
+import { ArrowRight, Check, ArrowLeft, ChevronDown } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
@@ -7,12 +7,7 @@ import { authApi } from "../lib/api/authApi";
 import Swal from "sweetalert2";
 import { playerApi } from "../lib/api/playerApi";
 
-type AuthView =
-  | "login"
-  | "register"
-  | "forgot-password"
-  | "link-sent"
-  | "reset-password";
+type AuthView = "login" | "register";
 
 export function AuthLayout() {
   const setTokens = useAuthStore((state) => state.setTokens);
@@ -43,10 +38,6 @@ export function AuthLayout() {
   const [regPhone, setRegPhone] = useState("");
   const [regUniversityId, setRegUniversityId] = useState("");
   const [isUniOpen, setIsUniOpen] = useState(false); // State cho Custom Dropdown University
-
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   const roleRef = useRef<HTMLDivElement>(null);
   const uniRef = useRef<HTMLDivElement>(null);
@@ -162,21 +153,6 @@ export function AuthLayout() {
     }
   };
 
-  const handleForgotSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setView("link-sent");
-  };
-
-  const handleResetSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      alert("Passwords do not match!");
-      return;
-    }
-    alert("Password updated successfully! Redirecting to login.");
-    setView("login");
-  };
-
   // ================= UI RENDER =================
   return (
     <div className="flex min-h-screen w-full bg-slate-50 font-sans text-slate-900">
@@ -274,21 +250,12 @@ export function AuthLayout() {
                 </div>
 
                 <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between">
-                    <label
-                      className="text-sm font-bold text-slate-700"
-                      htmlFor="login-password"
-                    >
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setView("forgot-password")}
-                      className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                  <label
+                    className="text-sm font-bold text-slate-700"
+                    htmlFor="login-password"
+                  >
+                    Password
+                  </label>
                   <input
                     id="login-password"
                     type="password"
@@ -509,124 +476,6 @@ export function AuthLayout() {
                   </button>
                 </p>
               </div>
-            </div>
-          )}
-
-          {/* ================= FORGOT PWD & RESET PWD ================= */}
-          {view === "forgot-password" && (
-            <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-              <div className="mb-8">
-                <button
-                  type="button"
-                  onClick={() => setView("login")}
-                  className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-900 mb-6 group transition-colors"
-                >
-                  <ArrowLeft
-                    size={16}
-                    className="mr-2 group-hover:-translate-x-1 transition-transform"
-                  />{" "}
-                  Back to login
-                </button>
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
-                  Forgot password
-                </h2>
-                <p className="text-slate-500 mt-2 text-base">
-                  Enter your email address and we'll send you a link to reset
-                  your password.
-                </p>
-              </div>
-              <form className="space-y-5" onSubmit={handleForgotSubmit}>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@example.com"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 transition-all font-medium"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all mt-8"
-                >
-                  Send Reset Link
-                </button>
-              </form>
-            </div>
-          )}
-
-          {view === "link-sent" && (
-            <div className="animate-in fade-in zoom-in-95 duration-500 text-center py-8">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Mail size={32} strokeWidth={1.5} />
-              </div>
-              <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">
-                Check your email
-              </h2>
-              <p className="text-slate-500 text-base mb-8">
-                We've sent a password reset link to your email address. Please
-                click the link to continue.
-              </p>
-              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl mt-8 w-full text-left">
-                <button
-                  type="button"
-                  onClick={() => setView("reset-password")}
-                  className="w-full flex items-center justify-center bg-white border border-slate-200 hover:border-slate-300 text-slate-700 py-3 px-4 rounded-xl text-sm font-bold transition-all shadow-sm"
-                >
-                  Simulate clicking email link
-                </button>
-              </div>
-            </div>
-          )}
-
-          {view === "reset-password" && (
-            <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-              <div className="mb-10">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
-                  Set new password
-                </h2>
-                <p className="text-slate-500 mt-2 text-base">
-                  Please enter and confirm your new password below.
-                </p>
-              </div>
-              <form className="space-y-5" onSubmit={handleResetSubmit}>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-slate-900 transition-all"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-slate-900 transition-all"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all mt-8"
-                >
-                  Update Password <Check size={18} strokeWidth={2} />
-                </button>
-              </form>
             </div>
           )}
         </div>
