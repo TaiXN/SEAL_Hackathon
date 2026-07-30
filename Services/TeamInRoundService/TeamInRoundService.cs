@@ -28,6 +28,22 @@ namespace Services.TeamInRoundService
             if (currentTeam == null)
                 throw new Exception("This team experienced a data error; the team could not be found.");
 
+            var sameNameTeams = await _uow.Team.GetAllAsync(t => t.TeamName.ToLower() == currentTeam.TeamName.ToLower() && t.TeamId != teamId);
+
+            if (sameNameTeams.Any())
+            {
+                var sameNameTeamIds = sameNameTeams.Select(t => t.TeamId).ToList();
+                var sameNameRegistered = await _uow.TeamInRound.GetAllAsync(tr => sameNameTeamIds.Contains(tr.TeamId));
+
+                foreach (var reg in sameNameRegistered)
+                {
+                    var regTrack = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == reg.TrackId);
+                    if (regTrack != null && regTrack.EventId == request.EventId)
+                    {
+                        throw new Exception($"Submit failed! The name '{currentTeam.TeamName}' was just locked in by another team for this event. Please update your team name in your dashboard and try again.");
+                    }
+                }
+            }
             var selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
             if (selectedEvent == null) throw new Exception("This event does not exist or is no longer active.");
 

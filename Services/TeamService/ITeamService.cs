@@ -24,7 +24,6 @@ namespace Services.TeamService
         Task<bool> JoinTeamDirectlyAsync(string teamId, string requesterAccountId);
 
 
-         
         Task<bool> UpdateTeamInfoAsync(string accountId, string teamId, UpdateTeamAPIViewModel request);
 
     }
