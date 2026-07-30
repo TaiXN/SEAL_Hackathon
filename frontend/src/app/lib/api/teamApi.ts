@@ -96,6 +96,18 @@ export const teamApi = {
     return res.data;
   },
 
+  async getTracksByTeam(teamId: string) {
+    const res = await apiClient.get(`/api/Dropdown/team/${teamId}/tracks`);
+    return res.data;
+  },
+
+  async getRoundsByTeamAndTrack(teamId: string, trackId: string) {
+    const res = await apiClient.get(
+      `/api/Dropdown/team/${teamId}/track/${trackId}/rounds`,
+    );
+    return res.data;
+  },
+
   // ===============================================
   // TEAM IN ROUND APIS (Đăng ký vòng thi và Trạng thái)
   // ===============================================

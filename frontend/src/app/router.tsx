@@ -76,6 +76,12 @@ export const router = createBrowserRouter([
         ],
       },
 
+      // --- Mentor area ---
+      {
+        path: "/mentor",
+        element: <Navigate to="/judge" replace />,
+      },
+
       // --- Khu vực của Player ---
       {
         path: "/player",

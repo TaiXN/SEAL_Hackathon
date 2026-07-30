@@ -5,32 +5,37 @@ import { useEffect } from "react";
 const RequireUnAuth = () => {
   const accessToken = useAuthStore((state) => state.accessToken);
   const role = useAuthStore((state) => state.role);
+  const clearTokens = useAuthStore((state) => state.clearTokens);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Nếu có token, bế cổ ném thẳng về Dashboard, cấm lảng vảng ở Landing/Gateway/Login
     if (accessToken) {
       const currentRole = role?.toLowerCase()?.trim();
 
       if (currentRole === "admin") {
         navigate("/admin/dashboard", { replace: true });
+      } else if (currentRole === "mentor") {
+        navigate("/judge", { replace: true });
       } else if (currentRole === "judge" || currentRole === "teacher") {
         navigate("/judge", { replace: true });
-      } else if (currentRole === "player") {
+      } else if (
+        currentRole === "player" ||
+        currentRole === "member" ||
+        currentRole === "leader" ||
+        currentRole === "student"
+      ) {
         navigate("/player", { replace: true });
       } else {
-        // Fallback an toàn nếu role lạ
-        navigate("/login", { replace: true });
+        clearTokens();
+        localStorage.removeItem("seal-hackathon-auth");
       }
     }
-  }, [accessToken, role, navigate]);
+  }, [accessToken, role, clearTokens, navigate]);
 
-  // 🚨 CHỐNG CHỚP MÀN HÌNH: Nếu phát hiện có Token, trả về null (không vẽ giao diện)
   if (accessToken) {
     return null;
   }
 
-  // Chắc chắn 100% KHÔNG có token thì mới cho hiện trang (Outlet)
   return <Outlet />;
 };
 

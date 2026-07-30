@@ -177,14 +177,11 @@ export const getRoundLabel = (
   index: number | null,
   fallbackRoundName: string,
 ): string => {
-  if (index === -1) return "Not Started";
-  if (index === 2) return "Event Ended";
   if (fallbackRoundName && fallbackRoundName !== "Current Round") {
     return fallbackRoundName;
   }
-  if (index === 0) return "Group Round";
-  if (index === 1) return "Final Round";
-  if (index !== null) return `Round ${index + 1}`;
+  if (index === 0) return "Not Started";
+  if (index !== null && index > 0) return `Round ${index}`;
   return "Not Registered";
 };
 
@@ -225,16 +222,14 @@ export const getTeamNotice = (obj: any): TeamNotice | null => {
   if (message) {
     const tone = eliminated
       ? "danger"
-      : currentRoundIndex === -1
+      : currentRoundIndex === 0
         ? "warning"
         : "success";
     const title = eliminated
       ? "Team eliminated"
-      : currentRoundIndex === -1
+      : currentRoundIndex === 0
         ? "Event not started"
-        : currentRoundIndex === 2
-          ? "Event ended"
-          : "Team status";
+        : "Team status";
 
     return {
       tone,
@@ -243,21 +238,11 @@ export const getTeamNotice = (obj: any): TeamNotice | null => {
     };
   }
 
-  if (currentRoundIndex === -1) {
+  if (currentRoundIndex === 0) {
     return {
       tone: "warning",
       title: "Event not started",
       message: "Your registered event has not started yet.",
-    };
-  }
-
-  if (currentRoundIndex === 2) {
-    return {
-      tone: eliminated ? "danger" : "success",
-      title: "Event ended",
-      message: eliminated
-        ? "Your team has been eliminated from the event."
-        : "The event has ended. Your team is still marked as qualified.",
     };
   }
 
@@ -269,7 +254,7 @@ export const getTeamNotice = (obj: any): TeamNotice | null => {
     };
   }
 
-  if (currentRoundIndex === 0 || currentRoundIndex === 1) {
+  if (currentRoundIndex !== null && currentRoundIndex > 0) {
     return {
       tone: "success",
       title: "Still in competition",

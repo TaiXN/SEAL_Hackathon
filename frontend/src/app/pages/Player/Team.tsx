@@ -17,15 +17,25 @@ import {
   getInitials,
   getMemberPlayerId,
   getMembers,
-  getTeamDisplayName,
-  getTeamEventName,
-  getTeamTopicName,
-  getTeamTrackName,
   isLeaderMember,
   isSelfMember,
   resolveMemberName,
   resolveMemberRole,
 } from "../../lib/utils/playerTeamHelpers";
+
+const getApiErrorMessage = (error: any, fallback: string): string => {
+  const raw = error?.response?.data;
+  if (!raw) return fallback;
+  if (typeof raw === "string") return raw;
+  if (typeof raw?.message === "string") return raw.message;
+  if (typeof raw?.Message === "string") return raw.Message;
+  if (typeof raw?.title === "string") return raw.title;
+  if (typeof raw?.detail === "string") return raw.detail;
+  if (raw?.errors && typeof raw.errors === "object") {
+    return Object.values(raw.errors).flat().filter(Boolean).join("\n");
+  }
+  return fallback;
+};
 
 export function Team() {
   const [team, setTeam] = useState<any>(null);
@@ -155,15 +165,6 @@ export function Team() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleSelectTeam = async (nextTeam: any) => {
-    const nextTeamId = getTeamId(nextTeam);
-
-    if (!nextTeamId || nextTeamId === teamId) return;
-
-    localStorage.setItem("activeTeamId", nextTeamId);
-    window.dispatchEvent(new Event("player-team-updated"));
-  };
-
   const handleCreateTeam = async () => {
     if (!teamName.trim()) {
       Swal.fire({
@@ -203,19 +204,15 @@ export function Team() {
       console.error("Create team status:", error.response?.status);
       console.error("Create team response data:", error.response?.data);
 
-      const rawError = error.response?.data;
-
-      const errorMessage =
-        typeof rawError === "string"
-          ? rawError
-          : rawError?.message || rawError?.title || rawError?.errors
-            ? JSON.stringify(rawError?.errors || rawError, null, 2)
-            : "Backend refused to create the team.";
+      const errorMessage = getApiErrorMessage(
+        error,
+        "Backend refused to create the team.",
+      );
 
       Swal.fire({
         icon: "error",
         title: "Cannot Create Team",
-        html: `<pre style="white-space:pre-wrap;text-align:left;font-size:12px">${errorMessage}</pre>`,
+        text: errorMessage,
       });
     } finally {
       setIsCreatingTeam(false);
@@ -256,10 +253,10 @@ export function Team() {
       Swal.fire({
         icon: "error",
         title: "Cannot Join Team",
-        text:
-          error.response?.data?.message ||
-          error.response?.data ||
+        text: getApiErrorMessage(
+          error,
           "Backend refused the join team action.",
+        ),
       });
     } finally {
       setIsJoiningTeam(false);
@@ -476,14 +473,6 @@ export function Team() {
           </p>
         </header>
 
-        {teamHistory.length > 0 && (
-          <TeamSwitcher
-            teams={teamHistory}
-            activeTeamId={teamId}
-            onSelect={handleSelectTeam}
-          />
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-white border border-gray-200 rounded-radius-lg p-6 shadow-sm space-y-5">
             <div>
@@ -580,14 +569,6 @@ export function Team() {
       </header>
 
       <div className="space-y-8">
-        {teamHistory.length > 0 && (
-          <TeamSwitcher
-            teams={teamHistory}
-            activeTeamId={teamId}
-            onSelect={handleSelectTeam}
-          />
-        )}
-
         <section className="bg-card border border-border rounded-radius-lg p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
           <div className="flex-1 w-full space-y-2">
             <label
@@ -956,94 +937,5 @@ export function Team() {
         isDestructive
       />
     </div>
-  );
-}
-
-function TeamSwitcher({
-  teams,
-  activeTeamId,
-  onSelect,
-}: {
-  teams: any[];
-  activeTeamId: string;
-  onSelect: (team: any) => void | Promise<void>;
-}) {
-  if (teams.length === 0) return null;
-
-  return (
-    <section className="bg-white border border-border rounded-radius-lg p-4 shadow-sm mb-8">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-            Your Teams
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Choose a team to view its Dashboard, roster, and submit permission.
-          </p>
-        </div>
-        <span className="text-xs font-bold text-slate-400">
-          {teams.length} team{teams.length > 1 ? "s" : ""}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {teams.map((item) => {
-          const itemTeamId = getTeamId(item);
-          const isActive = itemTeamId && itemTeamId === activeTeamId;
-          const eventName = getTeamEventName(item);
-          const trackName = getTeamTrackName(item);
-          const topicName = getTeamTopicName(item);
-          const detailLine =
-            [eventName, trackName, topicName].filter(Boolean).join(" / ") ||
-            "No event selected yet";
-
-          return (
-            <button
-              type="button"
-              key={itemTeamId || getTeamDisplayName(item)}
-              onClick={() => void onSelect(item)}
-              className={`w-full text-left border rounded-radius-md p-4 transition-colors ${
-                isActive
-                  ? "border-black bg-black text-white"
-                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="font-bold truncate">
-                    {getTeamDisplayName(item)}
-                  </p>
-                  <p
-                    className={`text-sm mt-1 truncate ${
-                      isActive ? "text-white/70" : "text-slate-500"
-                    }`}
-                    title={detailLine}
-                  >
-                    {detailLine}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${
-                      isActive
-                        ? "bg-white text-black"
-                        : "bg-white text-slate-600 border border-slate-200"
-                    }`}
-                  >
-                    {isLeaderTeam(item) ? "Leader" : "Member"}
-                  </span>
-                  {isActive && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-white/70">
-                      Active
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
   );
 }

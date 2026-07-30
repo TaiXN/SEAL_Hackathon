@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowRight, Check, ArrowLeft, Mail } from "lucide-react";
+import { ArrowRight, Check, ArrowLeft, Mail, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // 1. Import thằng này vào
 import { useAuthStore } from "../stores/auth.store";
 import toast from "react-hot-toast";
@@ -24,13 +24,15 @@ export function AuthLayout() {
   // ================= STATE CHO LOGIN =================
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [role, setRole] = useState("player"); // mặc định là member
 
   // ================= STATE CHO REGISTER =================
   const [regEmail, setRegEmail] = useState("");
-  const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [regFullName, setRegFullName] = useState("");
   const [regAddress, setRegAddress] = useState("");
   const [regPhone, setRegPhone] = useState("");
@@ -74,7 +76,7 @@ export function AuthLayout() {
       if (role === "admin") {
         data = await authApi.loginAdmin(credentials);
         navigateTo = "/admin/dashboard";
-      } else if (role === "judge") {
+      } else if (role === "judge" || role === "mentor" || role === "teacher") {
         data = await authApi.loginTeacher(credentials);
         navigateTo = "/judge";
       } else {
@@ -133,7 +135,6 @@ export function AuthLayout() {
         fullName: regFullName.trim(),
         address: regAddress.trim(),
         phone: regPhone.trim(),
-        studentId: regStudentId.trim(),
         universityId: regUniversityId.trim(),
       });
 
@@ -213,7 +214,7 @@ export function AuthLayout() {
 
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="admin">Admin</option>
-                <option value="judge">Judge</option>
+                <option value="teacher">Teacher (Judge / Mentor)</option>
                 <option value="player">Participants</option>
               </select>
 
@@ -252,15 +253,31 @@ export function AuthLayout() {
                       Forgot password?
                     </button>
                   </div>
+                  <div className="relative">
                   <input
                     id="login-password"
-                    type="password"
+                    type={showLoginPassword ? "text" : "password"}
                     required
                     placeholder="••••••••"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                   />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((show) => !show)}
+                      className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-slate-700 transition-colors"
+                      aria-label={
+                        showLoginPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showLoginPassword ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -332,7 +349,7 @@ export function AuthLayout() {
                       type="tel"
                       required
                       placeholder="0901234567"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                     />
@@ -401,25 +418,6 @@ export function AuthLayout() {
                   </select>
                 </div>
 
-                {/* --- Student ID --- */}
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium text-slate-700"
-                    htmlFor="studentId"
-                  >
-                    Student ID
-                  </label>
-                  <input
-                    id="studentId"
-                    type="text"
-                    required
-                    placeholder="e.g. SE123456"
-                    className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
-                    value={regStudentId}
-                    onChange={(e) => setRegStudentId(e.target.value)}
-                  />
-                </div>
-
                 {/* --- Passwords --- */}
                 <div className="space-y-5 pt-2">
                   <div className="space-y-2">
@@ -429,15 +427,31 @@ export function AuthLayout() {
                     >
                       Password
                     </label>
+                    <div className="relative">
                     <input
                       id="reg-password"
-                      type="password"
+                      type={showRegPassword ? "text" : "password"}
                       required
                       placeholder="••••••••"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                     />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword((show) => !show)}
+                        className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={
+                          showRegPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showRegPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label
@@ -446,15 +460,35 @@ export function AuthLayout() {
                     >
                       Confirm Password
                     </label>
+                    <div className="relative">
                     <input
                       id="reg-confirm"
-                      type="password"
+                      type={showRegConfirmPassword ? "text" : "password"}
                       required
                       placeholder="••••••••"
-                      className="block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 focus:bg-white transition-all"
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
                     />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowRegConfirmPassword((show) => !show)
+                        }
+                        className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={
+                          showRegConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
+                      >
+                        {showRegConfirmPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
