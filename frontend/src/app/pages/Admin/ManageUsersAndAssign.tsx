@@ -388,14 +388,13 @@ export function ManageUsersAndAssign() {
             {activeTab === "approve" && (
               <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="border border-slate-100 rounded-[1.5rem] overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full table-fixed text-left text-sm">
                     <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-extrabold tracking-widest border-b border-slate-100">
                       <tr>
-                        <th className="px-8 py-5">Full Name</th>
-                        <th className="px-6 py-5">Phone Number</th>
-                        <th className="px-6 py-5">Email Address</th>
-                        <th className="px-6 py-5">University / Org</th>
-                        <th className="px-8 py-5 text-right">Actions</th>
+                        <th className="w-[26%] px-8 py-5">Full Name</th>
+                        <th className="w-[20%] px-6 py-5">Phone Number</th>
+                        <th className="w-[30%] px-6 py-5">Email Address</th>
+                        <th className="w-[24%] px-8 py-5 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -404,43 +403,42 @@ export function ManageUsersAndAssign() {
                           key={studentKey(s)}
                           className="hover:bg-slate-50 transition-colors"
                         >
-                          <td className="px-8 py-5 font-extrabold text-[#f26f21]">
+                          <td className="px-8 py-5 font-extrabold text-[#f26f21] truncate">
                             {s.fullName || s.name || s.studentName || "—"}
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-500">
+                          <td className="px-6 py-5 font-bold text-slate-500 truncate">
                             {s.phone || "—"}
                           </td>
-                          <td className="px-6 py-5 font-medium text-slate-500">
+                          <td className="px-6 py-5 font-medium text-slate-500 truncate">
                             {s.email || "—"}
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-500">
-                            {s.address || "—"}
-                          </td>
-                          <td className="px-8 py-5 flex justify-end gap-3">
-                            <button
-                              onClick={() =>
-                                handleApproveStudent(studentKey(s), true)
-                              }
-                              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs transition-colors"
-                            >
-                              <CheckCircle size={16} strokeWidth={2.5} />{" "}
-                              Approve
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleApproveStudent(studentKey(s), false)
-                              }
-                              className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-600 font-bold text-xs transition-colors"
-                            >
-                              <XCircle size={16} strokeWidth={2.5} /> Reject
-                            </button>
+                          <td className="px-8 py-5">
+                            <div className="flex justify-end gap-3">
+                              <button
+                                onClick={() =>
+                                  handleApproveStudent(studentKey(s), true)
+                                }
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs transition-colors"
+                              >
+                                <CheckCircle size={16} strokeWidth={2.5} />{" "}
+                                Approve
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleApproveStudent(studentKey(s), false)
+                                }
+                                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-600 font-bold text-xs transition-colors"
+                              >
+                                <XCircle size={16} strokeWidth={2.5} /> Reject
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                       {students.length === 0 && (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={4}
                             className="text-center py-20 text-slate-400 font-medium text-base"
                           >
                             <CheckCircle
