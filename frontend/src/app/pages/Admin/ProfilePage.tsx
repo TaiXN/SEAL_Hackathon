@@ -105,7 +105,7 @@ export function ProfilePage() {
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="mb-10">
-          <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight">
+          <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight">
             My Profile
           </h2>
           <p className="text-slate-500 font-medium text-base mt-2">
@@ -120,7 +120,7 @@ export function ProfilePage() {
               <div className="w-32 h-32 bg-gradient-to-tr from-slate-100 to-slate-50 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner border border-white">
                 <User size={56} className="text-slate-400" strokeWidth={1.5} />
               </div>
-              <h3 className="text-2xl font-extrabold text-[#0a192f] text-center leading-tight">
+              <h3 className="text-2xl font-extrabold text-[#f26f21] text-center leading-tight">
                 {profile.fullName}
               </h3>
               <p className="text-slate-500 font-bold text-sm mt-2 text-center break-all">
@@ -137,7 +137,7 @@ export function ProfilePage() {
             {/* THÔNG TIN CÁ NHÂN (READ-ONLY) */}
             <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <div className="flex justify-between items-center border-b border-slate-100 pb-5 mb-6">
-                <h3 className="text-xl font-extrabold text-[#0a192f] flex items-center gap-3">
+                <h3 className="text-xl font-extrabold text-[#f26f21] flex items-center gap-3">
                   <div className="p-2 bg-slate-50 text-slate-600 rounded-lg">
                     <User size={20} strokeWidth={2.5} />
                   </div>
@@ -198,7 +198,7 @@ export function ProfilePage() {
 
             {/* ĐỔI MẬT KHẨU */}
             <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <h3 className="text-xl font-extrabold text-[#0a192f] flex items-center gap-3 border-b border-slate-100 pb-5 mb-6">
+              <h3 className="text-xl font-extrabold text-[#f26f21] flex items-center gap-3 border-b border-slate-100 pb-5 mb-6">
                 <div className="p-2 bg-fpt-orange-soft text-fpt-orange rounded-lg">
                   <Key size={20} strokeWidth={2.5} />
                 </div>
@@ -219,7 +219,7 @@ export function ProfilePage() {
                       placeholder="Enter current password"
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"
@@ -245,7 +245,7 @@ export function ProfilePage() {
                       placeholder="Enter new password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"
@@ -271,7 +271,7 @@ export function ProfilePage() {
                       placeholder="Retype new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                      className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-extrabold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                     />
                     <button
                       type="button"

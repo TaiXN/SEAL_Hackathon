@@ -82,7 +82,7 @@ export function AdminLayout() {
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between shadow-sm z-20">
         <div>
           <div className="h-20 flex items-center gap-3 px-8 border-b border-gray-100">
-            <Hexagon size={28} className="text-black" strokeWidth={2.5} />
+            <Hexagon size={28} className="text-[#f26f21]" strokeWidth={2.5} />
             <div>
               <h1 className="font-black text-base tracking-tight leading-tight">
                 SEAL Hackathon
@@ -101,8 +101,8 @@ export function AdminLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors duration-200 ${
                       isActive
-                        ? "bg-black text-white shadow-md"
-                        : "text-gray-500 hover:bg-gray-100 hover:text-black"
+                        ? "bg-[#f26f21] text-white shadow-md"
+                        : "text-gray-500 hover:bg-orange-50 hover:text-[#c2410c]"
                     }`
                   }
                 >

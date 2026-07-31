@@ -22,15 +22,15 @@ export function Landing() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => window.scrollTo(0, 0)}
           >
-            <Hexagon className="w-8 h-8 text-[#0a192f]" strokeWidth={2.5} />
-            <span className="font-black text-xl tracking-tight text-[#0a192f]">
+            <Hexagon className="w-8 h-8 text-[#f26f21]" strokeWidth={2.5} />
+            <span className="font-black text-xl tracking-tight text-[#f26f21]">
               SEAL Hackathon
             </span>
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/login")}
-              className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-[#0a192f] transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-[#f26f21] transition-colors"
             >
               Sign In
             </button>
@@ -38,7 +38,7 @@ export function Landing() {
               onClick={() =>
                 navigate("/login", { state: { view: "register" } })
               }
-              className="px-6 py-2.5 bg-[#0a192f] text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md"
+              className="px-6 py-2.5 bg-[#f26f21] text-white text-sm font-bold rounded-xl hover:bg-orange-700 transition-all shadow-md"
             >
               Register Now
             </button>
@@ -49,11 +49,11 @@ export function Landing() {
       {/* ================= HERO SECTION ================= */}
       <section className="pt-40 pb-24 px-6 max-w-7xl mx-auto flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-slate-600 text-sm font-bold mb-8 border-2 border-slate-200 shadow-sm">
-          <Zap size={16} className="text-[#0a192f]" />{" "}
+          <Zap size={16} className="text-[#f26f21]" />{" "}
           <span>Summer 2026 Registration is Open</span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-tight mb-8 max-w-4xl text-[#0a192f]">
+        <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-tight mb-8 max-w-4xl text-[#f26f21]">
           Build the Future of <br /> Technology Today.
         </h1>
 
@@ -66,7 +66,7 @@ export function Landing() {
           {/* Nút bấm 3D Effect - Navy */}
           <button
             onClick={() => navigate("/login", { state: { view: "register" } })}
-            className="flex items-center justify-center gap-2 px-8 py-4 bg-[#0a192f] text-white border-2 border-[#0a192f] border-b-[6px] hover:border-b-black hover:bg-slate-900 hover:-translate-y-1 active:border-b-[2px] active:translate-y-1 text-lg font-black rounded-2xl transition-all"
+            className="flex items-center justify-center gap-2 px-8 py-4 bg-[#f26f21] text-white border-2 border-[#f26f21] border-b-[6px] hover:border-b-orange-900 hover:bg-orange-700 hover:-translate-y-1 active:border-b-[2px] active:translate-y-1 text-lg font-black rounded-2xl transition-all"
           >
             Join the Hackathon <ArrowRight size={20} />
           </button>
@@ -78,7 +78,7 @@ export function Landing() {
                 .getElementById("tracks")
                 ?.scrollIntoView({ behavior: "smooth" })
             }
-            className="flex items-center justify-center px-8 py-4 bg-white text-[#0a192f] border-2 border-slate-200 border-b-[6px] hover:border-slate-300 hover:-translate-y-1 active:border-b-[2px] active:translate-y-1 text-lg font-black rounded-2xl transition-all"
+            className="flex items-center justify-center px-8 py-4 bg-white text-[#f26f21] border-2 border-slate-200 border-b-[6px] hover:border-slate-300 hover:-translate-y-1 active:border-b-[2px] active:translate-y-1 text-lg font-black rounded-2xl transition-all"
           >
             View Tracks
           </button>
@@ -98,10 +98,10 @@ export function Landing() {
               key={idx}
               className="flex flex-col items-center text-center p-6 group cursor-default"
             >
-              <div className="w-16 h-16 bg-slate-50 text-[#0a192f] border border-slate-200 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#0a192f] group-hover:text-white transition-all shadow-sm">
+              <div className="w-16 h-16 bg-slate-50 text-[#f26f21] border border-slate-200 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#f26f21] group-hover:text-white transition-all shadow-sm">
                 <stat.icon size={32} />
               </div>
-              <h3 className="text-4xl font-black text-[#0a192f] mb-2">
+              <h3 className="text-4xl font-black text-[#f26f21] mb-2">
                 {stat.value}
               </h3>
               <p className="text-slate-500 font-bold uppercase tracking-widest text-[11px]">
@@ -115,7 +115,7 @@ export function Landing() {
       {/* ================= TRACKS SECTION (3D CARDS) ================= */}
       <section id="tracks" className="py-24 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black mb-4 text-[#0a192f]">
+          <h2 className="text-4xl font-black mb-4 text-[#f26f21]">
             Competition Tracks
           </h2>
           <p className="text-lg text-slate-500 font-medium">
@@ -143,12 +143,12 @@ export function Landing() {
           ].map((track, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-[2rem] border-2 border-slate-200 border-b-[8px] p-10 hover:border-b-[#0a192f] hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col group cursor-default"
+              className="bg-white rounded-[2rem] border-2 border-slate-200 border-b-[8px] p-10 hover:border-b-[#f26f21] hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 flex flex-col group cursor-default"
             >
-              <div className="w-16 h-16 bg-slate-50 border border-slate-100 text-[#0a192f] rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#0a192f] group-hover:text-white transition-colors shadow-sm">
+              <div className="w-16 h-16 bg-slate-50 border border-slate-100 text-[#f26f21] rounded-2xl flex items-center justify-center mb-8 group-hover:bg-[#f26f21] group-hover:text-white transition-colors shadow-sm">
                 <track.icon size={30} />
               </div>
-              <h3 className="text-2xl font-black mb-4 text-[#0a192f]">
+              <h3 className="text-2xl font-black mb-4 text-[#f26f21]">
                 {track.title}
               </h3>
               <p className="text-slate-500 font-medium leading-relaxed flex-1">

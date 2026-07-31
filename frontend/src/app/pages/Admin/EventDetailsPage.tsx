@@ -1170,7 +1170,7 @@ export function EventDetailsPage() {
   if (isLoading && !event)
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-20 text-slate-400">
-        <Loader2 size={36} className="animate-spin text-[#0a192f]" />
+        <Loader2 size={36} className="animate-spin text-[#f26f21]" />
         <span className="text-sm font-bold uppercase tracking-widest">
           Loading Event details...
         </span>
@@ -1265,7 +1265,7 @@ export function EventDetailsPage() {
               >
                 <ArrowLeft size={24} />
               </button>
-              <h2 className="text-4xl font-black text-[#0a192f] tracking-tight">
+              <h2 className="text-4xl font-black text-[#f26f21] tracking-tight">
                 Event Configuration
               </h2>
             </div>
@@ -1302,8 +1302,8 @@ export function EventDetailsPage() {
 
         <div className="space-y-8">
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 className="text-xl font-extrabold text-[#0a192f] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+            <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
                 <Edit3 size={20} strokeWidth={2.5} />
               </div>
               Basic Information
@@ -1318,7 +1318,7 @@ export function EventDetailsPage() {
                   type="text"
                   value={event.name || ""}
                   onChange={(e) => setEvent({ ...event, name: e.target.value })}
-                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#0a192f] text-base ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
+                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#f26f21] text-base ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
                 />
               </div>
 
@@ -1340,7 +1340,7 @@ export function EventDetailsPage() {
 
           {/* QUẢN LÝ CÁC VÒNG THI */}
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 className="text-xl font-extrabold text-[#0a192f] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+            <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                 <FastForward size={20} strokeWidth={2.5} />
               </div>
@@ -1366,7 +1366,7 @@ export function EventDetailsPage() {
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
                         Index: {r.roundIndex ?? r.RoundIndex}
                       </span>
-                      <h4 className="font-extrabold text-[#0a192f] text-lg">
+                      <h4 className="font-extrabold text-[#f26f21] text-lg">
                         {r.roundName}
                       </h4>
                     </div>
@@ -1400,14 +1400,14 @@ export function EventDetailsPage() {
                     </p>
                     <p className="flex justify-between">
                       <span>Max Teams:</span>{" "}
-                      <span className="text-[#0a192f]">{r.maxTeam ?? 0}</span>
+                      <span className="text-[#f26f21]">{r.maxTeam ?? 0}</span>
                     </p>
                     <div className="pt-2 mt-2 border-t border-slate-200 space-y-1.5">
                       <p className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-slate-500">
                           <Calendar size={13} strokeWidth={2.5} /> Start:
                         </span>
-                        <span className="text-[#0a192f] text-xs font-bold">
+                        <span className="text-[#f26f21] text-xs font-bold">
                           {formatDisplayDateTime(
                             r.startDate || r.StartDate,
                           )}
@@ -1417,7 +1417,7 @@ export function EventDetailsPage() {
                         <span className="flex items-center gap-1.5 text-slate-500">
                           <Calendar size={13} strokeWidth={2.5} /> End:
                         </span>
-                        <span className="text-[#0a192f] text-xs font-bold">
+                        <span className="text-[#f26f21] text-xs font-bold">
                           {formatDisplayDateTime(r.endDate || r.EndDate)}
                         </span>
                       </p>
@@ -1430,7 +1430,7 @@ export function EventDetailsPage() {
 
           {/* NÚT ADD TRACK NẰM Ở ĐÂY */}
           <div className="flex justify-between items-center px-2">
-            <h3 className="text-xl font-extrabold text-[#0a192f] ml-2">
+            <h3 className="text-xl font-extrabold text-[#f26f21] ml-2">
               Event Tracks
             </h3>
             {!isEnded && (
@@ -1456,7 +1456,7 @@ export function EventDetailsPage() {
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         Track #{idx + 1}
                       </label>
-                      <div className="font-extrabold text-lg text-[#0a192f] mt-0.5">
+                      <div className="font-extrabold text-lg text-[#f26f21] mt-0.5">
                         {track.trackName}
                       </div>
                     </div>
@@ -1539,7 +1539,7 @@ export function EventDetailsPage() {
           </div>
 
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 className="text-xl font-extrabold text-[#0a192f] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
+            <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
                 <ListChecks size={20} strokeWidth={2.5} />
               </div>
@@ -1548,7 +1548,7 @@ export function EventDetailsPage() {
 
             {loadingCriteria ? (
               <div className="flex items-center gap-3 text-sm text-slate-400 py-10 justify-center font-bold tracking-widest uppercase">
-                <Loader2 size={20} className="animate-spin text-[#0a192f]" />{" "}
+                <Loader2 size={20} className="animate-spin text-[#f26f21]" />{" "}
                 Loading rubrics...
               </div>
             ) : criteriaError ? (
@@ -1588,7 +1588,7 @@ export function EventDetailsPage() {
                               updateSetNameLocal(setIdx, e.target.value)
                             }
                             disabled={isEnded}
-                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isEnded ? "bg-transparent text-[#0a192f] cursor-not-allowed" : "bg-white border border-slate-200 text-[#0a192f] focus:border-fpt-orange focus:ring-2 focus:ring-fpt-orange/10 transition-all shadow-sm"}`}
+                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isEnded ? "bg-transparent text-[#f26f21] cursor-not-allowed" : "bg-white border border-slate-200 text-[#f26f21] focus:border-fpt-orange focus:ring-2 focus:ring-fpt-orange/10 transition-all shadow-sm"}`}
                           />
                           {set.roundName && (
                             <span className="text-[9px] px-2.5 py-1 rounded-md bg-fpt-orange text-white font-bold uppercase tracking-widest shrink-0 shadow-sm">
@@ -1642,7 +1642,7 @@ export function EventDetailsPage() {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isEnded ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#0a192f] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10"}`}
+                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isEnded ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#f26f21] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10"}`}
                                 />
                                 <span className="text-xs text-slate-400 font-bold">
                                   %
@@ -1727,8 +1727,8 @@ export function EventDetailsPage() {
           {canShowLeaderboard && (
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
               <div className="p-8 border-b border-slate-100">
-                <h3 className="text-xl font-extrabold text-[#0a192f] flex items-center gap-3">
-                  <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                <h3 className="text-xl font-extrabold text-[#f26f21] flex items-center gap-3">
+                  <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
                     <Trophy size={20} strokeWidth={2.5} />
                   </div>
                   Live Leaderboard & Round Transition
@@ -1743,7 +1743,7 @@ export function EventDetailsPage() {
                   <div className="flex flex-col items-center justify-center p-16 text-slate-400">
                     <Loader2
                       size={36}
-                      className="animate-spin text-[#0a192f] mb-4"
+                      className="animate-spin text-[#f26f21] mb-4"
                     />
                     <span className="font-bold text-sm uppercase tracking-widest">
                       Aggregating Scores...
@@ -1834,7 +1834,7 @@ export function EventDetailsPage() {
                               </td>
                               <td className="px-6 py-4">
                                 <span
-                                  className={`text-base font-extrabold ${index < 3 ? "text-[#0a192f]" : "text-slate-700"}`}
+                                  className={`text-base font-extrabold ${index < 3 ? "text-[#f26f21]" : "text-slate-700"}`}
                                 >
                                   {team.teamName ||
                                     team.name ||
@@ -1864,14 +1864,14 @@ export function EventDetailsPage() {
               {!isEnded && (
                 <div className="p-8 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-6">
                   <div className="flex items-center gap-4 text-slate-500 text-sm font-medium">
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-[#0a192f]">
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-[#f26f21]">
                       <Users size={20} strokeWidth={2.5} />
                     </div>
                     <div>
                       <span className="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5">
                         Total Teams
                       </span>
-                      <span className="font-extrabold text-[#0a192f] text-base">
+                      <span className="font-extrabold text-[#f26f21] text-base">
                         {roundTeams.length}
                       </span>
                     </div>

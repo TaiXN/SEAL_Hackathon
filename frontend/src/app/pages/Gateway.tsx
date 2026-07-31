@@ -47,7 +47,7 @@ export function Gateway() {
             </div>
 
             <div className="mt-10">
-              <button className="w-full bg-neutral-900 text-white font-medium py-3.5 px-4 hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2">
+              <button className="w-full bg-orange-600 text-white font-medium py-3.5 px-4 hover:bg-orange-700 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 + Create Team
               </button>
             </div>
@@ -71,7 +71,7 @@ export function Gateway() {
                   placeholder="Paste invite link here..."
                   className="flex-1 min-w-0 bg-neutral-50 border border-neutral-200 py-3.5 px-4 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 focus:bg-white transition-colors"
                 />
-                <button className="bg-neutral-900 text-white font-medium py-3.5 px-8 hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-2">
+                <button className="bg-orange-600 text-white font-medium py-3.5 px-8 hover:bg-orange-700 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                   Join
                 </button>
               </div>

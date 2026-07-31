@@ -309,7 +309,7 @@ export function AdminViolationsPage() {
   return (
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 relative font-sans selection:bg-slate-200">
       <div className="mb-10">
-        <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight">
+        <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight">
           Approvals & Disciplinary
         </h2>
         <p className="text-slate-500 font-medium text-base mt-2">
@@ -327,7 +327,7 @@ export function AdminViolationsPage() {
             <select
               value={selectedEventId}
               onChange={(e) => handleSelectEvent(e.target.value)}
-              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
             >
               <option value="">-- Select Event --</option>
               {eventOptions.map((ev) => (
@@ -341,7 +341,7 @@ export function AdminViolationsPage() {
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-[300px] px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <option value="">
                 {selectedEventId
@@ -421,7 +421,7 @@ export function AdminViolationsPage() {
                       className="px-6 py-16 text-center text-slate-500 font-bold uppercase tracking-widest text-xs"
                     >
                       <Activity
-                        className="animate-spin inline mr-2 text-[#0a192f]"
+                        className="animate-spin inline mr-2 text-[#f26f21]"
                         size={20}
                       />{" "}
                       Loading teams...
@@ -446,7 +446,7 @@ export function AdminViolationsPage() {
                       key={team.id}
                       className="hover:bg-slate-50 transition-colors"
                     >
-                      <td className="px-8 py-6 font-extrabold text-[#0a192f] text-base">
+                      <td className="px-8 py-6 font-extrabold text-[#f26f21] text-base">
                         {team.name}
                       </td>
                       <td className="px-6 py-6 text-center">
@@ -461,7 +461,7 @@ export function AdminViolationsPage() {
                         {team.status === "banned" ? (
                           <button
                             onClick={() => handleUnbanTeam(team.id, team.name)}
-                            className="px-5 py-2.5 bg-white border border-slate-200 text-[#0a192f] text-xs font-bold rounded-xl hover:bg-slate-50 flex items-center gap-1.5 ml-auto transition-colors shadow-sm"
+                            className="px-5 py-2.5 bg-white border border-slate-200 text-[#f26f21] text-xs font-bold rounded-xl hover:bg-slate-50 flex items-center gap-1.5 ml-auto transition-colors shadow-sm"
                           >
                             <Unlock size={16} strokeWidth={2.5} /> Revoke Ban
                           </button>
@@ -515,7 +515,7 @@ export function AdminViolationsPage() {
                     strokeWidth={2.5}
                   />
                 </div>
-                <h3 className="font-extrabold text-[#0a192f] text-xl">
+                <h3 className="font-extrabold text-[#f26f21] text-xl">
                   Confirm Disqualification
                 </h3>
               </div>
@@ -529,7 +529,7 @@ export function AdminViolationsPage() {
             <div className="p-8 space-y-6">
               <p className="text-base text-slate-600 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 This action will permanently revoke submission access for{" "}
-                <strong className="text-[#0a192f]">{selectedTeam?.name}</strong>
+                <strong className="text-[#f26f21]">{selectedTeam?.name}</strong>
                 .
               </p>
               <div>

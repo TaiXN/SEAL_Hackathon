@@ -341,7 +341,7 @@ export function ManageUsersAndAssign() {
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="mb-10">
-          <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight">
+          <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight">
             Users & Assignments
           </h2>
           <p className="text-slate-500 font-medium text-base mt-2">
@@ -404,7 +404,7 @@ export function ManageUsersAndAssign() {
                           key={studentKey(s)}
                           className="hover:bg-slate-50 transition-colors"
                         >
-                          <td className="px-8 py-5 font-extrabold text-[#0a192f]">
+                          <td className="px-8 py-5 font-extrabold text-[#f26f21]">
                             {s.fullName || s.name || s.studentName || "—"}
                           </td>
                           <td className="px-6 py-5 font-bold text-slate-500">
@@ -477,7 +477,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Nguyen Van A"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -494,7 +494,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., teacher@fpt.edu.vn"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -511,7 +511,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., 0987654321"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -528,7 +528,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="Enter secure password"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-blue-600 placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-orange-600 placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -545,7 +545,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Software Engineering Dept."
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -558,7 +558,7 @@ export function ManageUsersAndAssign() {
                           onClick={() =>
                             setNewTeacher({ ...newTeacher, isGuest: false })
                           }
-                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${!newTeacher.isGuest ? "bg-white shadow-sm text-[#0a192f]" : "text-slate-400 hover:text-slate-600"}`}
+                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${!newTeacher.isGuest ? "bg-white shadow-sm text-[#f26f21]" : "text-slate-400 hover:text-slate-600"}`}
                         >
                           Internal
                         </button>
@@ -567,7 +567,7 @@ export function ManageUsersAndAssign() {
                           onClick={() =>
                             setNewTeacher({ ...newTeacher, isGuest: true })
                           }
-                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${newTeacher.isGuest ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"}`}
+                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${newTeacher.isGuest ? "bg-white shadow-sm text-orange-600" : "text-slate-400 hover:text-slate-600"}`}
                         >
                           Guest
                         </button>
@@ -593,7 +593,7 @@ export function ManageUsersAndAssign() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-6">
                     <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px]">
+                      <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-[10px]">
                         1
                       </div>
                       Select Target Event
@@ -601,7 +601,7 @@ export function ManageUsersAndAssign() {
                     <select
                       value={selectedEventId}
                       onChange={(e) => setSelectedEventId(e.target.value)}
-                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
+                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
                     >
                       <option
                         value=""
@@ -629,7 +629,7 @@ export function ManageUsersAndAssign() {
                   >
                     <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-6">
                       <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px]">
+                        <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-[10px]">
                           2
                         </div>
                         Select Track
@@ -637,7 +637,7 @@ export function ManageUsersAndAssign() {
                       <select
                         value={trackIdToManage}
                         onChange={(e) => setTrackIdToManage(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
                       >
                         <option
                           value=""
@@ -700,7 +700,7 @@ export function ManageUsersAndAssign() {
                               teacherId: e.target.value,
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer appearance-none transition-all"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer appearance-none transition-all"
                         >
                           <option
                             value=""
@@ -744,7 +744,7 @@ export function ManageUsersAndAssign() {
                             onClick={() =>
                               setAssignForm({ ...assignForm, isMentor: false })
                             }
-                            className={`flex-1 text-sm font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all ${!assignForm.isMentor ? "bg-white shadow-sm text-blue-600" : "text-slate-400 hover:text-slate-600"}`}
+                            className={`flex-1 text-sm font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all ${!assignForm.isMentor ? "bg-white shadow-sm text-orange-600" : "text-slate-400 hover:text-slate-600"}`}
                           >
                             <ShieldAlert size={16} strokeWidth={2.5} /> Judge
                           </button>
@@ -762,7 +762,7 @@ export function ManageUsersAndAssign() {
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-extrabold text-[#0a192f] mb-5 px-2">
+                    <h3 className="text-xl font-extrabold text-[#f26f21] mb-5 px-2">
                       Current Assignments
                     </h3>
                     <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
@@ -793,7 +793,7 @@ export function ManageUsersAndAssign() {
                                 key={`assigned-${item.id}-${idx}`}
                                 className="hover:bg-slate-50 transition-colors"
                               >
-                                <td className="px-8 py-5 font-bold text-[#0a192f]">
+                                <td className="px-8 py-5 font-bold text-[#f26f21]">
                                   {realName}
                                 </td>
                                 <td className="px-6 py-5 font-medium text-slate-500">
@@ -809,7 +809,7 @@ export function ManageUsersAndAssign() {
                                       Mentor
                                     </span>
                                   ) : (
-                                    <span className="px-3.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
+                                    <span className="px-3.5 py-1.5 bg-orange-50 text-orange-600 border border-orange-100 font-extrabold text-[10px] uppercase tracking-widest rounded-full inline-flex items-center gap-1.5">
                                       <ShieldAlert
                                         size={12}
                                         strokeWidth={2.5}

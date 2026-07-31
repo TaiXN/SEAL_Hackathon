@@ -331,6 +331,7 @@ export function ScoringPage() {
         // STEP 4: Load the previously saved score.
         // ==========================================
         try {
+          const currentSubId = actualSubmissionId;
           if (actualSubmissionId) {
             const evalRes =
               await judgeApi.getEvaluationBySubmission(currentSubId);
@@ -423,7 +424,7 @@ export function ScoringPage() {
 
     try {
       setIsSaving(true);
-      const basePayload = { score: displayScore, reason: feedback };
+      const scoreNum = Number(displayScore);
 
       if (evaluationId) {
         // Send PUT with the payload shape expected by the backend.

@@ -63,7 +63,6 @@ export function AuthLayout() {
   const [isRoleOpen, setIsRoleOpen] = useState(false); // State for Custom Role Dropdown
 
   const [regEmail, setRegEmail] = useState("");
-  const [regStudentId, setRegStudentId] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regPasswordErrors, setRegPasswordErrors] = useState<string[]>([]);
@@ -192,7 +191,6 @@ export function AuthLayout() {
         fullName: regFullName.trim(),
         address: regAddress.trim(),
         phone: regPhone.trim(),
-        studentId: regStudentId.trim(),
         universityId: regUniversityId.trim(),
       });
 
@@ -212,18 +210,18 @@ export function AuthLayout() {
   // ================= UI RENDER =================
   return (
     <div className="flex min-h-screen w-full bg-slate-50 font-sans text-slate-900">
-      <div className="hidden lg:flex lg:flex-col lg:w-5/12 bg-slate-900 text-white p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:flex-col lg:w-5/12 bg-orange-600 text-white p-12 relative overflow-hidden">
         <div className="relative z-10 flex-1 flex flex-col justify-center pb-12">
           <h1 className="text-5xl md:text-6xl font-medium tracking-tight mb-6 leading-tight">
             SEAL Hackathon
           </h1>
-          <p className="text-slate-400 text-lg max-w-sm leading-relaxed">
+          <p className="text-orange-50 text-lg max-w-sm leading-relaxed">
             The ultimate platform for innovators. Register your team and build
             the future today.
           </p>
         </div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-white opacity-5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/4 -right-24 w-64 h-64 bg-blue-500 opacity-15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 -right-24 w-64 h-64 bg-orange-300 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
       <div className="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-12 lg:p-24 bg-white relative">
@@ -274,7 +272,7 @@ export function AuthLayout() {
                         }}
                         className={`px-4 py-3.5 text-sm font-bold cursor-pointer transition-colors flex items-center justify-between ${
                           role === r.id
-                            ? "bg-slate-900 text-white"
+                            ? "bg-orange-600 text-white"
                             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                         }`}
                       >
@@ -302,7 +300,7 @@ export function AuthLayout() {
                     className={`block w-full px-4 py-3 border rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all font-medium ${
                       loginError
                         ? "bg-red-50 border-red-400 focus:ring-red-500/10 focus:border-red-500 text-red-900"
-                        : "bg-slate-50 border-slate-200 focus:ring-slate-900/10 focus:border-slate-900"
+                        : "bg-slate-50 border-slate-200 focus:ring-orange-500/10 focus:border-orange-500"
                     }`}
                     value={loginEmail}
                     onChange={(e) => {
@@ -328,7 +326,7 @@ export function AuthLayout() {
                       className={`block w-full px-4 py-3 pr-11 border rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:bg-white transition-all font-medium ${
                         loginError
                           ? "bg-red-50 border-red-400 focus:ring-red-500/10 focus:border-red-500 text-red-900"
-                          : "bg-slate-50 border-slate-200 focus:ring-slate-900/10 focus:border-slate-900"
+                          : "bg-slate-50 border-slate-200 focus:ring-orange-500/10 focus:border-orange-500"
                       }`}
                       value={loginPassword}
                       onChange={(e) => {
@@ -361,7 +359,7 @@ export function AuthLayout() {
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 mt-8"
+                  className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white py-3.5 px-4 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 mt-8"
                 >
                   Sign In <ArrowRight size={18} strokeWidth={2} />
                 </button>
@@ -373,7 +371,7 @@ export function AuthLayout() {
                   <button
                     type="button"
                     onClick={() => setView("register")}
-                    className="font-bold text-slate-900 hover:underline transition-all"
+                    className="font-bold text-orange-600 hover:text-orange-700 hover:underline transition-all"
                   >
                     Register now
                   </button>
@@ -404,7 +402,7 @@ export function AuthLayout() {
                     type="text"
                     required
                     placeholder="Nguyen Van A"
-                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
                   />
@@ -424,7 +422,7 @@ export function AuthLayout() {
                       maxLength={10}
                       pattern="\d{10}"
                       title="Phone number must be exactly 10 digits"
-                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
                       value={regPhone}
                       onChange={(e) =>
                         setRegPhone(
@@ -442,7 +440,7 @@ export function AuthLayout() {
                       type="text"
                       required
                       placeholder="HCMC"
-                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
                       value={regAddress}
                       onChange={(e) => setRegAddress(e.target.value)}
                     />
@@ -458,7 +456,7 @@ export function AuthLayout() {
                     type="email"
                     required
                     placeholder="name@example.com"
-                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
+                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                   />
@@ -496,7 +494,7 @@ export function AuthLayout() {
                           }}
                           className={`px-4 py-3 text-sm cursor-pointer transition-colors flex items-center justify-between ${
                             regUniversityId === uni.id
-                              ? "bg-slate-900 text-white font-bold"
+                              ? "bg-orange-600 text-white font-bold"
                               : "text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900"
                           }`}
                         >
@@ -510,26 +508,12 @@ export function AuthLayout() {
                   )}
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[13px] font-bold text-slate-700">
-                    Student ID
-                  </label>
-                  <input
-                    id="studentId"
-                    type="text"
-                    required
-                    placeholder="SE123456"
-                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-slate-900 focus:bg-white transition-all"
-                    value={regStudentId}
-                    onChange={(e) => setRegStudentId(e.target.value)}
-                  />
-                </div>
-
                 <div className="flex gap-4">
                   <div className="space-y-1.5 flex-1">
                     <label className="text-[13px] font-bold text-slate-700">
                       Password
                     </label>
+
                     <div className="relative">
                       <input
                         id="reg-password"
@@ -539,7 +523,7 @@ export function AuthLayout() {
                         className={`block w-full px-4 py-2.5 pr-11 border rounded-xl text-sm transition-all focus:bg-white ${
                           regPasswordTouched && regPasswordErrors.length > 0
                             ? "bg-red-50 border-red-400 focus:border-red-500 text-red-900"
-                            : "bg-slate-50 border-slate-200 focus:border-slate-900"
+                            : "bg-slate-50 border-slate-200 focus:border-orange-500"
                         }`}
                         value={regPassword}
                         onChange={(e) => {
@@ -582,7 +566,7 @@ export function AuthLayout() {
                           regConfirmPassword.length > 0 &&
                           regConfirmPassword !== regPassword
                             ? "bg-red-50 border-red-400 focus:border-red-500 text-red-900"
-                            : "bg-slate-50 border-slate-200 focus:border-slate-900"
+                            : "bg-slate-50 border-slate-200 focus:border-orange-500"
                         }`}
                         value={regConfirmPassword}
                         onChange={(e) => setRegConfirmPassword(e.target.value)}
@@ -645,7 +629,7 @@ export function AuthLayout() {
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3 px-4 rounded-xl text-sm font-bold transition-all mt-6"
+                  className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-xl text-sm font-bold transition-all mt-6"
                 >
                   Create Account <ArrowRight size={16} strokeWidth={2} />
                 </button>
@@ -657,7 +641,7 @@ export function AuthLayout() {
                   <button
                     type="button"
                     onClick={() => setView("login")}
-                    className="font-bold text-slate-900 hover:underline transition-all"
+                    className="font-bold text-orange-600 hover:text-orange-700 hover:underline transition-all"
                   >
                     Sign in
                   </button>

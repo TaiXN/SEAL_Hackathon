@@ -58,6 +58,14 @@ export const eventApi = {
     }));
   },
 
+  // Danh sách RAW (không lọc isActive, không đổi tên field).
+  // Dùng để dò lại ID sau khi tạo mới — event vừa tạo có thể chưa isActive
+  // nên sẽ bị getAllEvents() lọc mất, khiến bước dò ID theo tên luôn thất bại.
+  async getAllEventsRaw(): Promise<any[]> {
+    const res = await apiClient.get("/api/Event");
+    return res.data;
+  },
+
   async getEventById(id: string): Promise<EventItem> {
     const res = await apiClient.get(`/api/Event/${id}`);
     const item = res.data;

@@ -146,7 +146,7 @@ export function AdminPrizesPage() {
     const eventOptions = events
       .map(
         (e) =>
-          `<option value="${e.id || e.eventID}" style="padding: 10px; font-weight: 600; color: #0a192f; background-color: white;">${e.name || e.eventName}</option>`,
+          `<option value="${e.id || e.eventID}" style="padding: 10px; font-weight: 600; color: #f26f21; background-color: white;">${e.name || e.eventName}</option>`,
       )
       .join("");
 
@@ -155,13 +155,13 @@ export function AdminPrizesPage() {
       html: `
         <div class="text-left px-2 mt-4">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
-          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="e.g., First Prize">
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="e.g., First Prize">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description / Reward</label>
-          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Details about the prize...">
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Details about the prize...">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Target Event</label>
-          <select id="sw-event" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
+          <select id="sw-event" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
             <option value="" disabled selected>-- Select an Event --</option>
             ${eventOptions}
           </select>
@@ -224,10 +224,10 @@ export function AdminPrizesPage() {
       html: `
         <div class="text-left px-2 mt-4">
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prize Name</label>
-          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
+          <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
         </div>
       `,
       focusConfirm: false,
@@ -398,7 +398,7 @@ export function AdminPrizesPage() {
       const teamOptions = displayTeams
         .map(
           (t: any) =>
-            `<option value="${t.teamId}" style="padding: 10px; font-weight: 600; color: #0a192f; background-color: white;">${t.teamName}</option>`,
+            `<option value="${t.teamId}" style="padding: 10px; font-weight: 600; color: #f26f21; background-color: white;">${t.teamName}</option>`,
         )
         .join("");
 
@@ -408,10 +408,10 @@ export function AdminPrizesPage() {
           <div class="text-left px-2 mt-2">
             <p class="text-sm font-medium text-slate-500 mb-5">
               Select a deserving team to receive:<br/>
-              <strong class="text-lg font-black text-[#0a192f] mt-1 inline-block">${prize.prizeName}</strong>
+              <strong class="text-lg font-black text-[#f26f21] mt-1 inline-block">${prize.prizeName}</strong>
             </p>
             <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Recipient Team</label>
-            <select id="sw-team" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#0a192f] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
+            <select id="sw-team" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none cursor-pointer">
               <option value="" disabled selected>-- Click to select Team --</option>
               ${teamOptions}
             </select>
@@ -464,7 +464,7 @@ export function AdminPrizesPage() {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-between items-end mb-6">
           <div>
-            <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight flex items-center gap-3">
+            <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight flex items-center gap-3">
               <Trophy size={36} className="text-amber-500" strokeWidth={2.5} />
               Prize Management
             </h2>
@@ -488,7 +488,7 @@ export function AdminPrizesPage() {
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[280px] w-full cursor-pointer transition-all"
+              className="bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-bold rounded-xl px-5 py-3 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[280px] w-full cursor-pointer transition-all"
             >
               <option value="">🏆 All Events</option>
               {events.map((e) => (
@@ -526,7 +526,7 @@ export function AdminPrizesPage() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-slate-400">
-            <Loader2 size={36} className="animate-spin text-[#0a192f]" />
+            <Loader2 size={36} className="animate-spin text-[#f26f21]" />
             <p className="font-bold text-base tracking-wide">
               Loading prize database...
             </p>
@@ -576,7 +576,7 @@ export function AdminPrizesPage() {
                       )}
 
                       <div className="flex-1 mt-2">
-                        <h3 className="font-extrabold text-2xl text-[#0a192f] mb-3 pr-20 leading-tight">
+                        <h3 className="font-extrabold text-2xl text-[#f26f21] mb-3 pr-20 leading-tight">
                           {prize.prizeName}
                         </h3>
                         <p className="text-sm text-slate-500 line-clamp-2 mb-6 h-10 font-medium">
@@ -588,7 +588,7 @@ export function AdminPrizesPage() {
                             <span className="uppercase tracking-widest text-[9px] text-slate-400 block mb-0.5">
                               Event
                             </span>
-                            <span className="text-[#0a192f] text-sm">
+                            <span className="text-[#f26f21] text-sm">
                               {eventName}
                             </span>
                           </div>
@@ -617,7 +617,7 @@ export function AdminPrizesPage() {
                           className={`flex-1 font-bold text-sm py-2.5 rounded-xl border-2 transition-all ${
                             isAwarded
                               ? "bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed"
-                              : "bg-white text-[#0a192f] border-slate-100 hover:border-fpt-orange hover:bg-slate-50"
+                              : "bg-white text-[#f26f21] border-slate-100 hover:border-fpt-orange hover:bg-slate-50"
                           }`}
                         >
                           {isAwarded ? "Already Awarded" : "Award Prize"}

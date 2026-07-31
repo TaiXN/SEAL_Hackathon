@@ -84,8 +84,8 @@ export function AdminLeaderboardPage() {
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="mb-8">
-          <h2 className="text-4xl font-extrabold text-[#0a192f] tracking-tight flex items-center gap-3">
-            <BarChart2 size={36} className="text-blue-500" strokeWidth={2.5} />
+          <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight flex items-center gap-3">
+            <BarChart2 size={36} className="text-orange-500" strokeWidth={2.5} />
             Tournament Leaderboard
           </h2>
           <p className="text-slate-500 font-medium mt-2 text-base">
@@ -101,7 +101,7 @@ export function AdminLeaderboardPage() {
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose an Event --
@@ -125,7 +125,7 @@ export function AdminLeaderboardPage() {
               value={selectedRoundId}
               onChange={(e) => setSelectedRoundId(e.target.value)}
               disabled={!selectedEventId}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose a Round --
@@ -149,7 +149,7 @@ export function AdminLeaderboardPage() {
               value={selectedTrackId}
               onChange={(e) => setSelectedTrackId(e.target.value)}
               disabled={!selectedRoundId}
-              className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-semibold rounded-2xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 disabled:opacity-50 transition-all cursor-pointer"
             >
               <option value="" disabled>
                 -- Choose a Track --
@@ -169,7 +169,7 @@ export function AdminLeaderboardPage() {
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden min-h-[400px] flex flex-col">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-slate-400 my-20">
-              <Loader2 size={40} className="animate-spin text-[#0a192f] mb-4" />
+              <Loader2 size={40} className="animate-spin text-[#f26f21] mb-4" />
               <p className="font-bold">Calculating scores...</p>
             </div>
           ) : !selectedRoundId || !selectedTrackId ? (
@@ -277,7 +277,7 @@ export function AdminLeaderboardPage() {
 
                         <div className="flex-1 px-8 flex items-center">
                           <p
-                            className={`font-extrabold text-xl ${index < 3 ? "text-[#0a192f]" : "text-slate-600"}`}
+                            className={`font-extrabold text-xl ${index < 3 ? "text-[#f26f21]" : "text-slate-600"}`}
                           >
                             {team.teamName || "Anonymous Team"}
                           </p>

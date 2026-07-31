@@ -137,6 +137,30 @@ export const getServerMsg = (e: any): string => {
   );
 };
 
+/**
+ * Retry một request bất kỳ khi backend rớt ngẫu nhiên (timeout/deadlock thoáng qua).
+ * ⚠️ CHỈ retry sau khi request đã fail (không đoán trước) — nếu hết số lần vẫn
+ * lỗi thì ném lại lỗi gốc của lần thử cuối để người dùng thấy đúng nguyên nhân.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  delayMs = 500,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 /** Mô tả mặc định khi người dùng để trống ô mô tả tiêu chí */
 export const DEFAULT_CRITERIA_DESCRIPTION = "Tiêu chí Hackathon";
 

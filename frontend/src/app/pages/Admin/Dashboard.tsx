@@ -141,7 +141,7 @@ export function Dashboard() {
   if (isLoading) {
     return (
       <div className="p-10 flex items-center justify-center min-h-[60vh] text-slate-400">
-        <RefreshCw size={24} className="animate-spin mr-3 text-[#0a192f]" />
+        <RefreshCw size={24} className="animate-spin mr-3 text-[#f26f21]" />
         <span className="font-bold tracking-widest uppercase text-sm">
           Loading Overview...
         </span>
@@ -172,8 +172,8 @@ export function Dashboard() {
       label: "Total Events",
       value: events.length,
       icon: <LayoutGrid size={24} />,
-      color: "text-blue-600",
-      bg: "bg-blue-50 border-blue-100",
+      color: "text-orange-600",
+      bg: "bg-orange-50 border-orange-100",
     },
   ];
 
@@ -194,7 +194,7 @@ export function Dashboard() {
       {/* HEADER */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-4xl font-black text-[#0a192f] tracking-tight flex items-center gap-4">
+          <h1 className="text-4xl font-black text-[#f26f21] tracking-tight flex items-center gap-4">
             Dashboard
             <button
               onClick={() => fetchData(true)}
@@ -204,7 +204,7 @@ export function Dashboard() {
             >
               <RefreshCw
                 size={20}
-                className={isRefreshing ? "animate-spin text-[#0a192f]" : ""}
+                className={isRefreshing ? "animate-spin text-[#f26f21]" : ""}
                 strokeWidth={2.5}
               />
             </button>
@@ -242,7 +242,7 @@ export function Dashboard() {
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                 {s.label}
               </p>
-              <h3 className="text-4xl font-black text-[#0a192f] mt-1 tracking-tight">
+              <h3 className="text-4xl font-black text-[#f26f21] mt-1 tracking-tight">
                 {s.value}
               </h3>
             </div>
@@ -259,7 +259,7 @@ export function Dashboard() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[200px] w-full cursor-pointer transition-all"
+            className="bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[200px] w-full cursor-pointer transition-all"
           >
             <option value="all">All Events</option>
             <option value="ongoing">Ongoing</option>
@@ -278,7 +278,7 @@ export function Dashboard() {
             placeholder="Search by name, semester, year..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 text-[#0a192f] text-sm font-semibold rounded-xl pl-12 pr-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
+            className="w-full bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-semibold rounded-xl pl-12 pr-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all placeholder:text-slate-400 placeholder:font-medium"
           />
         </div>
       </div>
@@ -292,7 +292,7 @@ export function Dashboard() {
               className="text-slate-300 mb-5"
               strokeWidth={1.5}
             />
-            <h3 className="text-xl font-extrabold text-[#0a192f]">
+            <h3 className="text-xl font-extrabold text-[#f26f21]">
               {events.length === 0
                 ? "No Tournaments Initialized"
                 : "No Matches Found"}
@@ -305,7 +305,7 @@ export function Dashboard() {
             {events.length === 0 && (
               <button
                 onClick={() => navigate("/admin/events/create")}
-                className="mt-8 inline-flex items-center gap-2 px-8 py-3.5 bg-white text-[#0a192f] border-2 border-slate-200 border-b-[4px] font-black rounded-xl hover:border-slate-300 hover:bg-slate-50 active:border-b-[2px] active:translate-y-[2px] transition-all"
+                className="mt-8 inline-flex items-center gap-2 px-8 py-3.5 bg-white text-[#f26f21] border-2 border-slate-200 border-b-[4px] font-black rounded-xl hover:border-slate-300 hover:bg-slate-50 active:border-b-[2px] active:translate-y-[2px] transition-all"
               >
                 <Plus size={18} strokeWidth={3} /> Initialize Event
               </button>
@@ -318,12 +318,12 @@ export function Dashboard() {
             {displayEvents.map((e) => (
               <div
                 key={e.id}
-                className="bg-white rounded-[2rem] border border-slate-200 border-b-[6px] hover:border-b-[#0a192f] hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group"
+                className="bg-white rounded-[2rem] border border-slate-200 border-b-[6px] hover:border-b-[#f26f21] hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden group"
               >
                 {/* Header Card */}
                 <div className="p-8 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
                   <div className="pr-4">
-                    <h3 className="text-2xl font-black text-[#0a192f] group-hover:text-fpt-orange transition-colors leading-tight">
+                    <h3 className="text-2xl font-black text-[#f26f21] group-hover:text-fpt-orange transition-colors leading-tight">
                       {e.name}
                     </h3>
                     <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-1.5">
@@ -364,7 +364,7 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 text-[11px] text-slate-500 font-bold bg-slate-50/80 w-fit px-4 py-2 rounded-xl border border-slate-100 mb-6 shadow-sm uppercase tracking-wide">
                         <Clock
                           size={14}
-                          className="text-blue-500"
+                          className="text-orange-500"
                           strokeWidth={2.5}
                         />
                         {formatDate(e.curRound.startDate)}{" "}
@@ -374,14 +374,14 @@ export function Dashboard() {
 
                       <div className="grid grid-cols-2 gap-4 mb-8">
                         <div className="flex items-center gap-4 bg-white border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] rounded-2xl p-5">
-                          <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                          <div className="p-2.5 bg-orange-50 rounded-xl text-orange-600">
                             <Users size={24} strokeWidth={2.5} />
                           </div>
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                               Capacity
                             </p>
-                            <p className="text-2xl font-black text-[#0a192f]">
+                            <p className="text-2xl font-black text-[#f26f21]">
                               {e.curRound.maxTeam ?? "—"}{" "}
                               <span className="text-xs text-slate-400 font-bold ml-0.5">
                                 teams
@@ -397,7 +397,7 @@ export function Dashboard() {
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                               Advancing
                             </p>
-                            <p className="text-2xl font-black text-[#0a192f]">
+                            <p className="text-2xl font-black text-[#f26f21]">
                               Top {e.curRound._topN}
                             </p>
                           </div>
@@ -418,7 +418,7 @@ export function Dashboard() {
 
                   <button
                     onClick={() => navigate(`/admin/events/${e.id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 text-[#0a192f] border-2 border-slate-100 border-b-[4px] hover:border-slate-200 hover:bg-slate-100 text-sm font-black rounded-2xl active:border-b-[0px] active:translate-y-[4px] transition-all mt-auto"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 text-[#f26f21] border-2 border-slate-100 border-b-[4px] hover:border-slate-200 hover:bg-slate-100 text-sm font-black rounded-2xl active:border-b-[0px] active:translate-y-[4px] transition-all mt-auto"
                   >
                     Manage Event <ArrowRight size={18} strokeWidth={2.5} />
                   </button>
