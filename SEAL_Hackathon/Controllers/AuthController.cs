@@ -244,6 +244,10 @@ namespace SEAL_Hackathon.Controllers
                     Account accountDb = await _account.CheckLoginAsync(info.Email, info.Password);
                     if (accountDb != null)
                     {
+                        if (accountDb.IsEmailConfirmed == false)
+                        {
+                            return BadRequest("you havent verify your gmail, please register your account again and input your otp code");
+                        }
                         if (accountDb.Role.RoleName.Equals("Player"))
                         {
                             string accessToken = _accessToken.GenerateJwtToken(accountDb.AccountId, accountDb.Email, accountDb.Role.RoleName);
