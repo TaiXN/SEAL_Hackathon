@@ -26,26 +26,23 @@ namespace Services.PlayerService
 
         public async Task<bool> RegisterPlayerAsync(RegisterAPIViewModel info)
         {
-            // 0. CHẶN CLONE ACC BẰNG CCCD
+
             var isClone = await _uow.Student.GetFirstOrDefaultAsync(s => s.CccdNumber == info.CccdNumber);
             if (isClone != null)
             {
-                throw new Exception("Mã CCCD này đã được đăng ký trong hệ thống. Vui lòng không tạo tài khoản clone!");
+                throw new Exception("This ID card has already been used.");
             }
 
-            // 1. SETUP CLOUDINARY
             CloudinaryDotNet.Account cloudAccount = new CloudinaryDotNet.Account(
-                "ndct1evc", // Cloud Name của ông
-                "723631468677837", // API Key của ông
-                "O0--MXSw4fGhx-yZaIlK1d0O1dI" // DÁN LẠI SECRET VÀO ĐÂY NHÉ
+                "ndct1evc", 
+                "723631468677837", 
+                "O0--MXSw4fGhx-yZaIlK1d0O1dI" 
             );
             Cloudinary cloudinary = new Cloudinary(cloudAccount);
 
             string uploadedIdCardUrl = "";
             string uploadedStudentCardUrl = "";
 
-            // 2. UPLOAD 2 ẢNH LÊN CLOUDINARY (CCCD & THẺ SINH VIÊN)
-            // 2.1 Upload CCCD
             if (info.IdCardImage != null && info.IdCardImage.Length > 0)
             {
                 using (var stream = info.IdCardImage.OpenReadStream())
@@ -59,9 +56,8 @@ namespace Services.PlayerService
                     uploadedIdCardUrl = uploadResult.SecureUrl.ToString();
                 }
             }
-            else throw new Exception("Bắt buộc phải tải lên ảnh CCCD!");
+            else throw new Exception("please uploade your id card");
 
-            // 2.2 Upload Thẻ Sinh Viên
             if (info.StudentCardImage != null && info.StudentCardImage.Length > 0)
             {
                 using (var stream = info.StudentCardImage.OpenReadStream())
@@ -75,13 +71,11 @@ namespace Services.PlayerService
                     uploadedStudentCardUrl = uploadResult.SecureUrl.ToString();
                 }
             }
-            else throw new Exception("Bắt buộc phải tải lên ảnh Thẻ Sinh Viên/Học Sinh!");
+            else throw new Exception("please upload your Student Card");
 
-            // 3. TẠO MÃ OTP
             Random rand = new Random();
             string generatedOtp = rand.Next(100000, 999999).ToString();
 
-            // 4. KIỂM TRA DATABASE VÀ GHI ĐÈ TÀI KHOẢN RÁC
             var existingAcc = await _uow.Account.GetFirstOrDefaultAsync(a => a.Email == info.Email);
 
             if (existingAcc != null)
@@ -90,10 +84,9 @@ namespace Services.PlayerService
 
                 if (existingAcc.IsEmailConfirmed)
                 {
-                    return false; // Từ chối nếu email đã xác thực
+                    return false; 
                 }
 
-                // GHI ĐÈ THÔNG TIN
                 existingAcc.Password = HashBuilder.ComputeSha256Hash(info.Password + PRIVATEKEY);
                 existingAcc.FullName = info.FullName;
                 existingAcc.Address = info.Address;
@@ -105,7 +98,7 @@ namespace Services.PlayerService
                 {
                     existingStudent.UniversityId = info.UniversityId;
                     existingStudent.IdCardImageUrl = uploadedIdCardUrl;
-                    existingStudent.StudentCardImageUrl = uploadedStudentCardUrl; // Update ảnh thẻ SV
+                    existingStudent.StudentCardImageUrl = uploadedStudentCardUrl; 
                     existingStudent.CccdNumber = info.CccdNumber;
                     _uow.Student.Update(existingStudent);
                 }
@@ -116,7 +109,6 @@ namespace Services.PlayerService
                 return true;
             }
 
-            // 5. TẠO TÀI KHOẢN MỚI
             var playerRole = await _uow.Role.GetFirstOrDefaultAsync(r => r.RoleName == "Player" || r.RoleName == "Student");
             if (playerRole == null) throw new Exception("ERROR: Cannot find player role in database");
 
@@ -143,7 +135,7 @@ namespace Services.PlayerService
                 UniversityId = info.UniversityId,
                 IsApproved = false,
                 IdCardImageUrl = uploadedIdCardUrl,
-                StudentCardImageUrl = uploadedStudentCardUrl, // Lưu ảnh thẻ SV
+                StudentCardImageUrl = uploadedStudentCardUrl, 
                 CccdNumber = info.CccdNumber
             };
             await _uow.Student.AddAsync(newStudent);
@@ -232,7 +224,7 @@ namespace Services.PlayerService
                 Phone = s.StudentNavigation?.Phone,
                 UniversityName = s.University?.UniversityName,
                 IdCardImageUrl = s.IdCardImageUrl,
-                StudentCardImageUrl = s.StudentCardImageUrl, // Đẩy thẻ SV cho Admin xem
+                StudentCardImageUrl = s.StudentCardImageUrl, 
                 CccdNumber = s.CccdNumber
             }).ToList();
         }
