@@ -24,11 +24,6 @@ public partial class Account
     public DateTime? OtpExpiryTime { get; set; }
     public bool IsEmailConfirmed { get; set; }
 
-    public string? OtpCode { get; set; }
-
-    public DateTime? OtpExpiryTime { get; set; }
-
-    public bool IsEmailConfirmed { get; set; }
 
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
