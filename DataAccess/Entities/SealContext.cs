@@ -80,6 +80,10 @@ public partial class SealContext : DbContext
                 .HasMaxLength(200)
                 .IsUnicode(false);
             entity.Property(e => e.FullName).HasMaxLength(255);
+            entity.Property(e => e.OtpCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.OtpExpiryTime).HasColumnType("datetime");
             entity.Property(e => e.Password)
                 .HasMaxLength(256)
                 .IsUnicode(false);
@@ -157,6 +161,8 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false);
             entity.Property(e => e.EventName).HasMaxLength(400);
+            entity.Property(e => e.RegistrationEndDate).HasColumnType("datetime");
+            entity.Property(e => e.RegistrationStartDate).HasColumnType("datetime");
             entity.Property(e => e.Season).HasMaxLength(50);
 
             entity.HasOne(d => d.CreatorNavigation).WithMany(p => p.Events)
@@ -355,6 +361,7 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("StudentID");
+            entity.Property(e => e.CccdNumber).HasMaxLength(20);
             entity.Property(e => e.UniversityId)
                 .HasMaxLength(400)
                 .IsUnicode(false)

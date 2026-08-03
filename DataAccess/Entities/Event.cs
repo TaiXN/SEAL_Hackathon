@@ -19,6 +19,10 @@ public partial class Event
 
     public int CurrentRound { get; set; }
 
+    public DateTime RegistrationStartDate { get; set; }
+
+    public DateTime RegistrationEndDate { get; set; }
+
     public virtual Account CreatorNavigation { get; set; } = null!;
 
     public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();

@@ -21,6 +21,12 @@ public partial class Account
 
     public bool IsActive { get; set; }
 
+    public string? OtpCode { get; set; }
+
+    public DateTime? OtpExpiryTime { get; set; }
+
+    public bool IsEmailConfirmed { get; set; }
+
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

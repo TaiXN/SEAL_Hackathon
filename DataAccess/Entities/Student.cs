@@ -11,6 +11,12 @@ public partial class Student
 
     public bool IsApproved { get; set; }
 
+    public string? IdCardImageUrl { get; set; }
+
+    public string? CccdNumber { get; set; }
+
+    public string? StudentCardImageUrl { get; set; }
+
     public virtual Account StudentNavigation { get; set; } = null!;
 
     public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();

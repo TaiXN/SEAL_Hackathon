@@ -13,7 +13,10 @@ namespace APIViewModels.Event
         public string Season { get; set; }
         [Required]
         public int Year { get; set; }
-       
+
+        public DateTime RegistrationStartDate { get; set; }
+        public DateTime RegistrationEndDate { get; set; }
+
 
     }
 }

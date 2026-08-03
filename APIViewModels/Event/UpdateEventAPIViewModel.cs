@@ -15,5 +15,8 @@ namespace APIViewModels.Event
         public int Year { get; set; }
         [Required]
         public int CurrentRound { get; set; }
+
+        public DateTime RegistrationStartDate { get; set; }
+        public DateTime RegistrationEndDate { get; set; }
     }
 }

@@ -14,5 +14,7 @@ namespace Services.EventService
         Task<bool> UpdateEventAsync(string id, UpdateEventAPIViewModel info);
         Task<bool> DeleteEventAsync(string eventId);
         Task<bool> NextRound(string eventID);
+        Task<(bool IsSuccess, string Message)> StartRound1Async(string eventId);
+        Task<(bool IsSuccess, string Message)> PublishEventAsync(string eventId);
     }
 }

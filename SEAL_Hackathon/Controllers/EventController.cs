@@ -103,5 +103,32 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest("It's not possible to advance to the next round. The event may no longer exist, or the final round may have already been reached.");
             }
         }
+
+        [HttpPut("{eventId}/publish")]
+        public async Task<IActionResult> PublishEvent(string eventId)
+        {
+            var result = await _event.PublishEventAsync(eventId);
+
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+
+            return BadRequest(new { message = result.Message });
+        }
+
+
+        [HttpPut("{eventId}/start-round-1")]
+        public async Task<IActionResult> StartRound1(string eventId)
+        {
+            var result = await _event.StartRound1Async(eventId);
+
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+
+            return BadRequest(new { message = result.Message });
+        }
     }
 }

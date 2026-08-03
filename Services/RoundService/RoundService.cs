@@ -8,41 +8,52 @@ namespace Services.RoundService
     public class RoundService : IRoundService
     {
         private readonly IUnitOfWork _uow;
+      
 
         public RoundService(IUnitOfWork uow)
         {
             _uow = uow;
         }
 
+        private static bool IsEventUnpublished(Event eventInfo)
+        {
+            return eventInfo.CurrentRound <= 0;
+        }
+
         public async Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID)
         {
             try
             {
-                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+                Event currentEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventID);
+                if (currentEvent == null) return false;
 
-          
-                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
-                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
-
-
-                if (startDateVn >= endDateVn)
+                if (!IsEventUnpublished(currentEvent))
                 {
                     return false;
                 }
+
+                if (info.TopNPromotion < 0) return false; 
+
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
+                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
+
 
                 if (startDateVn < vnNow)
                 {
                     return false;
                 }
 
-                if (info.TopNPromotion < 0)
+                if (startDateVn >= endDateVn) return false;
+
+                if (info.MinTeam < 0 || info.MinTeam > info.MaxTeam)
                 {
                     return false;
                 }
 
                 List<Round> existingRounds = await _uow.Round.GetAllQueryable()
-              .Where(e => e.EventId == info.EventID)
-              .ToListAsync();
+                    .Where(e => e.EventId == info.EventID)
+                    .ToListAsync();
 
                 if (existingRounds.Count > 0)
                 {
@@ -60,8 +71,8 @@ namespace Services.RoundService
                 Round duplicateName = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.RoundName.ToLower() == info.RoundName.ToLower() && e.IsActive);
                 if (duplicateName != null) return false;
 
-                List<Round> count = await _uow.Round.GetAllAsync(e => e.EventId == info.EventID);
-                int RoundIndex = count.Count() + 1;
+                int RoundIndex = existingRounds.Count + 1;
+
                 Round newRound = new Round()
                 {
                     RoundId = Guid.NewGuid().ToString(),
@@ -74,8 +85,11 @@ namespace Services.RoundService
                     MaxTeam = info.MaxTeam,
                     IsActive = true,
                     RoundIndex = RoundIndex,
-                    CriteriaSetId = info.CriteriaSetID
+                    CriteriaSetId = info.CriteriaSetID,
+                    MinTeam = info.MinTeam,
+                    
                 };
+
                 await _uow.Round.AddAsync(newRound);
                 await _uow.SaveAsync();
                 return true;
@@ -183,6 +197,11 @@ namespace Services.RoundService
                     return false;
                 }
 
+                if (info.MinTeam < 0 || info.MinTeam > info.MaxTeam)
+                {
+                    return false;
+                }
+
                 DateTime vnNow = DateTime.UtcNow.AddHours(7);
                 DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
                 DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
@@ -197,6 +216,7 @@ namespace Services.RoundService
                 roundDb.TopNpromotion = info.TopNPromotion;
                 roundDb.MaxTeam = info.MaxTeam;
                 roundDb.CriteriaSetId = info.CriteriaSetID;
+                roundDb.MinTeam = info.MinTeam;
 
                 _uow.Round.Update(roundDb);
                 await _uow.SaveAsync();

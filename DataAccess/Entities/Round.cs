@@ -27,6 +27,8 @@ public partial class Round
 
     public string CriteriaSetId { get; set; } = null!;
 
+    public int MinTeam { get; set; }
+
     public virtual CriteriaSet CriteriaSet { get; set; } = null!;
 
     public virtual Event Event { get; set; } = null!;

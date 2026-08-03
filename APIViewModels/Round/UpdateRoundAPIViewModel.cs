@@ -32,5 +32,8 @@ namespace APIViewModels.Round
 
         [Required]
         public string CriteriaSetID { get; set; }
+
+        [Required]
+        public int MinTeam { get; set; }
     }
 }
