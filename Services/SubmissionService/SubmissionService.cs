@@ -21,18 +21,18 @@ namespace Services.SubmissionService
 
         public async Task<bool> SubmitUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request)
         {
-            var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+            TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
             if (myTeamInfo == null) throw new Exception("You are not currently in this team.");
             if (!myTeamInfo.IsLeader) throw new Exception("Only the Team Leader can submit the project URLs.");
 
-            var allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
+            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
             TeamInRound teamInRound = null;
             Round currentRound = null;
 
-            foreach (var tr in allTeamRounds)
+            foreach (TeamInRound tr in allTeamRounds)
             {
-                var r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                Round r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
                 if (r != null)
                 {
                     if (currentRound == null || r.RoundIndex > currentRound.RoundIndex)
@@ -59,13 +59,13 @@ namespace Services.SubmissionService
             if (DateTime.Now > currentRound.EndDate)
                 throw new Exception($"Expired submitting! The round ended at: {currentRound.EndDate:dd/MM/yyyy HH:mm}");
 
-            var existingSubmission = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRound.Id);
+            Submission existingSubmission = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRound.Id);
 
             DateTime vnNow = DateTime.UtcNow.AddHours(7);
 
             if (existingSubmission != null)
             {
-                var auditLog = new SubmissionAuditLog
+                SubmissionAuditLog auditLog = new SubmissionAuditLog
                 {
                     Id = Guid.NewGuid().ToString(),
                     SubmissionId = existingSubmission.Id,
@@ -90,7 +90,7 @@ namespace Services.SubmissionService
             }
             else
             {
-                var newSubmission = new Submission
+                Submission newSubmission = new Submission
                 {
                     Id = Guid.NewGuid().ToString(),
                     TeamInRoundId = teamInRound.Id,
@@ -100,7 +100,7 @@ namespace Services.SubmissionService
                 };
                 await _uow.Submission.AddAsync(newSubmission);
 
-                var auditLog = new SubmissionAuditLog
+                SubmissionAuditLog auditLog = new SubmissionAuditLog
                 {
                     Id = Guid.NewGuid().ToString(),
                     SubmissionId = newSubmission.Id,
@@ -126,9 +126,9 @@ namespace Services.SubmissionService
         {
             try
             {
-                var logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
+                List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
 
-                var result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
+                List<SubmissionAuditLogAPIViewModel> result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
                 {
                     LogId = log.Id,
                     SubmissionId = log.SubmissionId,

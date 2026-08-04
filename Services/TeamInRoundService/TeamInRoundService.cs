@@ -21,24 +21,24 @@ namespace Services.TeamInRoundService
 
         public async Task<bool> CreateTeamInRoundAsync(string accountId, string teamId, SubmitProjectAPIViewModel request)
         {
-            var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+            TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
             if (myTeamInfo == null) throw new Exception("You are not in this team.");
             if (!myTeamInfo.IsLeader) throw new Exception("Only team leader can choose.");
 
-            var currentTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
+            Team currentTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (currentTeam == null)
                 throw new Exception("This team experienced a data error; the team could not be found.");
 
-            var sameNameTeams = await _uow.Team.GetAllAsync(t => t.TeamName.ToLower() == currentTeam.TeamName.ToLower() && t.TeamId != teamId);
+            List<Team> sameNameTeams = await _uow.Team.GetAllAsync(t => t.TeamName.ToLower() == currentTeam.TeamName.ToLower() && t.TeamId != teamId);
 
             if (sameNameTeams.Any())
             {
-                var sameNameTeamIds = sameNameTeams.Select(t => t.TeamId).ToList();
-                var sameNameRegistered = await _uow.TeamInRound.GetAllAsync(tr => sameNameTeamIds.Contains(tr.TeamId));
+                List<string> sameNameTeamIds = sameNameTeams.Select(t => t.TeamId).ToList();
+                List<TeamInRound> sameNameRegistered = await _uow.TeamInRound.GetAllAsync(tr => sameNameTeamIds.Contains(tr.TeamId));
 
-                foreach (var reg in sameNameRegistered)
+                foreach (TeamInRound reg in sameNameRegistered)
                 {
-                    var regTrack = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == reg.TrackId);
+                    Track regTrack = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == reg.TrackId);
                     if (regTrack != null && regTrack.EventId == request.EventId)
                     {
                         throw new Exception($"Submit failed! The name '{currentTeam.TeamName}' was just locked in by another team for this event. Please update your team name in your dashboard and try again.");
@@ -46,7 +46,7 @@ namespace Services.TeamInRoundService
                 }
             }
 
-            var selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
+            Event selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
             if (selectedEvent == null) throw new Exception("This event does not exist or is no longer active.");
 
             if (selectedEvent.CurrentRound == -1)
@@ -61,7 +61,7 @@ namespace Services.TeamInRoundService
                 throw new Exception("Registration has expired! The deadline to join this event has passed.");
 
 
-            var allMembers = await _uow.TeamMember.GetAllAsync();
+            List<TeamMember> allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
 
             if (memberCount < selectedEvent.MinTeamMember)
@@ -75,18 +75,18 @@ namespace Services.TeamInRoundService
             }
 
 
-            var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
-            var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
+            List<Round> roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
+            List<string> roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
 
-            var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId && roundIds.Contains(s.RoundId));
+            TeamInRound existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId && roundIds.Contains(s.RoundId));
             if (existingSubmit != null) throw new Exception("Your team has already locked the competition category for this event, resubmission is not possible!");
 
-            var currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
+            List<string> currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
 
-            var allSubmittedTeamsInEvent = await _uow.TeamInRound.GetAllAsync(tr => roundIds.Contains(tr.RoundId));
-            var submittedTeamIds = allSubmittedTeamsInEvent.Select(tr => tr.TeamId).ToList();
+            List<TeamInRound> allSubmittedTeamsInEvent = await _uow.TeamInRound.GetAllAsync(tr => roundIds.Contains(tr.RoundId));
+            List<string> submittedTeamIds = allSubmittedTeamsInEvent.Select(tr => tr.TeamId).ToList();
 
-            var overlappingMembers = allMembers.Where(tm =>
+            List<TeamMember> overlappingMembers = allMembers.Where(tm =>
                 currentTeamMemberIds.Contains(tm.StudentId) &&
                 submittedTeamIds.Contains(tm.TeamId) &&
                 tm.TeamId != teamId
@@ -94,34 +94,34 @@ namespace Services.TeamInRoundService
 
             if (overlappingMembers.Any())
             {
-                var cheatingStudentIds = overlappingMembers.Select(m => m.StudentId).Distinct();
+                IEnumerable<string> cheatingStudentIds = overlappingMembers.Select(m => m.StudentId).Distinct();
                 string names = string.Join(", ", cheatingStudentIds);
                 throw new Exception($"Submit failed! Member(s) [{names}] have already registered for this event under another team.");
             }
 
-            var round1 = roundsOfEvent.FirstOrDefault(r => r.RoundIndex == 1);
+            Round round1 = roundsOfEvent.FirstOrDefault(r => r.RoundIndex == 1);
             if (round1 == null) throw new Exception("This event is not configured for Round 1!");
 
-            var totalRegisteredTeams = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == round1.RoundId);
+            List<TeamInRound> totalRegisteredTeams = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == round1.RoundId);
             if (totalRegisteredTeams.Count() >= round1.MaxTeam)
             {
                 throw new Exception($"Registration failed! The event has reached its maximum capacity of {round1.MaxTeam} teams.");
             }
 
-            var track = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == request.TrackId && t.IsActive == true);
+            Track track = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == request.TrackId && t.IsActive == true);
             if (track == null || track.EventId != request.EventId)
                 throw new Exception("This track doesn't exist, is locked, or doesn't belong to the selected event.");
 
-            var currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
+            List<TeamInRound> currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
             if (currentSubmissionsInTrack.Count() >= track.MaxTeam)
             {
                 throw new Exception($"This track has reached its maximum capacity of {track.MaxTeam} teams.");
             }
 
-            var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
+            Topic topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
             if (topic == null) throw new Exception("Topic doesn't belong to this track.");
 
-            var newSubmit = new TeamInRound
+            TeamInRound newSubmit = new TeamInRound
             {
                 Id = Guid.NewGuid().ToString(),
                 TeamId = teamId,
