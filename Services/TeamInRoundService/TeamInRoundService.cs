@@ -60,15 +60,26 @@ namespace Services.TeamInRoundService
             if (vnNow > selectedEvent.RegistrationEndDate)
                 throw new Exception("Registration has expired! The deadline to join this event has passed.");
 
+
+            var allMembers = await _uow.TeamMember.GetAllAsync();
+            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
+
+            if (memberCount < selectedEvent.MinTeamMember)
+            {
+                throw new Exception($"Your team does not have enough members to join this event. Required minimum: {selectedEvent.MinTeamMember} members (Current: {memberCount}).");
+            }
+
+            if (memberCount > selectedEvent.MaxTeamMember)
+            {
+                throw new Exception($"Your team exceeds the maximum member limit for this event. Allowed maximum: {selectedEvent.MaxTeamMember} members (Current: {memberCount}).");
+            }
+
+
             var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
             var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
 
             var existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId && roundIds.Contains(s.RoundId));
             if (existingSubmit != null) throw new Exception("Your team has already locked the competition category for this event, resubmission is not possible!");
-
-            var allMembers = await _uow.TeamMember.GetAllAsync();
-            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
-            if (memberCount < 3) throw new Exception($"The team must have at least 3 members (Current: {memberCount}).");
 
             var currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
 
