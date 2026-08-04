@@ -6,6 +6,9 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services.TeacherService
 {
@@ -219,6 +222,206 @@ namespace Services.TeacherService
             {
                 return false;
             }
+        }
+
+        // =========================================================================
+        // PHẦN API DÀNH CHO TEACHER PORTAL (JUDGE & MENTOR DASHBOARD)
+        // =========================================================================
+
+        public async Task<List<PortalEventListViewModel>> GetPortalEventsAsync(string teacherId)
+        {
+            try
+            {
+                List<PortalEventListViewModel> result = new List<PortalEventListViewModel>();
+
+                List<Event> events = await _uow.Event.GetAllQueryable()
+                                               .Where(e => e.IsActive && e.CurrentRound >= 1)
+                                               .ToListAsync();
+
+                foreach (Event ev in events)
+                {
+                    Round currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == ev.EventId && r.RoundIndex == ev.CurrentRound);
+
+                    if (currentRound == null)
+                    {
+                        continue;
+                    }
+
+                    List<TrackSimpleViewModel> judgeTracks = await GetTeacherTracksAsync(teacherId, ev.EventId, false);
+                    List<TrackSimpleViewModel> mentorTracks = await GetTeacherTracksAsync(teacherId, ev.EventId, true);
+
+                    if (judgeTracks.Count == 0 && mentorTracks.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    List<TeamInRound> teamsInRound = await _uow.TeamInRound.GetAllQueryable()
+                                                               .Where(t => t.RoundId == currentRound.RoundId && t.IsCheck && !t.IsBanned)
+                                                               .ToListAsync();
+
+                    List<string> teamIds = teamsInRound.Select(t => t.Id).ToList();
+
+                    List<Submission> submissions = await _uow.Submission.GetAllQueryable()
+                                                             .Where(s => teamIds.Contains(s.TeamInRoundId))
+                                                             .ToListAsync();
+
+                    List<Evaluation> evaluations = await _uow.Evaluation.GetAllQueryable()
+                                                               .Where(e => submissions.Select(s => s.Id).Contains(e.SubmissionId) && e.TeacherId == teacherId)
+                                                               .ToListAsync();
+
+                    List<string> mentorTrackIds = mentorTracks.Select(m => m.TrackId).ToList();
+                    int mentorTeamsCount = teamsInRound.Count(t => mentorTrackIds.Contains(t.TrackId));
+
+                    EventSummaryViewModel summary = new EventSummaryViewModel
+                    {
+                        TotalTeams = teamsInRound.Count,
+                        SubmittedTeams = submissions.Count,
+                        PendingScoreTeams = submissions.Count - evaluations.Count,
+                        ScoredTeams = evaluations.Count,
+                        MentorTeams = mentorTeamsCount
+                    };
+
+                    PortalEventListViewModel eventViewModel = new PortalEventListViewModel
+                    {
+                        EventId = ev.EventId,
+                        EventName = ev.EventName,
+                        Season = ev.Season,
+                        Year = ev.Year,
+                        CurrentRound = ev.CurrentRound,
+                        CurrentRoundName = currentRound.RoundName,
+                        StartDate = currentRound.StartDate,
+                        EndDate = currentRound.EndDate,
+                        JudgeTracks = judgeTracks,
+                        MentorTracks = mentorTracks,
+                        Summary = summary
+                    };
+
+                    result.Add(eventViewModel);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<PortalEventListViewModel>();
+            }
+        }
+
+        public async Task<PortalEventDetailViewModel> GetPortalEventDetailAsync(string teacherId, string eventId)
+        {
+            try
+            {
+                Event ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId && e.IsActive);
+                if (ev == null) return null;
+
+                Round currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventId && r.RoundIndex == ev.CurrentRound);
+                if (currentRound == null) return null;
+
+                List<TrackSimpleViewModel> judgeTracks = await GetTeacherTracksAsync(teacherId, eventId, false);
+                List<TrackSimpleViewModel> mentorTracks = await GetTeacherTracksAsync(teacherId, eventId, true);
+
+                PortalEventDetailViewModel detail = new PortalEventDetailViewModel
+                {
+                    EventId = ev.EventId,
+                    EventName = ev.EventName,
+                    CurrentRound = ev.CurrentRound,
+                    CurrentRoundName = currentRound.RoundName,
+                    Roles = new RoleFlagsViewModel
+                    {
+                        IsJudge = judgeTracks.Count > 0,
+                        IsMentor = mentorTracks.Count > 0
+                    },
+                    JudgeTracks = judgeTracks,
+                    MentorTracks = mentorTracks,
+                    Teams = new List<TeamInEventViewModel>()
+                };
+
+                List<TeamInRound> teamsInRound = await _uow.TeamInRound.GetAllQueryable()
+                                                           .Include(t => t.Team)
+                                                           .Include(t => t.Track)
+                                                           .Where(t => t.RoundId == currentRound.RoundId && t.IsCheck && !t.IsBanned)
+                                                           .ToListAsync();
+
+                List<string> teamIds = teamsInRound.Select(t => t.Id).ToList();
+
+                List<Submission> submissions = await _uow.Submission.GetAllQueryable()
+                                                         .Where(s => teamIds.Contains(s.TeamInRoundId))
+                                                         .ToListAsync();
+
+                List<Evaluation> evaluations = await _uow.Evaluation.GetAllQueryable()
+                                                         .Where(e => submissions.Select(s => s.Id).Contains(e.SubmissionId) && e.TeacherId == teacherId)
+                                                         .ToListAsync();
+
+                foreach (TeamInRound tir in teamsInRound)
+                {
+                    Submission submission = submissions.FirstOrDefault(s => s.TeamInRoundId == tir.Id);
+                    Evaluation evaluation = null;
+
+                    if (submission != null)
+                    {
+                        evaluation = evaluations.FirstOrDefault(e => e.SubmissionId == submission.Id);
+                    }
+
+                    bool isTrackJudge = judgeTracks.Any(j => j.TrackId == tir.TrackId);
+                    bool isTrackMentor = mentorTracks.Any(m => m.TrackId == tir.TrackId);
+
+                    if (isTrackJudge == false && isTrackMentor == false)
+                    {
+                        continue;
+                    }
+
+                    TeamInEventViewModel teamView = new TeamInEventViewModel
+                    {
+                        TeamId = tir.TeamId,
+                        TeamName = tir.Team != null ? tir.Team.TeamName : "Unknown",
+                        TrackId = tir.TrackId,
+                        TrackName = tir.Track != null ? tir.Track.TrackName : "Unknown",
+                        TopicName = "N/A",
+                        RoundId = currentRound.RoundId,
+                        RoundName = currentRound.RoundName,
+
+                        SubmissionId = submission != null ? submission.Id : null,
+                        UrlGithub = submission != null ? submission.Urlgithub : null,
+                        UrlDemo = submission != null ? submission.Urldemo : null,
+                        UrlSlide = submission != null ? submission.Urlslide : null,
+
+                        LeaderEmail = "leader@gmail.com",
+
+                        SubmissionStatus = submission != null ? "Submitted" : "Not Submitted",
+                        ScoringStatus = evaluation != null ? "Scored" : "Pending",
+                        Score = evaluation != null ? evaluation.Score : null,
+                        EvaluationId = evaluation != null ? evaluation.Id : null,
+
+                        CanScore = isTrackJudge && submission != null && evaluation == null,
+                        CanMentorContact = isTrackMentor
+                    };
+
+                    detail.Teams.Add(teamView);
+                }
+
+                return detail;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        private async Task<List<TrackSimpleViewModel>> GetTeacherTracksAsync(string teacherId, string eventId, bool isMentor)
+        {
+            List<TrackSimpleViewModel> result = await _uow.TeacherList.GetAllQueryable()
+                     .Include(t => t.Track)
+                     .Where(t => t.TeacherId == teacherId
+                              && t.IsMentor == isMentor
+                              && t.Track.EventId == eventId)
+                     .Select(t => new TrackSimpleViewModel
+                     {
+                         TrackId = t.TrackId,
+                         TrackName = t.Track != null ? t.Track.TrackName : string.Empty
+                     })
+                     .ToListAsync();
+
+            return result;
         }
     }
 }

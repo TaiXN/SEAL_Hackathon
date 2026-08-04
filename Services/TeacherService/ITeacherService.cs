@@ -14,6 +14,9 @@ namespace Services.TeacherService
         Task<Teacher> GetByIdAsync(string id);
         Task<bool> UpdateAsync(string id, Account updatedAccount, bool isGuest);
         Task<bool> DeleteAsync(string id);
+        Task<List<PortalEventListViewModel>> GetPortalEventsAsync(string teacherId);
+        Task<PortalEventDetailViewModel> GetPortalEventDetailAsync(string teacherId, string eventId);
+
 
     }
 }
