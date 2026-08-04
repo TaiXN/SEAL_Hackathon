@@ -130,5 +130,28 @@ namespace SEAL_Hackathon.Controllers
                 return BadRequest("Error while deleting teacher (ID not found)");
             }
         }
+
+        [HttpGet("{teacherId}/portal-events")]
+        [Authorize(Roles = "Admin, Teacher")]
+        public async Task<IActionResult> GetPortalEvents(string teacherId)
+        {
+            List<PortalEventListViewModel> result = await _teacher.GetPortalEventsAsync(teacherId);
+
+            return Ok(result);
+        }
+
+        [HttpGet("{teacherId}/portal-events/{eventId}")]
+        [Authorize(Roles = "Admin, Teacher")]
+        public async Task<IActionResult> GetPortalEventDetail(string teacherId, string eventId)
+        {
+            PortalEventDetailViewModel result = await _teacher.GetPortalEventDetailAsync(teacherId, eventId);
+
+            if (result == null)
+            {
+                return NotFound(new { message = "Event not found or you do not have access." });
+            }
+
+            return Ok(result);
+        }
     }
 }
