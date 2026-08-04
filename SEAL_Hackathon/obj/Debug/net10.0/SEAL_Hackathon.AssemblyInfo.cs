@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SEAL_Hackathon")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+81d30ef70b2f71fb026da30dd63eb971afce34c9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+783b4211c2d05841b4723e51799c653d3b043d45")]
 [assembly: System.Reflection.AssemblyProductAttribute("SEAL_Hackathon")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SEAL_Hackathon")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

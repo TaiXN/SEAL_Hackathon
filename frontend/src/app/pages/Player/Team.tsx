@@ -502,7 +502,7 @@ export function Team() {
               type="button"
               onClick={handleCreateTeam}
               disabled={isCreatingTeam}
-              className="w-full px-6 py-3 bg-black text-white rounded-radius-md font-bold disabled:opacity-50"
+              className="w-full px-6 py-3 bg-[#f26f21] text-white rounded-radius-md font-bold disabled:opacity-50 hover:bg-[#d85f16] transition-colors shadow-sm"
             >
               {isCreatingTeam ? "Creating team..." : "+ Create Team"}
             </button>
@@ -884,7 +884,7 @@ export function Team() {
               type="button"
               onClick={handleCreateTeam}
               disabled={isCreatingTeam}
-              className="w-full px-6 py-3 bg-black text-white rounded-radius-md font-bold disabled:opacity-50"
+              className="w-full px-6 py-3 bg-[#f26f21] text-white rounded-radius-md font-bold disabled:opacity-50 hover:bg-[#d85f16] transition-colors shadow-sm"
             >
               {isCreatingTeam ? "Creating team..." : "+ Create Team"}
             </button>

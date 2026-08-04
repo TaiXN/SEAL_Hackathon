@@ -52,7 +52,6 @@ const safeString = (val: any, fallback: string = ""): string => {
   return fallback;
 };
 
-// TRÃCH XUáº¤T TÃŠN Äá»˜I AN TOÃ€N
 const extractTeamName = (obj: any): string => {
   if (!obj) return "Unknown";
   if (typeof obj.teamName === "string") return obj.teamName;
@@ -392,9 +391,6 @@ export function Dashboard() {
         console.warn("KhÃ´ng táº£i Ä‘Æ°á»£c /api/Team/{teamId}/info:", err);
       }
 
-      // ==============================================================
-      // VÃ’NG Láº¶P DO THÃM: TÃŒM KIáº¾M THEO ACTIVE ROUNDS
-      // ==============================================================
       let foundRoundId = extractRoundId(dashData);
       let foundTrackId = extractTrackId(dashData);
       let foundEventId = extractEventId(dashData);
