@@ -101,6 +101,12 @@ namespace Services.TeamInRoundService
             if (track == null || track.EventId != request.EventId)
                 throw new Exception("This track doesn't exist, is locked, or doesn't belong to the selected event.");
 
+            var currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
+            if (currentSubmissionsInTrack.Count() >= track.MaxTeam)
+            {
+                throw new Exception($"This track has reached its maximum capacity of {track.MaxTeam} teams.");
+            }
+
             var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
             if (topic == null) throw new Exception("Topic doesn't belong to this track.");
 

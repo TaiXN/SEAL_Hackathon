@@ -12,5 +12,8 @@ namespace APIViewModels.Track
 
         [Required]
         public string EventID { get; set; }
+
+        [Range(1, 9999, ErrorMessage = "MaxTeam must be greater than 0")]
+        public int MaxTeam { get; set; }
     }
 }

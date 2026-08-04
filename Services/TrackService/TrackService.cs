@@ -34,6 +34,7 @@ namespace Services.TrackService
                     Creator = accId,
                     EventId = info.EventId,
                     TrackName = info.TrackName,
+                    MaxTeam = info.MaxTeam,
                     IsActive = true
                 };
 
@@ -61,6 +62,7 @@ namespace Services.TrackService
                     EventId = t.EventId,
                     Creator = t.Creator,
                     TrackName = t.TrackName,
+                    MaxTeam = t.MaxTeam,
                     IsActive = t.IsActive
                 }).ToList();
             }
@@ -106,6 +108,7 @@ namespace Services.TrackService
                 if (duplicateCheck != null) return false;
 
                 trackDb.TrackName = info.TrackName;
+                trackDb.MaxTeam = info.MaxTeam;
 
                 _uow.Track.Update(trackDb);
                 await _uow.SaveAsync();
