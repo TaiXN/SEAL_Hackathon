@@ -49,5 +49,24 @@ namespace SEAL_Hackathon.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("audit-logs/{teamId}")]
+        [Authorize] 
+        public async Task<IActionResult> GetAuditLogsByTeam(string teamId)
+        {
+            if (string.IsNullOrEmpty(teamId))
+            {
+                return BadRequest(new { message = "Team ID is required." });
+            }
+
+            List<SubmissionAuditLogAPIViewModel> result = await _submission.GetAuditLogsByTeamAsync(teamId);
+
+            if (result == null || !result.Any())
+            {
+                return NotFound(new { message = "No audit logs found for this team." });
+            }
+
+            return Ok(result);
+        }
     }
 }

@@ -9,6 +9,7 @@ namespace Services.SubmissionService
     public interface ISubmissionService
     {
         Task<bool> SubmitUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request);
+        Task<List<SubmissionAuditLogAPIViewModel>> GetAuditLogsByTeamAsync(string teamId);
         Task<List<SubmissionAPIViewModel>> GetAllSubmissionsAsync();
     }
 }

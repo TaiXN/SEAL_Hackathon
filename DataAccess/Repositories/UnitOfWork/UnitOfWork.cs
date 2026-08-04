@@ -21,7 +21,7 @@ using DataAccess.Repositories.TeamRepository;
 using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
 using DataAccess.Repositories.UniversityRepository;
-
+using DataAccess.Repositories.SubmissionAuditLogRepository;
 namespace DataAccess.Repositories.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
@@ -39,6 +39,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public ITrackRepository Track { get; private set; }
         public ITopicRepository Topic { get; private set; }
         public ISubmissionRepository Submission { get; private set; }
+        public ISubmissionAuditLogRepository SubmissionAuditLog { get; private set; }
         public IUniversityRepository University { get; private set; }
         public ICriteriaRepository Criteria { get; private set; }
         public IMappingRepository Mapping { get; private set; }
@@ -83,6 +84,7 @@ namespace DataAccess.Repositories.UnitOfWork
             LeaderBoard = new LeaderBoardRepository.LeaderBoardRepository(context);
             LeaderBoardDetail = new LeaderBoardDetailRepository.LeaderBoardDetailRepository(context);
             Prize = new PrizeRepository.PrizeRepository(context);
+            SubmissionAuditLog = new SubmissionAuditLogRepository.SubmissionAuditLogRepository(context);
         }
 
         public async Task SaveAsync()

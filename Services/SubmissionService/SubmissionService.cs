@@ -6,6 +6,7 @@ using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Services.SubmissionService
 {
@@ -60,8 +61,27 @@ namespace Services.SubmissionService
 
             var existingSubmission = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRound.Id);
 
+            DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
             if (existingSubmission != null)
             {
+                var auditLog = new SubmissionAuditLog
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    SubmissionId = existingSubmission.Id,
+                    TeamId = teamId,
+                    EventId = currentRound.EventId,
+                    RoundId = currentRound.RoundId,
+                    OldUrlGithub = existingSubmission.Urlgithub,
+                    OldUrlDemo = existingSubmission.Urldemo,
+                    OldUrlSlide = existingSubmission.Urlslide,
+                    NewUrlGithub = request.UrlGithub,
+                    NewUrlDemo = request.UrlDemo,
+                    NewUrlSlide = request.UrlSlide,
+                    CreatedAt = vnNow
+                };
+                await _uow.SubmissionAuditLog.AddAsync(auditLog);
+
                 existingSubmission.Urlgithub = request.UrlGithub;
                 existingSubmission.Urldemo = request.UrlDemo;
                 existingSubmission.Urlslide = request.UrlSlide;
@@ -79,10 +99,57 @@ namespace Services.SubmissionService
                     Urlslide = request.UrlSlide
                 };
                 await _uow.Submission.AddAsync(newSubmission);
+
+                var auditLog = new SubmissionAuditLog
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    SubmissionId = newSubmission.Id,
+                    TeamId = teamId,
+                    EventId = currentRound.EventId,
+                    RoundId = currentRound.RoundId,
+                    OldUrlGithub = "N/A (First Submission)",
+                    OldUrlDemo = "N/A (First Submission)",
+                    OldUrlSlide = "N/A (First Submission)",
+                    NewUrlGithub = request.UrlGithub,
+                    NewUrlDemo = request.UrlDemo,
+                    NewUrlSlide = request.UrlSlide,
+                    CreatedAt = vnNow
+                };
+                await _uow.SubmissionAuditLog.AddAsync(auditLog);
             }
 
             await _uow.SaveAsync();
             return true;
+        }
+
+        public async Task<List<SubmissionAuditLogAPIViewModel>> GetAuditLogsByTeamAsync(string teamId)
+        {
+            try
+            {
+                var logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
+
+                var result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
+                {
+                    LogId = log.Id,
+                    SubmissionId = log.SubmissionId,
+                    TeamId = log.TeamId,
+                    EventId = log.EventId,
+                    RoundId = log.RoundId,
+                    OldUrlGithub = log.OldUrlGithub,
+                    OldUrlDemo = log.OldUrlDemo,
+                    OldUrlSlide = log.OldUrlSlide,
+                    NewUrlGithub = log.NewUrlGithub,
+                    NewUrlDemo = log.NewUrlDemo,
+                    NewUrlSlide = log.NewUrlSlide,
+                    CreatedAt = log.CreatedAt
+                }).ToList();
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<SubmissionAuditLogAPIViewModel>();
+            }
         }
 
         public async Task<List<SubmissionAPIViewModel>> GetAllSubmissionsAsync()
@@ -113,8 +180,6 @@ namespace Services.SubmissionService
             {
                 return new List<SubmissionAPIViewModel>();
             }
-
         }
     }
 }
-

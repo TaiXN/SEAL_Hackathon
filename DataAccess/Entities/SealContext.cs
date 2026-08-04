@@ -42,6 +42,7 @@ public partial class SealContext : DbContext
     public virtual DbSet<Student> Students { get; set; }
 
     public virtual DbSet<Submission> Submissions { get; set; }
+    public virtual DbSet<SubmissionAuditLog> SubmissionAuditLogs { get; set; }
 
     public virtual DbSet<Teacher> Teachers { get; set; }
 
@@ -582,6 +583,36 @@ public partial class SealContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("UniversityID");
             entity.Property(e => e.UniversityName).HasMaxLength(400);
+        });
+
+        modelBuilder.Entity<SubmissionAuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_SubmissionAuditLog");
+
+            entity.ToTable("SubmissionAuditLogs");
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(450)
+                .IsUnicode(false);
+
+            entity.Property(e => e.SubmissionId)
+                .HasMaxLength(450)
+                .IsUnicode(false);
+
+            entity.Property(e => e.TeamId)
+                .HasMaxLength(450)
+                .IsUnicode(false);
+
+            entity.Property(e => e.EventId)
+                .HasMaxLength(450)
+                .IsUnicode(false);
+
+            entity.Property(e => e.RoundId)
+                .HasMaxLength(450)
+                .IsUnicode(false);
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime2(7)");
         });
 
         OnModelCreatingPartial(modelBuilder);

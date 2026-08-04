@@ -11,6 +11,7 @@ using DataAccess.Repositories.RefreshTokenRepository;
 using DataAccess.Repositories.RoleRepository;
 using DataAccess.Repositories.RoundRepository;
 using DataAccess.Repositories.StudentRepository;
+using DataAccess.Repositories.SubmissionAuditLogRepository;
 using DataAccess.Repositories.SubmissionRepository;
 using DataAccess.Repositories.TeacherListRepository;
 using DataAccess.Repositories.TeacherRepository;
@@ -51,6 +52,7 @@ namespace DataAccess.Repositories.UnitOfWork
         ILeaderBoardRepository LeaderBoard { get; }
         ILeaderBoardDetailRepository LeaderBoardDetail { get; }
         IPrizeRepository Prize { get; }
+        ISubmissionAuditLogRepository SubmissionAuditLog { get; }
         Task SaveAsync();
     }
 }
