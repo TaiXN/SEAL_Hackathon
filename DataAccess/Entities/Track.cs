@@ -15,6 +15,8 @@ public partial class Track
 
     public bool IsActive { get; set; }
 
+    public int MaxTeam { get; set; }
+
     public virtual Event Event { get; set; } = null!;
 
     public virtual ICollection<LeaderBoard> LeaderBoards { get; set; } = new List<LeaderBoard>();

@@ -43,6 +43,8 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Submission> Submissions { get; set; }
 
+    public virtual DbSet<SubmissionAuditLog> SubmissionAuditLogs { get; set; }
+
     public virtual DbSet<Teacher> Teachers { get; set; }
 
     public virtual DbSet<TeacherList> TeacherLists { get; set; }
@@ -405,6 +407,16 @@ public partial class SealContext : DbContext
                 .HasConstraintName("FK_Submission_TeamInRound");
         });
 
+        modelBuilder.Entity<SubmissionAuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Submissi__3214EC07E97D79A3");
+
+            entity.Property(e => e.EventId).HasMaxLength(450);
+            entity.Property(e => e.RoundId).HasMaxLength(450);
+            entity.Property(e => e.SubmissionId).HasMaxLength(450);
+            entity.Property(e => e.TeamId).HasMaxLength(450);
+        });
+
         modelBuilder.Entity<Teacher>(entity =>
         {
             entity.ToTable("Teacher");
@@ -563,6 +575,7 @@ public partial class SealContext : DbContext
                 .HasMaxLength(400)
                 .IsUnicode(false)
                 .HasColumnName("EventID");
+            entity.Property(e => e.MaxTeam).HasDefaultValue(10);
             entity.Property(e => e.TrackName).HasMaxLength(400);
 
             entity.HasOne(d => d.Event).WithMany(p => p.Tracks)

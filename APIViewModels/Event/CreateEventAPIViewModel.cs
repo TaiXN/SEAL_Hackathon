@@ -16,7 +16,10 @@ namespace APIViewModels.Event
 
         public DateTime RegistrationStartDate { get; set; }
         public DateTime RegistrationEndDate { get; set; }
+        public int MinTeamMember { get; set; }
+        public int MaxTeamMember { get; set; }
 
-
+        public List<EventPrizeViewModel> Prizes { get; set; } = new List<EventPrizeViewModel>();
     }
+
 }

@@ -17,6 +17,8 @@ public partial class Prize
 
     public bool IsActive { get; set; }
 
+    public int RankIndex { get; set; }
+
     public virtual Event Event { get; set; } = null!;
 
     public virtual Team? Team { get; set; }

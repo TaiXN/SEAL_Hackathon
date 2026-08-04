@@ -15,5 +15,6 @@ namespace APIViewModels.Prize
 
         [Required]
         public string EventId { get; set; }
+
     }
 }

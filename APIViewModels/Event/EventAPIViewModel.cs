@@ -13,5 +13,8 @@ namespace APIViewModels.Event
         public int Year { get; set; }
         public bool IsActive { get; set; }
         public int CurrentRound { get; set; }
+
+        public int MinTeamMember { get; set; }
+        public int MaxTeamMember { get; set; }
     }
 }
