@@ -13,5 +13,9 @@ namespace APIViewModels.Track
         [Required]
         public string TrackName { get; set; }
 
+        [Required]
+        [Range(1, 9999, ErrorMessage = "MaxTeam must be greater than 0")]
+        public int MaxTeam { get; set; }
+
     }
 }

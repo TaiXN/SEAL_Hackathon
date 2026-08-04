@@ -10,6 +10,7 @@ namespace APIViewModels.Track
         public string EventId { get; set; }
         public string Creator { get; set; }
         public string TrackName { get; set; }
+        public int MaxTeam { get; set; }
         public bool IsActive { get; set; }
     }
 }

@@ -13,6 +13,8 @@ public partial class Track
 
     public string TrackName { get; set; } = null!;
 
+    public int MaxTeam { get; set; }
+
     public bool IsActive { get; set; }
 
     public int MaxTeam { get; set; }
