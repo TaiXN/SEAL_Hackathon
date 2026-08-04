@@ -16,5 +16,8 @@ namespace APIViewModels.Prize
         [Required]
         public string EventId { get; set; }
 
+        [Required]
+        public int RankIndex { get; set; }
+
     }
 }

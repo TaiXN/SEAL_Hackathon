@@ -8,5 +8,6 @@ namespace APIViewModels.Prize
     {
         public string PrizeName { get; set; }
         public string Description { get; set; }
+        public int RankIndex { get; set; }
     }
 }

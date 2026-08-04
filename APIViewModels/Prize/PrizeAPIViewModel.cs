@@ -13,5 +13,6 @@ namespace APIViewModels.Prize
         public string EventId { get; set; }
         public string? TeamId { get; set; }
         public bool IsActive { get; set; }
+        public int RankIndex { get; set; }
     }
 }
