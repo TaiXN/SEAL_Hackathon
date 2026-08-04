@@ -44,8 +44,6 @@ public partial class SealContext : DbContext
     public virtual DbSet<Submission> Submissions { get; set; }
     public virtual DbSet<SubmissionAuditLog> SubmissionAuditLogs { get; set; }
 
-    public virtual DbSet<SubmissionAuditLog> SubmissionAuditLogs { get; set; }
-
     public virtual DbSet<Teacher> Teachers { get; set; }
 
     public virtual DbSet<TeacherList> TeacherLists { get; set; }
