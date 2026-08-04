@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace APIViewModels.Auth
 {
@@ -25,7 +26,12 @@ namespace APIViewModels.Auth
 
         [Required]
 
-      
         public string UniversityId { get; set; } = null!;
+        [Required]
+        public IFormFile IdCardImage { get; set; }
+        [Required]
+        public IFormFile StudentCardImage { get; set; }
+        [Required]
+        public string CccdNumber { get; set; } = null!;
     }
 }

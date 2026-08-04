@@ -1,4 +1,5 @@
 ﻿using APIViewModels.Auth;
+using APIViewModels.Gmail;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +33,7 @@ namespace SEAL_Hackathon.Controllers
 
         [AllowAnonymous]
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterAPIViewModel info)
+        public async Task<IActionResult> Register([FromForm] RegisterAPIViewModel info)
         {
             if (ModelState.IsValid)
             {
@@ -89,6 +90,27 @@ namespace SEAL_Hackathon.Controllers
             if (isRejected) return Ok(new { message = "Student has been rejected and deleted successfully!" });
 
             return BadRequest(new { message = "Student not found or an error occurred." });
+        }
+        [AllowAnonymous]
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp(VerifyOtpAPIViewModel request)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    bool isSuccess = await _player.VerifyEmailOtpAsync(request);
+                    if (isSuccess)
+                    {
+                        return Ok(new { message = "verify Gmail successfully! you can now login" });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
+            return BadRequest(ModelState);
         }
     }
 }

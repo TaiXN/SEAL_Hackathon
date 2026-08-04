@@ -337,7 +337,7 @@ namespace Services.TeamService
 
             var requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
             if (requester == null || requester.IsApproved == false)
-                throw new Exception("invalid account to join");
+                throw new Exception("invalid account to join, please wait for admin to approve your account");
 
             var targetTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (targetTeam == null) throw new Exception("team doesnt exist");

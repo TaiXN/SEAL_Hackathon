@@ -20,12 +20,10 @@ public partial class Account
     public string Phone { get; set; } = null!;
 
     public bool IsActive { get; set; }
-
     public string? OtpCode { get; set; }
-
     public DateTime? OtpExpiryTime { get; set; }
-
     public bool IsEmailConfirmed { get; set; }
+
 
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
@@ -36,4 +34,5 @@ public partial class Account
     public virtual Student? Student { get; set; }
 
     public virtual Teacher? Teacher { get; set; }
+
 }
