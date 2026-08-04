@@ -60,7 +60,6 @@ namespace Services.TeamInRoundService
             if (vnNow > selectedEvent.RegistrationEndDate)
                 throw new Exception("Registration has expired! The deadline to join this event has passed.");
 
-
             var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
             var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
 
@@ -92,12 +91,15 @@ namespace Services.TeamInRoundService
             var round1 = roundsOfEvent.FirstOrDefault(r => r.RoundIndex == 1);
             if (round1 == null) throw new Exception("This event is not configured for Round 1!");
 
+            var totalRegisteredTeams = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == round1.RoundId);
+            if (totalRegisteredTeams.Count() >= round1.MaxTeam)
+            {
+                throw new Exception($"Registration failed! The event has reached its maximum capacity of {round1.MaxTeam} teams.");
+            }
+
             var track = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == request.TrackId && t.IsActive == true);
             if (track == null || track.EventId != request.EventId)
                 throw new Exception("This track doesn't exist, is locked, or doesn't belong to the selected event.");
-
-            var currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
-            if (currentSubmissionsInTrack.Count() >= 6) throw new Exception("This track has reached the maximum of 6 teams.");
 
             var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
             if (topic == null) throw new Exception("Topic doesn't belong to this track.");
