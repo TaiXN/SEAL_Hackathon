@@ -1,6 +1,10 @@
 using APIViewModels.Team;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services.TeamService
 {
@@ -12,37 +16,45 @@ namespace Services.TeamService
         public async Task<List<TeamHistoryAPIViewModel>> GetMyTeamHistoryAsync(string accountId)
         {
             var myMemberships = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId, includeProperties: "Team");
-
             var result = new List<TeamHistoryAPIViewModel>();
 
             foreach (var mem in myMemberships)
             {
-                string eventName = "Unspecified";
-                string eventId = null;
+                var teamSubmissions = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == mem.TeamId);
+                var uniqueEventIdsForTeam = new HashSet<string>();
 
-                var teamSubmission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == mem.TeamId);
-                if (teamSubmission != null)
+                if (teamSubmissions.Any())
                 {
-                    var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == teamSubmission.RoundId);
-                    if (round != null)
+                    foreach (var sub in teamSubmissions)
                     {
-                        var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
-                        if (eventDb != null)
+                        var round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == sub.RoundId);
+                        if (round != null && !uniqueEventIdsForTeam.Contains(round.EventId))
                         {
-                            eventId = eventDb.EventId;
-                            eventName = eventDb.EventName;
+                            uniqueEventIdsForTeam.Add(round.EventId);
+                            var eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
+
+                            result.Add(new TeamHistoryAPIViewModel
+                            {
+                                TeamId = mem.TeamId,
+                                TeamName = mem.Team?.TeamName,
+                                IsLeader = mem.IsLeader,
+                                EventId = eventDb?.EventId,
+                                EventName = eventDb?.EventName ?? "Unspecified"
+                            });
                         }
                     }
                 }
-
-                result.Add(new TeamHistoryAPIViewModel
+                else
                 {
-                    TeamId = mem.TeamId,
-                    TeamName = mem.Team?.TeamName,
-                    IsLeader = mem.IsLeader,
-                    EventId = eventId,
-                    EventName = eventName
-                });
+                    result.Add(new TeamHistoryAPIViewModel
+                    {
+                        TeamId = mem.TeamId,
+                        TeamName = mem.Team?.TeamName,
+                        IsLeader = mem.IsLeader,
+                        EventId = null,
+                        EventName = "Unspecified"
+                    });
+                }
             }
             return result;
         }
@@ -54,7 +66,6 @@ namespace Services.TeamService
             var student = await _uow.Student.GetFirstOrDefaultAsync(s => s.StudentId == accountId);
             if (student == null || student.IsApproved == false)
                 throw new Exception("Your account must be approved by an Admin before you can create a team!");
-
 
             string newTeamId = Guid.NewGuid().ToString();
 
@@ -77,8 +88,6 @@ namespace Services.TeamService
             await _uow.SaveAsync();
             return true;
         }
-
-
 
         //dashboard
         public async Task<TeamDashboardAPIViewModel> GetMyTeamDashboardAsync(string accountId, string teamId)
@@ -105,7 +114,7 @@ namespace Services.TeamService
                 var r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
                 if (r != null)
                 {
-                    if (highestTeamRound == null || r.RoundIndex > highestTeamRound.RoundIndex)
+                    if (highestTeamRound == null || r.EndDate > highestTeamRound.EndDate)
                     {
                         highestTeamRound = r;
                         submittedProject = tr;
@@ -133,7 +142,7 @@ namespace Services.TeamService
                 if (eventDb != null)
                 {
                     eventName = eventDb.EventName;
-                    currentRoundIndex = eventDb.CurrentRound; 
+                    currentRoundIndex = eventDb.CurrentRound;
 
                     DateTime vnNow = DateTime.UtcNow.AddHours(7);
 
@@ -177,9 +186,15 @@ namespace Services.TeamService
                         isEliminated = false;
                         statusMessage = "The event has concluded. Thank you for participating!";
                     }
+                    else if (currentRoundIndex == -1)
+                    {
+                        currentRoundName = "Draft Stage";
+                        isEliminated = false;
+                        statusMessage = "This event is currently being configured by Admins.";
+                    }
                     else if (currentRoundIndex == 0)
                     {
-                        currentRoundName = "Round hasn't started";
+                        currentRoundName = "Registration Open";
                         isEliminated = false;
                         statusMessage = "The event hasn't started yet. Please wait for the first round to begin.";
                     }
@@ -222,8 +237,6 @@ namespace Services.TeamService
                 StatusMessage = statusMessage
             };
         }
-
-
 
         public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
         {
@@ -290,7 +303,6 @@ namespace Services.TeamService
                 }
                 else
                 {
-
                     _uow.TeamMember.Remove(memberRecord);
 
                     var teamToDelete = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
@@ -387,6 +399,7 @@ namespace Services.TeamService
             }
             return false;
         }
+
         public async Task<List<TeamMemberAPIViewModel>> GetTeamMembersAsync(string teamId, string accountId)
         {
             var isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.StudentId == accountId);
@@ -409,7 +422,5 @@ namespace Services.TeamService
 
             return result;
         }
-        
-
     }
 }

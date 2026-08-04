@@ -5,7 +5,8 @@ using DataAccess.Repositories.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services.TeamInRoundService
 {
@@ -21,8 +22,8 @@ namespace Services.TeamInRoundService
         public async Task<bool> CreateTeamInRoundAsync(string accountId, string teamId, SubmitProjectAPIViewModel request)
         {
             var myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
-            if (myTeamInfo == null) throw new Exception("you are not in this team");
-            if (!myTeamInfo.IsLeader) throw new Exception("only team leader can choose ");
+            if (myTeamInfo == null) throw new Exception("You are not in this team.");
+            if (!myTeamInfo.IsLeader) throw new Exception("Only team leader can choose.");
 
             var currentTeam = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (currentTeam == null)
@@ -44,8 +45,20 @@ namespace Services.TeamInRoundService
                     }
                 }
             }
+
             var selectedEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId && e.IsActive == true);
             if (selectedEvent == null) throw new Exception("This event does not exist or is no longer active.");
+
+            if (selectedEvent.CurrentRound == -1)
+                throw new Exception("This event is still in the Draft stage and not open for registration.");
+            if (selectedEvent.CurrentRound > 0)
+                throw new Exception("Registration is closed. The event has already started.");
+
+            DateTime vnNow = DateTime.UtcNow.AddHours(7);
+            if (vnNow < selectedEvent.RegistrationStartDate)
+                throw new Exception("Registration for this event has not opened yet!");
+            if (vnNow > selectedEvent.RegistrationEndDate)
+                throw new Exception("Registration has expired! The deadline to join this event has passed.");
 
             var roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
             var roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
@@ -78,18 +91,18 @@ namespace Services.TeamInRoundService
             var round1 = roundsOfEvent.FirstOrDefault(r => r.RoundIndex == 1);
             if (round1 == null) throw new Exception("This event is not configured for Round 1!");
 
-            if (DateTime.Now >= round1.StartDate)
-                throw new Exception("Registration has expired! This event has officially started.");
+            var totalRegisteredTeams = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == round1.RoundId);
+            if (totalRegisteredTeams.Count() >= round1.MaxTeam)
+            {
+                throw new Exception($"Registration failed! The event has reached its maximum capacity of {round1.MaxTeam} teams.");
+            }
 
             var track = await _uow.Track.GetFirstOrDefaultAsync(t => t.TrackId == request.TrackId && t.IsActive == true);
             if (track == null || track.EventId != request.EventId)
                 throw new Exception("This track doesn't exist, is locked, or doesn't belong to the selected event.");
 
-            var currentSubmissionsInTrack = await _uow.TeamInRound.GetAllAsync(s => s.TrackId == request.TrackId);
-            if (currentSubmissionsInTrack.Count() >= 6) throw new Exception("this track have reach the maximum of 6");
-
             var topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == request.TopicId && t.TrackId == request.TrackId && t.IsActive == true);
-            if (topic == null) throw new Exception("topic doesnt belong to this track");
+            if (topic == null) throw new Exception("Topic doesn't belong to this track.");
 
             var newSubmit = new TeamInRound
             {
@@ -124,19 +137,13 @@ namespace Services.TeamInRoundService
             List<TeamInRoundDetailAPIViewModel> result = teamInRounds.Select(tir => new TeamInRoundDetailAPIViewModel
             {
                 TeamInRoundID = tir.Id,
-
                 TeamId = tir.TeamId,
                 TeamName = tir.Team?.TeamName ?? "N/A",
-
                 TrackId = tir.TrackId,
                 TrackName = tir.Track?.TrackName ?? "N/A",
-
                 RoundId = tir.RoundId,
                 RoundName = tir.Round?.RoundName ?? "N/A",
-
                 TopicId = tir.TopicId,
-           
-
                 IsBanned = tir.IsBanned,
                 IsCheck = tir.IsCheck
             }).ToList();
@@ -150,7 +157,6 @@ namespace Services.TeamInRoundService
             {
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
-
 
                 if (teamDb.IsCheck == true) return true;
 
@@ -167,14 +173,12 @@ namespace Services.TeamInRoundService
             }
         }
 
-
         public async Task<bool> BanTeamInRoundAsync(string teamInRoundId)
         {
             try
             {
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
-
 
                 if (teamDb.IsBanned == true) return true;
 
@@ -191,14 +195,12 @@ namespace Services.TeamInRoundService
             }
         }
 
-
         public async Task<bool> UnbanTeamInRoundAsync(string teamInRoundId)
         {
             try
             {
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
                 if (teamDb == null) return false;
-
 
                 if (teamDb.IsBanned == false) return true;
 
@@ -214,6 +216,5 @@ namespace Services.TeamInRoundService
                 return false;
             }
         }
-
     }
 }
