@@ -23,6 +23,10 @@ public partial class Event
 
     public DateTime RegistrationEndDate { get; set; }
 
+    public int MinTeamMember { get; set; }
+
+    public int MaxTeamMember { get; set; }
+
     public virtual Account CreatorNavigation { get; set; } = null!;
 
     public virtual ICollection<Prize> Prizes { get; set; } = new List<Prize>();

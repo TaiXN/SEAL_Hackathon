@@ -296,14 +296,52 @@ namespace Services.RoundService
                 int nextIndex = currentRound.RoundIndex + 1;
                 Round nextRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == currentRound.EventId && r.RoundIndex == nextIndex);
 
-                if (nextRound == null) return (false, "This is the final round, cannot transition.");
+                if (nextRound == null)
+                {
+                    List<Prize> eventPrizes = await _uow.Prize.GetAllQueryable()
+                                                    .Where(p => p.EventId == eventInfo.EventId && p.IsActive)
+                                                    .ToListAsync();
+
+                    List<LeaderBoard> leaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
+
+                    foreach (LeaderBoard lb in leaderboards)
+                    {
+                        List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllQueryable()
+                            .Where(d => d.LeaderBoardId == lb.Id)
+                            .OrderByDescending(d => d.Score)
+                            .ToListAsync();
+
+                        for (int i = 0; i < details.Count; i++)
+                        {
+                            int currentRank = i + 1;
+
+                            Prize prizeForRank = eventPrizes.FirstOrDefault(p => p.RankIndex == currentRank);
+
+                            if (prizeForRank != null)
+                            {
+                                TeamInRound tir = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == details[i].TeamInRoundId);
+                                if (tir != null)
+                                {
+                                    prizeForRank.TeamId = tir.TeamId;
+                                    _uow.Prize.Update(prizeForRank);
+                                }
+                            }
+                        }
+                    }
+
+                    currentRound.IsActive = false;
+                    _uow.Round.Update(currentRound);
+                    await _uow.SaveAsync();
+
+                    return (true, "Vòng chung kết đã kết thúc! Hệ thống đã chốt điểm và tự động trao giải thành công.");
+                }
 
                 int topN = currentRound.TopNpromotion;
                 if (topN <= 0) return (false, "TopNPromotion has not been set up for this round.");
 
-                List<LeaderBoard> leaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
+                List<LeaderBoard> currentLeaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
 
-                foreach (LeaderBoard lb in leaderboards)
+                foreach (LeaderBoard lb in currentLeaderboards)
                 {
                     List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllQueryable()
                         .Where(d => d.LeaderBoardId == lb.Id)
@@ -312,7 +350,6 @@ namespace Services.RoundService
 
                     if (details.Count > topN)
                     {
-
                         LeaderBoardDetail lastPromoted = details[topN - 1];
                         LeaderBoardDetail firstEliminated = details[topN];
 
@@ -322,9 +359,7 @@ namespace Services.RoundService
                         }
                     }
 
-
                     List<LeaderBoardDetail> winningDetails = details.Take(topN).ToList();
-
 
                     foreach (LeaderBoardDetail detail in winningDetails)
                     {
@@ -363,7 +398,6 @@ namespace Services.RoundService
                 return (false, $"System error: {ex.Message}");
             }
         }
-
 
     }
 }

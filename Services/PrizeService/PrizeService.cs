@@ -1,4 +1,5 @@
 ﻿using APIViewModels.Prize;
+using Azure.Core;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +37,8 @@ namespace Services.PrizeService
                     Description = request.Description,
                     EventId = request.EventId,
                     IsActive = true,
-                    TeamId = null
+                    TeamId = null,
+                    RankIndex = request.RankIndex
                 };
 
                 await _uow.Prize.AddAsync(newPrize);
@@ -63,7 +65,8 @@ namespace Services.PrizeService
                     Description = p.Description,
                     EventId = p.EventId,
                     TeamId = p.TeamId,
-                    IsActive = p.IsActive
+                    IsActive = p.IsActive,
+                    RankIndex = p.RankIndex
                 }).ToList();
             }
             catch
@@ -86,7 +89,8 @@ namespace Services.PrizeService
                     Description = p.Description,
                     EventId = p.EventId,
                     TeamId = p.TeamId,
-                    IsActive = p.IsActive
+                    IsActive = p.IsActive,
+                    RankIndex = p.RankIndex
                 };
             }
             catch
@@ -115,7 +119,8 @@ namespace Services.PrizeService
                     Description = p.Description,
                     EventId = p.EventId,
                     TeamId = p.TeamId,
-                    IsActive = p.IsActive
+                    IsActive = p.IsActive,
+                    RankIndex = p.RankIndex
                 }).ToList();
             }
             catch (Exception ex)

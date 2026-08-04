@@ -249,6 +249,13 @@ namespace Services.CriteriaService
         {
             try
             {
+                List<Round> usedInRounds = await _uow.Round.GetAllAsync(r => r.CriteriaSetId == setID);
+
+                if (usedInRounds.Count > 0)
+                {
+                    return false;
+                }
+
                 CriteriaSet setDb = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
                 if (setDb == null) return false;
 

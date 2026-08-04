@@ -22,7 +22,6 @@ namespace Services.EventService
         {
             try
             {
-
                 DateTime vnNow = DateTime.UtcNow.AddHours(7);
                 DateTime regStartVn = info.RegistrationStartDate.ToUniversalTime().AddHours(7);
                 DateTime regEndVn = info.RegistrationEndDate.ToUniversalTime().AddHours(7);
@@ -33,6 +32,11 @@ namespace Services.EventService
                 }
 
                 if (regStartVn < vnNow)
+                {
+                    return false;
+                }
+
+                if (info.MinTeamMember <= 0 || info.MaxTeamMember <= 0 || info.MinTeamMember > info.MaxTeamMember)
                 {
                     return false;
                 }
@@ -55,9 +59,32 @@ namespace Services.EventService
                     CurrentRound = -1,
                     RegistrationStartDate = regStartVn,
                     RegistrationEndDate = regEndVn,
+                    MinTeamMember = info.MinTeamMember,
+                    MaxTeamMember = info.MaxTeamMember
                 };
 
                 await _uow.Event.AddAsync(newEvent);
+
+                if (info.Prizes != null && info.Prizes.Count > 0)
+                {
+                    List<Prize> newPrizes = new List<Prize>();
+                    foreach (EventPrizeViewModel p in info.Prizes)
+                    {
+                        Prize newPrize = new Prize
+                        {
+                            PrizeId = Guid.NewGuid().ToString(),
+                            PrizeName = p.PrizeName,
+                            Description = p.Description,
+                            EventId = newEvent.EventId,
+                            IsActive = true,
+                            TeamId = null,
+                            RankIndex = p.RankIndex
+                        };
+                        newPrizes.Add(newPrize);
+                    }
+                    await _uow.Prize.AddRangeAsync(newPrizes);
+                }
+
                 await _uow.SaveAsync();
                 return true;
             }
@@ -113,7 +140,9 @@ namespace Services.EventService
                     Season = e.Season,
                     Year = e.Year,
                     IsActive = e.IsActive,
-                    CurrentRound = e.CurrentRound
+                    CurrentRound = e.CurrentRound,
+                    MinTeamMember = e.MinTeamMember,
+                    MaxTeamMember = e.MaxTeamMember
                 }).ToList();
             }
             catch
@@ -137,7 +166,9 @@ namespace Services.EventService
                     Season = e.Season,
                     Year = e.Year,
                     IsActive = e.IsActive,
-                    CurrentRound = e.CurrentRound
+                    CurrentRound = e.CurrentRound,
+                    MinTeamMember = e.MinTeamMember,
+                    MaxTeamMember = e.MaxTeamMember
                 };
             }
             catch
@@ -171,6 +202,17 @@ namespace Services.EventService
                     return false;
                 }
 
+                if (eventDb.CurrentRound == -1)
+                {
+                    if (info.MinTeamMember <= 0 || info.MaxTeamMember <= 0 || info.MinTeamMember > info.MaxTeamMember)
+                    {
+                        return false;
+                    }
+
+                    eventDb.MinTeamMember = info.MinTeamMember;
+                    eventDb.MaxTeamMember = info.MaxTeamMember;
+                }
+
                 eventDb.EventName = info.EventName;
                 eventDb.Season = info.Season;
                 eventDb.Year = info.Year;
@@ -187,7 +229,6 @@ namespace Services.EventService
                 return false;
             }
         }
-
         public async Task<bool> DeleteEventAsync(string eventId)
         {
             try
