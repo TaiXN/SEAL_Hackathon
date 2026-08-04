@@ -29,7 +29,7 @@ namespace Services.EventService
 
                 if (regStartVn >= regEndVn)
                 {
-                    return false; 
+                    return false;
                 }
 
                 if (regStartVn < vnNow)
@@ -41,7 +41,7 @@ namespace Services.EventService
 
                 if (duplicateCheck != null)
                 {
-                    return false; 
+                    return false;
                 }
 
                 Event newEvent = new Event()
@@ -52,7 +52,7 @@ namespace Services.EventService
                     Season = info.Season,
                     Year = info.Year,
                     IsActive = true,
-                    CurrentRound = 0,
+                    CurrentRound = -1,
                     RegistrationStartDate = regStartVn,
                     RegistrationEndDate = regEndVn,
                 };
@@ -72,11 +72,11 @@ namespace Services.EventService
             try
             {
                 Event currentEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventID && e.IsActive);
-                if(currentEvent == null)
+                if (currentEvent == null)
                 {
                     return false;
                 }
-    
+
                 int nextRoundIndex = currentEvent.CurrentRound + 1;
 
                 Round nextRound = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == currentEvent.EventId && e.RoundIndex == nextRoundIndex);
@@ -104,7 +104,7 @@ namespace Services.EventService
             {
                 List<Event> result = await _uow.Event.GetAllAsync();
 
-             
+
                 return result.Select(e => new EventAPIViewModel
                 {
                     EventId = e.EventId,
@@ -214,14 +214,25 @@ namespace Services.EventService
                 Event ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
                 if (ev == null) return (false, "Event does not exist.");
 
-                
                 List<Round> eventRounds = await _uow.Round.GetAllQueryable()
-                                              .Where(r => r.EventId == eventId)
+                                              .Where(r => r.EventId == eventId && r.IsActive)
+                                              .OrderBy(r => r.RoundIndex)
                                               .ToListAsync();
 
                 if (eventRounds.Count == 0)
                 {
-                    return (false, "This event has no configured Rounds. Please create at least 1 round before publishing!");
+                    return (false, "This event has no round configuration. Please create at least Round 1 before publishing.");
+                }
+
+                Round round1 = eventRounds.FirstOrDefault(r => r.RoundIndex == 1);
+                if (round1 == null)
+                {
+                    return (false, "Round 1 has not been configured.");
+                }
+
+                if (round1.MinTeam <= 0 || round1.MaxTeam <= 0 || round1.MinTeam > round1.MaxTeam)
+                {
+                    return (false, "Round 1 team configuration is invalid.");
                 }
 
                 ev.CurrentRound = 0;
@@ -247,9 +258,14 @@ namespace Services.EventService
                 Round round1 = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventId && r.RoundIndex == 1);
                 if (round1 == null) return (false, "Round 1 does not exist.");
 
-                int teamCount = await _uow.Event.GetAllQueryable()
-                                      .Where(t => t.EventId == eventId)
-                                      .CountAsync();
+                int teamCount = await _uow.TeamInRound.GetAllQueryable()
+                                .Where(t =>
+                                      t.RoundId == round1.RoundId &&
+                                      t.IsCheck &&
+                                      !t.IsBanned)
+                                     .Select(t => t.TeamId)
+                                     .Distinct()
+                                     .CountAsync();
 
                 if (teamCount < round1.MinTeam)
                 {

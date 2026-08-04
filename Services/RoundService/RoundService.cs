@@ -8,7 +8,7 @@ namespace Services.RoundService
     public class RoundService : IRoundService
     {
         private readonly IUnitOfWork _uow;
-      
+
 
         public RoundService(IUnitOfWork uow)
         {
@@ -32,7 +32,7 @@ namespace Services.RoundService
                     return false;
                 }
 
-                if (info.TopNPromotion < 0) return false; 
+                if (info.TopNPromotion < 0) return false;
 
                 DateTime vnNow = DateTime.UtcNow.AddHours(7);
                 DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
@@ -46,7 +46,9 @@ namespace Services.RoundService
 
                 if (startDateVn >= endDateVn) return false;
 
-                if (info.MinTeam < 0 || info.MinTeam > info.MaxTeam)
+                if (info.MinTeam <= 0 ||
+                    info.MaxTeam <= 0 ||
+                    info.MinTeam > info.MaxTeam)
                 {
                     return false;
                 }
@@ -87,7 +89,7 @@ namespace Services.RoundService
                     RoundIndex = RoundIndex,
                     CriteriaSetId = info.CriteriaSetID,
                     MinTeam = info.MinTeam,
-                    
+
                 };
 
                 await _uow.Round.AddAsync(newRound);
@@ -196,8 +198,9 @@ namespace Services.RoundService
                 {
                     return false;
                 }
-
-                if (info.MinTeam < 0 || info.MinTeam > info.MaxTeam)
+                if (info.MinTeam <= 0 ||
+                    info.MaxTeam <= 0 ||
+                    info.MinTeam > info.MaxTeam)
                 {
                     return false;
                 }
@@ -361,6 +364,6 @@ namespace Services.RoundService
             }
         }
 
-       
+
     }
 }
