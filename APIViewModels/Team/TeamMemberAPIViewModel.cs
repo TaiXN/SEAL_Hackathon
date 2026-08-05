@@ -9,5 +9,7 @@ namespace APIViewModels.Team
         public string StudentId { get; set; }
         public string StudentName { get; set; } 
         public bool IsLeader { get; set; }
+
+        public bool IsActive { get; set; }
     }
 }

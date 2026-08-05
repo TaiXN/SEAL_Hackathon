@@ -75,13 +75,21 @@ namespace Services.TeamInRoundService
             }
 
 
+            List<string> currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
+            List<Account> teamAccounts = await _uow.Account.GetAllAsync(a => currentTeamMemberIds.Contains(a.AccountId));
+
+            List<Account> bannedAccounts = teamAccounts.Where(a => a.IsActive == false).ToList();
+            if (bannedAccounts.Count > 0)
+            {
+                throw new Exception("Registration failed! Your team contains one or more banned members. The Team Leader must kick the banned member(s) before registering for this event.");
+            }
+
+
             List<Round> roundsOfEvent = await _uow.Round.GetAllAsync(r => r.EventId == request.EventId);
             List<string> roundIds = roundsOfEvent.Select(r => r.RoundId).ToList();
 
             TeamInRound existingSubmit = await _uow.TeamInRound.GetFirstOrDefaultAsync(s => s.TeamId == teamId && roundIds.Contains(s.RoundId));
             if (existingSubmit != null) throw new Exception("Your team has already locked the competition category for this event, resubmission is not possible!");
-
-            List<string> currentTeamMemberIds = allMembers.Where(tm => tm.TeamId == teamId).Select(tm => tm.StudentId).ToList();
 
             List<TeamInRound> allSubmittedTeamsInEvent = await _uow.TeamInRound.GetAllAsync(tr => roundIds.Contains(tr.RoundId));
             List<string> submittedTeamIds = allSubmittedTeamsInEvent.Select(tr => tr.TeamId).ToList();

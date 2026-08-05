@@ -305,16 +305,13 @@ namespace Services.PlayerService
         {
             try
             {
-                // THÊM DataAccess.Entities. VÀO ĐÂY ĐỂ TRÁNH ĐỤNG HÀNG
                 DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == accountId);
                 if (accountDb == null) return (false, "Account not found.");
                 if (accountDb.IsActive == true) return (false, "Account is already active.");
 
-                // Mở khóa tài khoản
                 accountDb.IsActive = true;
                 _uow.Account.Update(accountDb);
 
-                // Mở khóa luôn team để họ được thi tiếp
                 List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId);
                 if (playerTeams != null && playerTeams.Count > 0)
                 {
