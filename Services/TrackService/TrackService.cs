@@ -1,6 +1,10 @@
 ﻿using APIViewModels.Track;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services.TrackService
 {
@@ -12,21 +16,36 @@ namespace Services.TrackService
             _uow = uow;
         }
 
-
-        public async Task<bool> CreateTrackAsync(CreateTrackAPIViewModel info, string accId)
+        public async Task<(bool IsSuccess, string Message)> CreateTrackAsync(CreateTrackAPIViewModel info, string accId)
         {
             try
             {
-                Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventId && e.IsActive);
-                if (eventDb == null) return false;
+                if (info.MaxTeam <= 0)
+                    return (false, "Maximum number of teams must be greater than 0.");
 
+                Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventId && e.IsActive);
+                if (eventDb == null)
+                    return (false, "Event does not exist or is inactive.");
+
+                Round round1 = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == info.EventId && r.RoundIndex == 1);
+                if (round1 != null)
+                {
+                    List<Track> currentTracks = await _uow.Track.GetAllAsync(t => t.EventId == info.EventId && t.IsActive);
+                    int totalCurrentMax = currentTracks.Sum(t => t.MaxTeam);
+
+                    if (totalCurrentMax + info.MaxTeam > round1.MaxTeam)
+                    {
+                        int slotsLeft = round1.MaxTeam - totalCurrentMax;
+                        return (false, $"Capacity exceeded! The event allows a total of {round1.MaxTeam} teams. Current tracks use {totalCurrentMax} slots. You can only allocate up to {slotsLeft} more teams for this new track.");
+                    }
+                }
 
                 Track duplicateCheck = await _uow.Track.GetFirstOrDefaultAsync(t =>
                     t.EventId == info.EventId &&
                     t.TrackName.ToLower() == info.TrackName.ToLower() &&
                     t.IsActive);
-                if (duplicateCheck != null) return false;
-
+                if (duplicateCheck != null)
+                    return (false, "A track with this name already exists in the event.");
 
                 Track newTrack = new Track()
                 {
@@ -39,14 +58,13 @@ namespace Services.TrackService
                 };
 
                 await _uow.Track.AddAsync(newTrack);
-
                 await _uow.SaveAsync();
 
-                return true;
+                return (true, "Track successfully created.");
             }
             catch (Exception ex)
             {
-                return false;
+                return (false, $"System error: {ex.Message}");
             }
         }
 
@@ -85,6 +103,7 @@ namespace Services.TrackService
                     EventId = t.EventId,
                     Creator = t.Creator,
                     TrackName = t.TrackName,
+                    MaxTeam = t.MaxTeam,
                     IsActive = t.IsActive
                 };
             }
@@ -94,18 +113,37 @@ namespace Services.TrackService
             }
         }
 
-        public async Task<bool> UpdateTrackAsync(string trackID, UpdateTrackAPIViewModel info)
+        public async Task<(bool IsSuccess, string Message)> UpdateTrackAsync(string trackID, UpdateTrackAPIViewModel info)
         {
             try
             {
+                if (info.MaxTeam <= 0)
+                    return (false, "Maximum number of teams must be greater than 0.");
+
                 Track trackDb = await _uow.Track.GetFirstOrDefaultAsync(r => r.TrackId == trackID && r.IsActive);
-                if (trackDb == null) return false;
+                if (trackDb == null)
+                    return (false, "Track does not exist or has been deleted.");
+
+                Round round1 = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == trackDb.EventId && r.RoundIndex == 1);
+                if (round1 != null)
+                {
+                    List<Track> otherTracks = await _uow.Track.GetAllAsync(t => t.EventId == trackDb.EventId && t.IsActive && t.TrackId != trackID);
+                    int totalOtherMax = otherTracks.Sum(t => t.MaxTeam);
+
+                    if (totalOtherMax + info.MaxTeam > round1.MaxTeam)
+                    {
+                        int slotsLeft = round1.MaxTeam - totalOtherMax;
+                        return (false, $"Capacity exceeded! The event allows a total of {round1.MaxTeam} teams. Other tracks currently use {totalOtherMax} slots. You can only set a maximum of {slotsLeft} teams for this track.");
+                    }
+                }
 
                 Track duplicateCheck = await _uow.Track.GetFirstOrDefaultAsync(t =>
                      t.EventId == info.EventID &&
                      t.TrackName.ToLower() == info.TrackName.ToLower() &&
+                     t.TrackId != trackID &&
                      t.IsActive);
-                if (duplicateCheck != null) return false;
+                if (duplicateCheck != null)
+                    return (false, "A track with this name already exists in the event.");
 
                 trackDb.TrackName = info.TrackName;
                 trackDb.MaxTeam = info.MaxTeam;
@@ -113,11 +151,11 @@ namespace Services.TrackService
                 _uow.Track.Update(trackDb);
                 await _uow.SaveAsync();
 
-                return true;
+                return (true, "Track successfully updated.");
             }
             catch (Exception ex)
             {
-                return false;
+                return (false, $"System error: {ex.Message}");
             }
         }
 
@@ -140,9 +178,5 @@ namespace Services.TrackService
                 return false;
             }
         }
-
-      
-
-        
     }
 }
