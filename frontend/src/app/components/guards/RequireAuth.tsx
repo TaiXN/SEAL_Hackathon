@@ -10,7 +10,6 @@ const RequireAuth = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 2. PHÂN LUỒNG ROLE TUYỆT ĐỐI (Chống Nút Back đi lạc sang Role khác)
   const currentPath = location.pathname.toLowerCase();
   const currentRole = role?.toLowerCase()?.trim();
 

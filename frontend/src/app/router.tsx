@@ -29,6 +29,8 @@ import { AdminLeaderboardPage } from "./pages/Admin/AdminLeaderboardPage";
 import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
+import { AuditLogPage } from "./pages/Admin/AuditLogPage";
+import { VerifyOtpPage } from "./pages/Admin/VerifyOtpPage";
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +38,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Landing /> },
       { path: "/login", element: <AuthLayout /> },
+      { path: "verify-otp", element: <VerifyOtpPage /> },
     ],
   },
   {
@@ -58,6 +61,7 @@ export const router = createBrowserRouter([
           { path: "profile", element: <AdminProfile /> },
           { path: "prizes", element: <AdminPrizesPage /> },
           { path: "leaderboard", element: <AdminLeaderboardPage /> },
+          { path: "audit-log", element: <AuditLogPage /> },
         ],
       },
 

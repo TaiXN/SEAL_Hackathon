@@ -22,10 +22,16 @@ export interface University {
 }
 
 export const playerApi = {
-  async register(payload: RegisterPlayerPayload) {
-    const res = await apiClient.post("/api/Player/register", payload);
-    return res.data;
-  },
+  register: (formData: FormData) =>
+    apiClient.post("/api/Player/register", formData, {
+      headers: {
+        // Dùng cái này để xóa bỏ mặc định application/json của apiClient
+        "Content-Type": "multipart/form-data",
+      },
+    }),
+
+  verifyOtp: (payload: { email: string; otpCode: string }) =>
+    apiClient.post("/api/Player/verify-otp", payload),
 
   async getUniversities() {
     const res = await apiClient.get("/api/University");

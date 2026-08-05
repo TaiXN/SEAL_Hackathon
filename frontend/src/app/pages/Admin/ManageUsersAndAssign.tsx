@@ -394,7 +394,10 @@ export function ManageUsersAndAssign() {
                         <th className="w-[26%] px-8 py-5">Full Name</th>
                         <th className="w-[20%] px-6 py-5">Phone Number</th>
                         <th className="w-[30%] px-6 py-5">Email Address</th>
-                        <th className="w-[24%] px-8 py-5 text-right">Actions</th>
+                        <th className="w-[30%] px-6 py-5">University Name</th>
+                        <th className="w-[24%] px-8 py-5 text-right">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -411,6 +414,9 @@ export function ManageUsersAndAssign() {
                           </td>
                           <td className="px-6 py-5 font-medium text-slate-500 truncate">
                             {s.email || "—"}
+                          </td>
+                          <td className="px-6 py-5 font-medium text-slate-500 truncate">
+                            {s.universityName || "—"}
                           </td>
                           <td className="px-8 py-5">
                             <div className="flex justify-end gap-3">

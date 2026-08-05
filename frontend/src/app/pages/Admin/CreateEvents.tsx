@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   X,
   ArrowRight,
-  Lock,
   Save,
   Loader2,
   AlertCircle,
@@ -21,8 +20,10 @@ import { criteriaApi } from "../../lib/api/criteriaApi";
 import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
+import { prizeApi } from "../../lib/api/prizeApi";
+import apiClient from "../../lib/api/apiClient";
 
-// SHARED HELPERS (also used by EventDetailsPage — see lib/utils/criteriaHelpers.ts)
+// SHARED HELPERS
 import {
   getList,
   extractId,
@@ -35,11 +36,7 @@ import {
   DEFAULT_CRITERIA_DESCRIPTION,
 } from "../../lib/utils/criteriaHelpers";
 
-// Brand color of the whole system (FPT orange)
 const BRAND = "#f26f21";
-
-// Client-side only ids (rounds / criteria rows). A plain counter never collides,
-// unlike Date.now() when several rows are created within the same millisecond.
 let seq = 1000;
 const nextId = () => ++seq;
 
@@ -59,7 +56,6 @@ interface RoundConfig {
   topNPromotion: number;
 }
 
-/** One rubric (criteria set) belongs to exactly ONE round. */
 interface RubricConfig {
   mode: "new" | "reuse";
   setName: string;
@@ -70,7 +66,6 @@ interface RubricConfig {
 const makeRound = (prev?: RoundConfig): RoundConfig => ({
   id: nextId(),
   roundName: "",
-  // A new round starts right when the previous one closes.
   startDate: prev?.endDate || "",
   endDate: "",
   maxTeam: prev ? Number(prev.topNPromotion) || 10 : 40,
@@ -84,31 +79,10 @@ const makeRubric = (): RubricConfig => ({
   reuseSetId: "",
 });
 
-/** Rounds response may carry the id under several names. */
-const pickRoundId = (obj: any): string | null => {
-  if (!obj) return null;
-  const d = obj?.data ?? obj;
-  return d?.roundID || d?.roundId || d?.id || null;
-};
-
 // ==========================================================
-// ROUND CARD — one competition round (fully user-defined)
+// COMPONENT CARD ROUND & RUBRIC
 // ==========================================================
-function RoundCard({
-  index,
-  total,
-  round,
-  prevEnd,
-  onChange,
-  onRemove,
-}: {
-  index: number;
-  total: number;
-  round: RoundConfig;
-  prevEnd: string;
-  onChange: (patch: Partial<RoundConfig>) => void;
-  onRemove: () => void;
-}) {
+function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
   const dStart = round.startDate ? new Date(round.startDate) : null;
   const dEnd = round.endDate ? new Date(round.endDate) : null;
   const dPrevEnd = prevEnd ? new Date(prevEnd) : null;
@@ -125,17 +99,11 @@ function RoundCard({
             {index + 1}
           </span>
           Round {index + 1}
-          {index === total - 1 && total > 1 && (
-            <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
-              (final round)
-            </span>
-          )}
         </h4>
         {total > 1 && (
           <button
             onClick={onRemove}
             className="text-slate-300 hover:text-red-500 transition-colors"
-            title="Remove this round"
           >
             <Trash2 size={18} />
           </button>
@@ -150,7 +118,7 @@ function RoundCard({
           type="text"
           value={round.roundName}
           onChange={(e) => onChange({ roundName: e.target.value })}
-          placeholder="e.g. Preliminary Round, Semi Final, Grand Final..."
+          placeholder="e.g. Preliminary Round, Semi Final..."
           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange"
         />
       </div>
@@ -183,7 +151,7 @@ function RoundCard({
       <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
         <div className="space-y-2">
           <label className="text-[11px] font-bold text-slate-500 uppercase">
-            Max teams in this round
+            Max teams
           </label>
           <input
             type="number"
@@ -219,14 +187,13 @@ function RoundCard({
           )}
           {overlapsPrev && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
-              <AlertCircle size={12} /> This round cannot start before round{" "}
-              {index} has closed.
+              <AlertCircle size={12} /> This round cannot start before previous
+              has closed.
             </p>
           )}
           {topTooHigh && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
-              <AlertCircle size={12} /> Teams advancing cannot be greater than
-              the max teams of this round.
+              <AlertCircle size={12} /> Teams advancing cannot exceed max teams.
             </p>
           )}
         </div>
@@ -235,9 +202,6 @@ function RoundCard({
   );
 }
 
-// ==========================================================
-// RUBRIC CARD — the single criteria set of ONE round
-// ==========================================================
 function RubricCard({
   index,
   roundName,
@@ -248,38 +212,21 @@ function RubricCard({
   loadSetsError,
   onRetryLoad,
   onChange,
-}: {
-  index: number;
-  roundName: string;
-  rubric: RubricConfig;
-  defaultSetName: string;
-  availableSets: any[];
-  loadingSets: boolean;
-  loadSetsError: string | null;
-  onRetryLoad: () => void;
-  onChange: (patch: Partial<RubricConfig>) => void;
-}) {
+}: any) {
   const picked = availableSets.find(
-    (s) => String(s.setId) === String(rubric.reuseSetId),
+    (s: any) => String(s.setId) === String(rubric.reuseSetId),
   );
   const items = rubric.mode === "new" ? rubric.items : picked?.items || [];
   const total = sumWeight(items);
   const isFull = total === 100;
   const hasEmptyName =
-    rubric.mode === "new" && rubric.items.some((i) => !i.name.trim());
+    rubric.mode === "new" && rubric.items.some((i: any) => !i.name.trim());
 
-  const addItem = () =>
-    onChange({
-      items: [
-        ...rubric.items,
-        { id: nextId(), name: "", description: "", weight: 0 },
-      ],
-    });
-  const removeItem = (id: number) =>
-    onChange({ items: rubric.items.filter((i) => i.id !== id) });
   const updateItem = (id: number, patch: Partial<CriterionRow>) =>
     onChange({
-      items: rubric.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+      items: rubric.items.map((i: any) =>
+        i.id === id ? { ...i, ...patch } : i,
+      ),
     });
 
   return (
@@ -296,11 +243,7 @@ function RubricCard({
             <button
               key={m}
               onClick={() => onChange({ mode: m })}
-              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-colors ${
-                rubric.mode === m
-                  ? "bg-fpt-orange text-white border-fpt-orange"
-                  : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-              }`}
+              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-colors ${rubric.mode === m ? "bg-fpt-orange text-white border-fpt-orange" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
             >
               {m === "new" ? "New rubric" : "Existing rubric"}
             </button>
@@ -322,9 +265,8 @@ function RubricCard({
               className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold focus:border-fpt-orange"
             />
           </div>
-
           <div className="space-y-3">
-            {rubric.items.map((r) => (
+            {rubric.items.map((r: any) => (
               <div
                 key={r.id}
                 className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2"
@@ -352,9 +294,12 @@ function RubricCard({
                   </div>
                   {rubric.items.length > 1 && (
                     <button
-                      onClick={() => removeItem(r.id)}
+                      onClick={() =>
+                        onChange({
+                          items: rubric.items.filter((i: any) => i.id !== r.id),
+                        })
+                      }
                       className="text-slate-300 hover:text-red-500 p-1"
-                      title="Remove criterion"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -372,7 +317,14 @@ function RubricCard({
               </div>
             ))}
             <button
-              onClick={addItem}
+              onClick={() =>
+                onChange({
+                  items: [
+                    ...rubric.items,
+                    { id: nextId(), name: "", description: "", weight: 0 },
+                  ],
+                })
+              }
               className="text-xs font-bold text-slate-500 hover:text-fpt-orange mt-2 flex items-center gap-1"
             >
               <Plus size={12} /> Add criterion
@@ -382,12 +334,11 @@ function RubricCard({
       ) : (
         <>
           {loadingSets && (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400">
-              <Loader2 size={16} className="animate-spin" />
-              Loading rubric sets...
+            <div className="flex justify-center py-8 text-sm text-slate-400">
+              <Loader2 size={16} className="animate-spin mr-2" /> Loading rubric
+              sets...
             </div>
           )}
-
           {!loadingSets && loadSetsError && (
             <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
               <AlertCircle size={22} className="text-red-500" />
@@ -402,13 +353,11 @@ function RubricCard({
               </button>
             </div>
           )}
-
           {!loadingSets && !loadSetsError && availableSets.length === 0 && (
             <p className="text-sm text-slate-400 italic py-8 text-center">
-              No rubric set exists yet. Switch to "New rubric" above.
+              No rubric set exists yet.
             </p>
           )}
-
           {!loadingSets && !loadSetsError && availableSets.length > 0 && (
             <>
               <select
@@ -417,43 +366,12 @@ function RubricCard({
                 className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-fpt-orange"
               >
                 <option value="">-- Select a rubric set --</option>
-                {availableSets.map((s) => (
+                {availableSets.map((s: any) => (
                   <option key={s.setId} value={s.setId}>
                     {s.setName}
                   </option>
                 ))}
               </select>
-
-              {picked && (
-                <div className="mt-4 space-y-2">
-                  {picked.items.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">
-                      This set has no criteria yet.
-                    </p>
-                  ) : (
-                    picked.items.map((it: any, i: number) => (
-                      <div
-                        key={it.criteriaId || i}
-                        className="text-sm px-3 py-2 bg-slate-50 rounded-lg"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold text-slate-700">
-                            {it.name}
-                          </span>
-                          <span className="font-black text-slate-500">
-                            {it.score}%
-                          </span>
-                        </div>
-                        {it.description && (
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {it.description}
-                          </p>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
             </>
           )}
         </>
@@ -470,7 +388,7 @@ function RubricCard({
           {!isFull && (
             <p className="text-[11px] text-red-500 font-semibold mt-1 flex items-center gap-1">
               <AlertCircle size={12} /> The total weight of this rubric must be
-              exactly 100% before you can save.
+              exactly 100%.
             </p>
           )}
           {hasEmptyName && (
@@ -484,51 +402,76 @@ function RubricCard({
   );
 }
 
+// ==========================================================
+// MAIN COMPONENT (ORCHESTRATOR PATTERN)
+// ==========================================================
 export function CreateEvents() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(1);
+  const [furthestTab, setFurthestTab] = useState(1); // Cho phép user quay lại các tab đã hoàn thành
 
-  // ==========================================
-  // IDS ALREADY PERSISTED — prevents duplicates when the user goes back
-  // ==========================================
-  const [savedEventId, setSavedEventId] = useState<string | null>(null);
-  const [savedSetIds, setSavedSetIds] = useState<Record<number, string>>({});
-  const [createdRoundIds, setCreatedRoundIds] = useState<
-    Record<number, string>
-  >({});
-
-  // ==========================================
-  // TAB DATA
-  // ==========================================
+  // 1. STATE BƯỚC 1
   const [eventForm, setEventForm] = useState({
     eventName: "",
     season: "Fall",
     year: new Date().getFullYear(),
   });
 
-  const [tracks, setTracks] = useState<any[]>([{ id: nextId(), name: "", topics: [] }]);
+  // 2. STATE BƯỚC 2
+  const [tracks, setTracks] = useState<any[]>([
+    { id: nextId(), name: "", topics: [] },
+  ]);
   const [topicInputs, setTopicInputs] = useState<{ [key: number]: string }>({});
 
-  // STEP 3 — rounds are fully flexible (1..n)
+  // 3. STATE BƯỚC 3
   const [rounds, setRounds] = useState<RoundConfig[]>([makeRound()]);
-  const [roundsConfirmed, setRoundsConfirmed] = useState(false);
 
-  // STEP 4 — exactly one rubric per round, keyed by the round's client id
+  // 4. STATE BƯỚC 4
   const [rubrics, setRubrics] = useState<Record<number, RubricConfig>>({
     [rounds[0].id]: makeRubric(),
   });
-
-  const [isSavingEvent, setIsSavingEvent] = useState(false);
-  const [isSavingTracks, setIsSavingTracks] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
-
-  // Reusable rubric sets already stored in the system
   const [availableSets, setAvailableSets] = useState<any[]>([]);
   const [loadingSets, setLoadingSets] = useState(false);
   const [loadSetsError, setLoadSetsError] = useState<string | null>(null);
   const [setsLoaded, setSetsLoaded] = useState(false);
 
-  // Keep the rubric map in sync with the round list (add / remove rounds).
+  // 5. STATE BƯỚC 5
+  const [rawTeachers, setRawTeachers] = useState<any[]>([]);
+  const [assignForm, setAssignForm] = useState({
+    trackLocalId: "",
+    teacherId: "",
+    isMentor: true,
+  });
+  const [pendingAssignments, setPendingAssignments] = useState<any[]>([]);
+
+  // 6. STATE BƯỚC 6
+  const [eventPrizes, setEventPrizes] = useState<any[]>([
+    {
+      id: nextId(),
+      name: "First Prize",
+      description: "Gold Medal + 5,000,000 VND",
+    },
+    {
+      id: nextId(),
+      name: "Second Prize",
+      description: "Silver Medal + 3,000,000 VND",
+    },
+    {
+      id: nextId(),
+      name: "Third Prize",
+      description: "Bronze Medal + 1,000,000 VND",
+    },
+    {
+      id: nextId(),
+      name: "Consolation Prize",
+      description: "Certificate + 500,000 VND",
+    },
+  ]);
+
+  // TRẠNG THÁI DEPLOY
+  const [isLaunching, setIsLaunching] = useState(false);
+
+  // Sync rubrics array when round amount changes
   useEffect(() => {
     setRubrics((prev) => {
       const next: Record<number, RubricConfig> = {};
@@ -545,21 +488,14 @@ export function CreateEvents() {
     setRounds((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     );
-
   const patchRubric = (roundId: number, patch: Partial<RubricConfig>) =>
     setRubrics((prev) => ({
       ...prev,
       [roundId]: { ...(prev[roundId] || makeRubric()), ...patch },
     }));
-
   const defaultSetNameFor = (r: RoundConfig, idx: number) =>
-    `${eventForm.eventName || "Event"} - ${
-      r.roundName || `Round ${idx + 1}`
-    } Rubric`;
+    `${eventForm.eventName || "Event"} - ${r.roundName || `Round ${idx + 1}`} Rubric`;
 
-  // ==========================================
-  // LOAD EXISTING RUBRIC SETS (for the "Existing rubric" mode)
-  // ==========================================
   const loadAvailableSets = async () => {
     try {
       setLoadingSets(true);
@@ -569,44 +505,46 @@ export function CreateEvents() {
         criteriaApi.getAllCriteria(),
       ]);
       const critMap = buildCriteriaMap(critRaw);
-
       const baseSets = getList(setsRaw)
         .map((s: any) => ({
-          // ⚠️ The backend returns the set id under several names; we must grab
-          // the real GUID, never undefined.
           setId: grabSetId(s),
-          setName: s.setName || s.SetName || "Rubric set",
+          setName: s.setName || "Rubric set",
         }))
-        // Drop sets without a usable id (never fall back to the set name).
         .filter((s): s is { setId: string; setName: string } => !!s.setId);
-
-      // ⚠️ IMPORTANT: getAllSet() only returns a shallow list WITHOUT the
-      // criteria inside each set — that is why the preview used to always say
-      // "this set has no criteria". We must fetch each set detail (getSetById)
-      // to get the real criteriaList, exactly like EventDetailsPage does.
       const enriched = await loadSetsWithItems(baseSets, critMap, (setId) =>
         criteriaApi.getSetById(setId),
       );
       setAvailableSets(enriched);
       setSetsLoaded(true);
     } catch (e) {
-      console.error("Could not load existing rubric sets:", e);
       setLoadSetsError("Could not load the existing rubric sets.");
     } finally {
       setLoadingSets(false);
     }
   };
 
-  // Lazily fetch the reusable sets the first time step 4 is opened.
   useEffect(() => {
     if (activeTab === 4 && !setsLoaded && !loadingSets) loadAvailableSets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 5 && rawTeachers.length === 0) {
+      apiClient
+        .get(`/api/Teacher/available?t=${Date.now()}`)
+        .then((res) => setRawTeachers(getList(res.data)))
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
+  const advanceTab = (targetTab: number) => {
+    setActiveTab(targetTab);
+    if (targetTab > furthestTab) setFurthestTab(targetTab);
+  };
+
   // ==========================================
-  // STEP 1: EVENT
+  // LOCAL VALIDATORS (KHÔNG GỌI API)
   // ==========================================
-  const handleSaveEvent = async () => {
+  const handleValidateEvent = () => {
     if (!eventForm.eventName.trim())
       return Swal.fire({
         icon: "warning",
@@ -614,217 +552,22 @@ export function CreateEvents() {
         text: "Please enter the event name.",
         confirmButtonColor: BRAND,
       });
-
-    setIsSavingEvent(true);
-    try {
-      Swal.fire({
-        title: "Saving the event...",
-        didOpen: () => Swal.showLoading(),
-      });
-
-      const payload = {
-        eventName: eventForm.eventName.trim(),
-        season: eventForm.season,
-        year: Number(eventForm.year),
-      };
-
-      if (savedEventId) {
-        // Already created -> PUT (wrapped in case the backend rejects PUT)
-        try {
-          await eventApi.updateEvent(savedEventId, payload);
-        } catch (e) {
-          console.warn("Could not update the event, ignoring:", e);
-        }
-      } else {
-        try {
-          const res: any = await eventApi.createEvent(payload as any);
-          const eventId = extractId(res);
-          if (!eventId) throw new Error("No id returned");
-          setSavedEventId(eventId);
-        } catch (error) {
-          // POST failed (often a duplicate name) -> look the event up again
-          const allEvents = getList(await eventApi.getAllEvents());
-          const matchedEvent = [...allEvents]
-            .reverse()
-            .find((e: any) => (e.name || e.eventName) === payload.eventName);
-          const foundId = extractId(matchedEvent);
-          if (!foundId) throw error;
-          setSavedEventId(foundId);
-        }
-      }
-
-      Swal.fire({
-        icon: "success",
-        title: "Event saved!",
-        showConfirmButton: false,
-        timer: 1000,
-      });
-      setActiveTab(2);
-    } catch (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Could not save the event",
-        text: getServerMsg(error),
-        confirmButtonColor: BRAND,
-      });
-    } finally {
-      setIsSavingEvent(false);
-    }
+    advanceTab(2);
   };
 
-  // ==========================================
-  // STEP 2: TRACKS & TOPICS
-  // ==========================================
-  const handleSaveTracks = async () => {
-    if (!savedEventId)
+  const handleValidateTracks = () => {
+    const hasValidTrack = tracks.some((t) => t.name.trim().length > 0);
+    if (!hasValidTrack)
       return Swal.fire({
-        icon: "error",
-        title: "Save step 1 first",
-        text: "The event must be created before adding tracks.",
+        icon: "warning",
+        title: "Missing Tracks",
+        text: "Please create at least one track.",
         confirmButtonColor: BRAND,
       });
-
-    setIsSavingTracks(true);
-    try {
-      Swal.fire({
-        title: "Syncing tracks & topics...",
-        didOpen: () => Swal.showLoading(),
-      });
-      const topicFails: string[] = [];
-      const allTracksRaw = await trackTopicApi.getAllTracks();
-      const existingTracks = getList(allTracksRaw).filter(
-        (t) => String(t.eventId || t.eventID) === String(savedEventId),
-      );
-
-      for (const track of tracks) {
-        if (!track.name.trim()) continue;
-
-        // Resolve the track id precisely (pickTrackId never falls back to eventId)
-        const matchedTrack = existingTracks.find(
-          (t) =>
-            (t.trackName || t.name || "")?.toLowerCase() ===
-            track.name.trim().toLowerCase(),
-        );
-        let currentTrackId = pickTrackId(matchedTrack);
-
-        if (currentTrackId) {
-          try {
-            await trackTopicApi.updateTrack(currentTrackId, {
-              eventId: savedEventId,
-              trackName: track.name.trim(),
-            } as any);
-          } catch (e) {
-            console.warn("Could not update the track", e);
-          }
-        } else {
-          try {
-            const trackRes: any = await trackTopicApi.createTrack({
-              eventId: savedEventId,
-              trackName: track.name.trim(),
-            } as any);
-            currentTrackId = pickTrackId(trackRes);
-          } catch (e: any) {
-            console.warn("createTrack failed (duplicate name?), refetching:", e);
-          }
-        }
-
-        // Still no id (empty POST body / duplicate) -> refetch and match by name
-        if (!currentTrackId) {
-          const refetchTracks = getList(await trackTopicApi.getAllTracks());
-          const refetchMatch = [...refetchTracks]
-            .reverse()
-            .find(
-              (t) =>
-                (t.trackName || t.name || "")?.trim().toLowerCase() ===
-                  track.name.trim().toLowerCase() &&
-                String(t.eventId || t.eventID) === String(savedEventId),
-            );
-          currentTrackId = pickTrackId(refetchMatch);
-        }
-
-        // 🛡️ GUARD: never let the track id collapse into the event id
-        if (!currentTrackId || String(currentTrackId) === String(savedEventId)) {
-          console.error(
-            "No valid trackId for track:",
-            track.name,
-            "-> skipping its topics.",
-          );
-          continue;
-        }
-
-        // Topics
-        let existingTopics: any[] = [];
-        try {
-          existingTopics = getList(await trackTopicApi.getAllTopics()).filter(
-            (t) => String(t.trackID || t.trackId) === String(currentTrackId),
-          );
-        } catch (e) {
-          console.warn("getAllTopics failed:", e);
-        }
-
-        for (const topic of track.topics) {
-          const name = String(topic).trim();
-          if (!name) continue;
-          const isExist = existingTopics.some(
-            (t) =>
-              (t.topicDetail || t.name || "")?.trim().toLowerCase() ===
-              name.toLowerCase(),
-          );
-          if (isExist) continue;
-          try {
-            await trackTopicApi.createTopic({
-              trackID: currentTrackId,
-              topicDetail: name,
-            } as any);
-          } catch (e: any) {
-            console.error(
-              "POST topic failed:",
-              name,
-              e?.response?.status,
-              e?.response?.data,
-            );
-            topicFails.push(`"${name}" — ${getServerMsg(e)}`);
-          }
-        }
-      }
-
-      if (topicFails.length > 0) {
-        Swal.fire({
-          icon: "warning",
-          title: "Some topics were rejected",
-          html:
-            `The backend rejected ${topicFails.length} topic(s) — usually because the name already exists:<br><br>` +
-            topicFails.join("<br>"),
-          confirmButtonColor: BRAND,
-        });
-      } else {
-        Swal.fire({
-          icon: "success",
-          title: "Tracks saved!",
-          showConfirmButton: false,
-          timer: 1000,
-        });
-      }
-      setActiveTab(3);
-    } catch (error) {
-      console.error(error);
-      Swal.fire({
-        icon: "error",
-        title: "Could not save the tracks",
-        text: getServerMsg(error),
-        confirmButtonColor: BRAND,
-      });
-    } finally {
-      setIsSavingTracks(false);
-    }
+    advanceTab(3);
   };
 
-  // ==========================================
-  // STEP 3: ROUNDS — validated locally only.
-  // The backend requires a criteriaSetID on every round, so the rounds are
-  // actually POSTed at the end of step 4, once their rubric sets exist.
-  // ==========================================
-  const handleConfirmRounds = () => {
+  const handleValidateRounds = () => {
     if (rounds.length === 0)
       return Swal.fire({
         icon: "warning",
@@ -832,11 +575,9 @@ export function CreateEvents() {
         text: "The event needs at least one round.",
         confirmButtonColor: BRAND,
       });
-
     for (let i = 0; i < rounds.length; i++) {
       const r = rounds[i];
       const label = r.roundName.trim() || `Round ${i + 1}`;
-
       if (!r.roundName.trim())
         return Swal.fire({
           icon: "warning",
@@ -851,14 +592,13 @@ export function CreateEvents() {
           text: `Please fill in the opening and closing time of "${label}".`,
           confirmButtonColor: BRAND,
         });
-
-      const dStart = new Date(r.startDate);
-      const dEnd = new Date(r.endDate);
+      const dStart = new Date(r.startDate),
+        dEnd = new Date(r.endDate);
       if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime()))
         return Swal.fire({
           icon: "warning",
           title: "Invalid date",
-          text: `The schedule of "${label}" is not a valid date/time.`,
+          text: `The schedule of "${label}" is invalid.`,
           confirmButtonColor: BRAND,
         });
       if (dEnd <= dStart)
@@ -879,7 +619,7 @@ export function CreateEvents() {
         return Swal.fire({
           icon: "warning",
           title: "Invalid team numbers",
-          text: `Max teams and teams advancing of "${label}" must be at least 1.`,
+          text: `Max teams and teams advancing must be at least 1.`,
           confirmButtonColor: BRAND,
         });
       if (Number(r.topNPromotion) > Number(r.maxTeam))
@@ -890,35 +630,85 @@ export function CreateEvents() {
           confirmButtonColor: BRAND,
         });
     }
-
-    setRoundsConfirmed(true);
-    setActiveTab(4);
+    advanceTab(4);
   };
 
-  // ==========================================
-  // STEP 4: RUBRICS + FINAL LAUNCH
-  // ==========================================
+  const handleValidateRubrics = () => {
+    for (let i = 0; i < rounds.length; i++) {
+      const r = rounds[i];
+      const rub = rubrics[r.id];
+      const label = r.roundName.trim() || `Round ${i + 1}`;
+      if (!rub)
+        return Swal.fire({
+          icon: "error",
+          title: "Missing rubric",
+          text: `"${label}" has no rubric yet.`,
+          confirmButtonColor: BRAND,
+        });
+      if (rub.mode === "reuse") {
+        const picked = availableSets.find(
+          (s) => String(s.setId) === String(rub.reuseSetId),
+        );
+        if (!picked)
+          return Swal.fire({
+            icon: "warning",
+            title: "No rubric selected",
+            text: `Please pick an existing set for "${label}".`,
+            confirmButtonColor: BRAND,
+          });
+        if (sumWeight(picked.items || []) !== 100)
+          return Swal.fire({
+            icon: "error",
+            title: "Total weight is not 100%",
+            text: `Rubric for "${label}" must add up to 100%.`,
+            confirmButtonColor: BRAND,
+          });
+      } else {
+        if (rub.items.length === 0)
+          return Swal.fire({
+            icon: "warning",
+            title: "Empty rubric",
+            text: `Rubric of "${label}" needs at least one criterion.`,
+            confirmButtonColor: BRAND,
+          });
+        if (rub.items.some((it) => !it.name.trim()))
+          return Swal.fire({
+            icon: "warning",
+            title: "Missing name",
+            text: `Every criterion of "${label}" needs a name.`,
+            confirmButtonColor: BRAND,
+          });
+        if (sumWeight(rub.items) !== 100)
+          return Swal.fire({
+            icon: "error",
+            title: "Total weight is not 100%",
+            text: `Rubric of "${label}" must add up to 100%.`,
+            confirmButtonColor: BRAND,
+          });
+      }
+    }
+    advanceTab(5);
+  };
 
-  /** Create (or update) one criteria set and return its id. */
-  const syncSet = async (
+  const handleValidateAssignments = () => {
+    advanceTab(6); // Step 5 không bắt buộc nhập
+  };
+
+  // Helper tạo Criteria trong lúc Launch
+  const syncSetOrchestrator = async (
     rubricList: CriterionRow[],
     setName: string,
-    existingSetId: string | null,
   ) => {
     const criteriaMap = await Promise.all(
       rubricList.map(async (r) => {
         let cId: string | null = null;
-        const description = r.description.trim() || DEFAULT_CRITERIA_DESCRIPTION;
         try {
           const res = await criteriaApi.createCriterion({
             criteriaName: r.name.trim(),
-            description,
+            description: r.description.trim() || DEFAULT_CRITERIA_DESCRIPTION,
           } as any);
           cId = extractId(res);
-        } catch (e) {
-          // 400 because the name already exists -> resolve the id below
-        }
-
+        } catch (e) {}
         if (!cId) {
           const allC = getList(await criteriaApi.getAllCriteria());
           const found = [...allC]
@@ -929,191 +719,129 @@ export function CreateEvents() {
                 r.name.trim().toLowerCase(),
             );
           cId = extractId(found);
-
-          // ⚠️ IMPORTANT: when createCriterion failed because of a DUPLICATE
-          // NAME (very common with generic names reused across events), the
-          // existing criterion still holds its OLD description. Without this
-          // PUT the description just typed by the user would be silently
-          // swallowed and the UI would keep showing the old text.
-          if (cId) {
-            try {
-              await criteriaApi.updateCriterion(cId, {
-                criteriaID: cId,
-                criteriaId: cId,
-                criteriaName: r.name.trim(),
-                description,
-              } as any);
-            } catch (e) {
-              console.warn(
-                "Could not sync the description of the duplicated criterion:",
-                r.name,
-                e,
-              );
-            }
-          }
         }
         return { criteriaId: cId, score: Number(r.weight) };
       }),
     );
 
-    // Never send a null criteriaId — the backend answers 400 on those.
     const resolved = criteriaMap.filter((c) => !!c.criteriaId) as {
       criteriaId: string;
       score: number;
     }[];
     if (resolved.length !== criteriaMap.length)
-      throw new Error(
-        `Some criteria of "${setName}" could not be created on the server.`,
-      );
+      throw new Error(`Some criteria of "${setName}" could not be created.`);
 
-    let setId = existingSetId;
+    const res = await criteriaApi.createSet({
+      setName,
+      isDefault: true,
+      criteriaList: resolved,
+      CriteriaList: resolved,
+    } as any);
+    let setId = extractId(res);
 
-    if (setId) {
-      // ⚠️ PUT /Criteria/set/{id} only accepts the camelCase shape — sending
-      // both camelCase and PascalCase keys makes it answer 400.
-      await criteriaApi.updateSet(setId, {
-        setName,
-        isDefault: true,
-        criteriaList: resolved,
-      });
-    } else {
-      try {
-        const res = await criteriaApi.createSet({
-          setName,
-          isDefault: true,
-          criteriaList: resolved,
-          CriteriaList: resolved,
-        } as any);
-        setId = extractId(res);
-      } catch (e) {
-        console.warn("createSet failed, will try to look it up:", e);
-      }
-
-      if (!setId) {
-        const allS = getList(await criteriaApi.getAllSet());
-        const foundSet = [...allS]
-          .reverse()
-          .find(
-            (s: any) =>
-              (s.setName || s.name || "").trim().toLowerCase() ===
-              setName.trim().toLowerCase(),
-          );
-        setId = grabSetId(foundSet);
-      }
+    if (!setId) {
+      const allS = getList(await criteriaApi.getAllSet());
+      const foundSet = [...allS]
+        .reverse()
+        .find(
+          (s: any) =>
+            (s.setName || s.name || "").trim().toLowerCase() ===
+            setName.trim().toLowerCase(),
+        );
+      setId = grabSetId(foundSet);
     }
     return setId;
   };
 
-  const handleLaunch = async () => {
-    if (!savedEventId)
-      return Swal.fire({
-        icon: "error",
-        title: "Save step 1 first",
-        text: "The event must be created before the rounds can be launched.",
-        confirmButtonColor: BRAND,
-      });
-    if (!roundsConfirmed)
-      return Swal.fire({
-        icon: "error",
-        title: "Configure the rounds first",
-        text: "Go back to step 3 and confirm the round schedule.",
-        confirmButtonColor: BRAND,
-      });
-
-    // ---- validate every rubric ----
-    for (let i = 0; i < rounds.length; i++) {
-      const r = rounds[i];
-      const rub = rubrics[r.id];
-      const label = r.roundName.trim() || `Round ${i + 1}`;
-
-      if (!rub)
-        return Swal.fire({
-          icon: "error",
-          title: "Missing rubric",
-          text: `"${label}" has no rubric yet.`,
-          confirmButtonColor: BRAND,
-        });
-
-      if (rub.mode === "reuse") {
-        const picked = availableSets.find(
-          (s) => String(s.setId) === String(rub.reuseSetId),
-        );
-        if (!picked)
-          return Swal.fire({
-            icon: "warning",
-            title: "No rubric selected",
-            text: `Please pick an existing rubric set for "${label}".`,
-            confirmButtonColor: BRAND,
-          });
-        const total = sumWeight(picked.items || []);
-        if (total !== 100)
-          return Swal.fire({
-            icon: "error",
-            title: "Total weight is not 100%",
-            text: `The rubric selected for "${label}" adds up to ${total}%. Fix its weights on the event details page, or pick another set.`,
-            confirmButtonColor: BRAND,
-          });
-      } else {
-        if (rub.items.length === 0)
-          return Swal.fire({
-            icon: "warning",
-            title: "Empty rubric",
-            text: `The rubric of "${label}" needs at least one criterion.`,
-            confirmButtonColor: BRAND,
-          });
-        if (rub.items.some((it) => !it.name.trim()))
-          return Swal.fire({
-            icon: "warning",
-            title: "Missing criterion name",
-            text: `Every criterion of "${label}" needs a name.`,
-            confirmButtonColor: BRAND,
-          });
-        const total = sumWeight(rub.items);
-        if (total !== 100)
-          return Swal.fire({
-            icon: "error",
-            title: "Total weight is not 100%",
-            text: `The rubric of "${label}" adds up to ${total}%. Each rubric must total exactly 100%.`,
-            confirmButtonColor: BRAND,
-          });
-      }
-    }
-
+  // ==========================================
+  // BƯỚC 6: NHẠC TRƯỞNG (GỌI API LIÊN HOÀN)
+  // ==========================================
+  const handleLaunchEvent = async () => {
     setIsLaunching(true);
-    const toIso = (dateStr: string) => new Date(dateStr).toISOString();
-    let currentLabel = "";
-
+    let errorStep = "Event Creation";
     try {
       Swal.fire({
-        title: "Creating rubrics & rounds...",
+        title: "Deploying Event...",
+        html: "Configuring Event details...",
         didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+      });
+
+      // 1. TẠO EVENT
+      const eventPayload = {
+        eventName: eventForm.eventName.trim(),
+        season: eventForm.season,
+        year: Number(eventForm.year),
+      };
+      const evRes: any = await eventApi.createEvent(eventPayload as any);
+      let eventId = extractId(evRes);
+
+      // Nếu API lỗi không trả về ID do trùng tên, Backend quăng Error, nhảy xuống Catch báo lỗi liền, DB không dính rác!
+      if (!eventId)
+        throw new Error(
+          "Could not create Event. Ensure the Event name is unique.",
+        );
+
+      // 2. TẠO TRACKS & TOPICS
+      errorStep = "Tracks Configuration";
+      Swal.fire({
+        title: "Deploying Event...",
+        html: "Configuring Tracks and Topics...",
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+      });
+
+      // Map lưu trữ ánh xạ: Local_Track_ID -> Server_Track_ID (Dùng để gán Giám khảo ở bước sau)
+      const trackIdMap: Record<number, string> = {};
+
+      for (const t of tracks) {
+        if (!t.name.trim()) continue;
+        const trRes: any = await trackTopicApi.createTrack({
+          eventId,
+          trackName: t.name.trim(),
+        } as any);
+        const serverTrackId = pickTrackId(trRes);
+        if (!serverTrackId)
+          throw new Error(`Could not create track: ${t.name}`);
+
+        trackIdMap[t.id] = serverTrackId;
+
+        for (const topic of t.topics) {
+          if (topic.trim())
+            await trackTopicApi.createTopic({
+              trackID: serverTrackId,
+              topicDetail: topic.trim(),
+            } as any);
+        }
+      }
+
+      // 3. TẠO RUBRICS VÀ ROUNDS
+      errorStep = "Rounds & Rubrics Configuration";
+      Swal.fire({
+        title: "Deploying Event...",
+        html: "Configuring Rounds and Rubrics...",
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
       });
 
       for (let i = 0; i < rounds.length; i++) {
         const r = rounds[i];
         const rub = rubrics[r.id];
-        currentLabel = r.roundName.trim() || `Round ${i + 1}`;
+        let setId: string | null = null;
 
-        // 1) rubric set
-        let setId: string | null;
-        if (rub.mode === "reuse") {
-          setId = rub.reuseSetId;
-        } else {
-          setId = await syncSet(
+        if (rub.mode === "reuse") setId = rub.reuseSetId;
+        else
+          setId = await syncSetOrchestrator(
             rub.items,
             rub.setName.trim() || defaultSetNameFor(r, i),
-            savedSetIds[r.id] ?? null,
           );
-        }
-        if (!setId)
-          throw new Error(
-            `The rubric set of "${currentLabel}" could not be created.`,
-          );
-        setSavedSetIds((prev) => ({ ...prev, [r.id]: setId as string }));
 
-        // 2) round itself
-        const payload = {
-          eventID: savedEventId,
+        if (!setId)
+          throw new Error(`Could not configure rubric for ${r.roundName}`);
+
+        const toIso = (dateStr: string) => new Date(dateStr).toISOString();
+        await roundApi.createRound({
+          eventID: eventId,
           roundName: r.roundName.trim(),
           startDate: toIso(r.startDate),
           endDate: toIso(r.endDate),
@@ -1121,38 +849,61 @@ export function CreateEvents() {
           maxTeam: Number(r.maxTeam),
           roundIndex: i,
           criteriaSetID: setId,
-        };
+        } as any);
+      }
 
-        const alreadyCreated = createdRoundIds[r.id];
-        if (alreadyCreated) {
-          // Retry after a partial failure -> update instead of duplicating
-          await roundApi.updateRound({
-            ...payload,
-            roundID: alreadyCreated,
-          } as any);
-        } else {
-          const res: any = await roundApi.createRound(payload as any);
-          const newRoundId = pickRoundId(res);
-          if (newRoundId)
-            setCreatedRoundIds((prev) => ({ ...prev, [r.id]: newRoundId }));
+      // 4. GÁN MENTORS & JUDGES
+      errorStep = "Personnel Assignment";
+      Swal.fire({
+        title: "Deploying Event...",
+        html: "Assigning Mentors and Judges...",
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+      });
+
+      for (const pa of pendingAssignments) {
+        const realTrackId = trackIdMap[pa.trackLocalId];
+        if (!realTrackId) continue;
+        const endpoint = pa.isMentor
+          ? `/api/Mentor/track/${realTrackId}/teacher/${pa.teacherId}`
+          : `/api/Judge/track/${realTrackId}/teacher/${pa.teacherId}`;
+        try {
+          await apiClient.post(endpoint);
+        } catch (e) {
+          console.warn("Assign failed for", pa.teacherName);
         }
+      }
+
+      // 5. TẠO PRIZES
+      errorStep = "Prizes Configuration";
+      Swal.fire({
+        title: "Deploying Event...",
+        html: "Setting up Prizes...",
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+      });
+
+      for (const p of eventPrizes) {
+        if (!p.name.trim()) continue;
+        try {
+          await prizeApi.createPrize({
+            prizeName: p.name.trim(),
+            description: p.description.trim(),
+            eventId: eventId,
+          });
+        } catch (e) {}
       }
 
       Swal.fire({
         icon: "success",
-        title: "Event is live!",
-        text: `${rounds.length} round(s) and their rubrics were created successfully.`,
+        title: "Event Launched!",
+        text: "Everything is setup and live.",
         confirmButtonColor: BRAND,
       }).then(() => navigate("/admin/events"));
     } catch (error: any) {
-      console.error(
-        "Launch failed — backend detail:",
-        error?.response?.status,
-        error?.response?.data || error,
-      );
       Swal.fire({
         icon: "error",
-        title: `Failed on "${currentLabel}"`,
+        title: `Deployment Failed at ${errorStep}`,
         text: getServerMsg(error),
         confirmButtonColor: BRAND,
       });
@@ -1162,21 +913,16 @@ export function CreateEvents() {
   };
 
   // ==========================================
-  // RENDER
+  // RENDER UI
   // ==========================================
   const tabs = [
-    { id: 1, name: "1. Event", isSaved: !!savedEventId },
-    { id: 2, name: "2. Tracks & Topics", isSaved: false },
-    { id: 3, name: "3. Rounds", isSaved: roundsConfirmed },
-    {
-      id: 4,
-      name: "4. Grading Rubrics",
-      isSaved: Object.keys(createdRoundIds).length > 0,
-    },
+    { id: 1, name: "1. Event" },
+    { id: 2, name: "2. Tracks & Topics" },
+    { id: 3, name: "3. Rounds" },
+    { id: 4, name: "4. Grading Rubrics" },
+    { id: 5, name: "5. Personnel" },
+    { id: 6, name: "6. Prizes" },
   ];
-
-  const isTabLocked = (id: number) =>
-    (id > 1 && !savedEventId) || (id === 4 && !roundsConfirmed);
 
   return (
     <main className="w-full bg-[#f8f9fa] min-h-screen p-10 animate-in fade-in duration-300">
@@ -1198,33 +944,24 @@ export function CreateEvents() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-6 min-h-[500px] flex flex-col">
-        {/* TAB BAR */}
         <div className="flex border-b border-slate-100 px-2 bg-slate-50/50">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              disabled={isTabLocked(tab.id)}
-              className={`flex-1 px-6 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2
-                ${
-                  activeTab === tab.id
-                    ? "border-fpt-orange text-fpt-orange bg-white"
-                    : tab.isSaved
-                      ? "border-transparent text-emerald-600 hover:text-emerald-700 hover:bg-white"
-                      : "border-transparent text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white"
-                }`}
+              disabled={tab.id > furthestTab}
+              className={`flex-1 px-3 py-4 text-[13px] font-bold border-b-2 transition-colors flex items-center justify-center gap-1.5 ${activeTab === tab.id ? "border-fpt-orange text-fpt-orange bg-white" : tab.id <= furthestTab ? "border-transparent text-emerald-600 hover:text-emerald-700 hover:bg-white" : "border-transparent text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white"}`}
             >
-              {tab.isSaved && activeTab !== tab.id && <CheckCircle2 size={16} />}
-              {tab.name}
-              {isTabLocked(tab.id) && (
-                <Lock size={14} className="ml-1 opacity-50" />
+              {tab.id < furthestTab && activeTab !== tab.id && (
+                <CheckCircle2 size={16} />
               )}
+              {tab.name}
             </button>
           ))}
         </div>
 
         <div className="p-8 flex-1">
-          {/* ============ STEP 1: EVENT ============ */}
+          {/* STEP 1 */}
           {activeTab === 1 && (
             <div className="space-y-6 max-w-2xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
@@ -1287,24 +1024,17 @@ export function CreateEvents() {
                 </div>
                 <div className="flex justify-end border-t border-slate-200 pt-6 mt-6">
                   <button
-                    onClick={handleSaveEvent}
-                    disabled={isSavingEvent}
-                    className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    onClick={handleValidateEvent}
+                    className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 transition-colors"
                   >
-                    {isSavingEvent ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Save size={16} />
-                    )}
-                    {isSavingEvent ? "Saving..." : "Save & Continue"}
-                    {!isSavingEvent && <ArrowRight size={16} />}
+                    Next: Tracks & Topics <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ============ STEP 2: TRACKS ============ */}
+          {/* STEP 2 */}
           {activeTab === 2 && (
             <div className="space-y-6 max-w-3xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="flex justify-between items-center">
@@ -1323,7 +1053,6 @@ export function CreateEvents() {
                   <Plus size={14} /> Add track
                 </button>
               </div>
-
               <div className="space-y-4">
                 {tracks.map((t, idx) => (
                   <div
@@ -1335,12 +1064,11 @@ export function CreateEvents() {
                         onClick={() =>
                           setTracks(tracks.filter((tr) => tr.id !== t.id))
                         }
-                        className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
+                        className="absolute top-4 right-4 text-slate-300 hover:text-red-500"
                       >
                         <Trash2 size={18} />
                       </button>
                     )}
-
                     <div className="mb-4 w-2/3">
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
                         Track {idx + 1} name
@@ -1361,7 +1089,6 @@ export function CreateEvents() {
                         placeholder="e.g. Web App, Data Science..."
                       />
                     </div>
-
                     <div>
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-2">
                         Topics
@@ -1406,7 +1133,10 @@ export function CreateEvents() {
                             })
                           }
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" && topicInputs[t.id]?.trim()) {
+                            if (
+                              e.key === "Enter" &&
+                              topicInputs[t.id]?.trim()
+                            ) {
                               setTracks(
                                 tracks.map((tr) =>
                                   tr.id === t.id
@@ -1431,32 +1161,24 @@ export function CreateEvents() {
                   </div>
                 ))}
               </div>
-
               <div className="flex justify-between pt-6 border-t border-slate-100">
                 <button
-                  onClick={() => setActiveTab(1)}
+                  onClick={() => advanceTab(1)}
                   className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                 >
                   ← Back
                 </button>
                 <button
-                  onClick={handleSaveTracks}
-                  disabled={isSavingTracks}
-                  className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  onClick={handleValidateTracks}
+                  className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 transition-colors"
                 >
-                  {isSavingTracks ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Save size={16} />
-                  )}
-                  {isSavingTracks ? "Saving..." : "Save tracks & Continue"}
-                  {!isSavingTracks && <ArrowRight size={16} />}
+                  Next: Rounds <ArrowRight size={16} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* ============ STEP 3: ROUNDS ============ */}
+          {/* STEP 3 */}
           {activeTab === 3 && (
             <div className="space-y-6 max-w-3xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="flex justify-between items-center">
@@ -1466,8 +1188,7 @@ export function CreateEvents() {
                     Competition rounds
                   </h3>
                   <p className="text-slate-500 text-xs mt-1">
-                    Add as many rounds as this hackathon needs — each one gets
-                    its own grading rubric in the next step.
+                    Add as many rounds as this hackathon needs.
                   </p>
                 </div>
                 <button
@@ -1477,12 +1198,11 @@ export function CreateEvents() {
                       makeRound(prev[prev.length - 1]),
                     ])
                   }
-                  className="px-4 py-2 bg-fpt-orange-soft text-fpt-orange text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-orange-100 transition-colors shrink-0"
+                  className="px-4 py-2 bg-fpt-orange-soft text-fpt-orange text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-orange-100 shrink-0"
                 >
                   <Plus size={14} /> Add round
                 </button>
               </div>
-
               <div className="space-y-4">
                 {rounds.map((r, idx) => (
                   <RoundCard
@@ -1491,38 +1211,31 @@ export function CreateEvents() {
                     total={rounds.length}
                     round={r}
                     prevEnd={idx > 0 ? rounds[idx - 1].endDate : ""}
-                    onChange={(patch) => {
-                      patchRound(r.id, patch);
-                      setRoundsConfirmed(false);
-                    }}
-                    onRemove={() => {
-                      setRounds((prev) => prev.filter((x) => x.id !== r.id));
-                      setRoundsConfirmed(false);
-                    }}
+                    onChange={(patch: any) => patchRound(r.id, patch)}
+                    onRemove={() =>
+                      setRounds((prev) => prev.filter((x) => x.id !== r.id))
+                    }
                   />
                 ))}
               </div>
-
               <div className="flex justify-between pt-6 border-t border-slate-100">
                 <button
-                  onClick={() => setActiveTab(2)}
+                  onClick={() => advanceTab(2)}
                   className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                 >
                   ← Back
                 </button>
                 <button
-                  onClick={handleConfirmRounds}
+                  onClick={handleValidateRounds}
                   className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 transition-colors"
                 >
-                  <ClipboardList size={16} />
-                  Continue to rubrics
-                  <ArrowRight size={16} />
+                  Next: Rubrics <ArrowRight size={16} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* ============ STEP 4: RUBRICS ============ */}
+          {/* STEP 4 */}
           {activeTab === 4 && (
             <div className="space-y-6 max-w-5xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="text-center">
@@ -1530,11 +1243,9 @@ export function CreateEvents() {
                   Grading rubrics
                 </h3>
                 <p className="text-slate-500 text-xs mt-1">
-                  One rubric per round — {rounds.length} round(s) configured.
-                  Every rubric must total exactly 100%.
+                  One rubric per round. Every rubric must total exactly 100%.
                 </p>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {rounds.map((r, idx) => (
                   <RubricCard
@@ -1547,29 +1258,359 @@ export function CreateEvents() {
                     loadingSets={loadingSets}
                     loadSetsError={loadSetsError}
                     onRetryLoad={loadAvailableSets}
-                    onChange={(patch) => patchRubric(r.id, patch)}
+                    onChange={(patch: any) => patchRubric(r.id, patch)}
                   />
                 ))}
               </div>
-
               <div className="flex justify-between pt-6 border-t border-slate-100">
                 <button
-                  onClick={() => setActiveTab(3)}
+                  onClick={() => advanceTab(3)}
                   className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
                 >
                   ← Back
                 </button>
                 <button
-                  onClick={handleLaunch}
+                  onClick={handleValidateRubrics}
+                  className="px-8 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 transition-colors"
+                >
+                  Next: Personnel <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5 */}
+          {activeTab === 5 && (
+            <div className="space-y-6 max-w-4xl mx-auto animate-in slide-in-from-left-4 duration-300">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Mentors & Judges
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Assign personnel to the tracks of this event.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                      Select Track
+                    </label>
+                    <select
+                      value={assignForm.trackLocalId}
+                      onChange={(e) =>
+                        setAssignForm({
+                          ...assignForm,
+                          trackLocalId: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none font-bold text-fpt-orange"
+                    >
+                      <option value="">-- Choose Track --</option>
+                      {tracks.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                      Select Personnel
+                    </label>
+                    <select
+                      value={assignForm.teacherId}
+                      onChange={(e) =>
+                        setAssignForm({
+                          ...assignForm,
+                          teacherId: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-700"
+                    >
+                      <option value="">-- Choose Teacher --</option>
+                      {rawTeachers.map((t) => (
+                        <option
+                          key={t.teacherId || t.id}
+                          value={t.teacherId || t.id}
+                        >
+                          {t.fullName || t.teacherName || t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2 h-[38px]">
+                    <button
+                      onClick={() =>
+                        setAssignForm({ ...assignForm, isMentor: true })
+                      }
+                      className={`flex-1 text-xs font-bold rounded-lg border transition-all ${assignForm.isMentor ? "bg-fpt-orange text-white border-fpt-orange shadow-md" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-100"}`}
+                    >
+                      Mentor
+                    </button>
+                    <button
+                      onClick={() =>
+                        setAssignForm({ ...assignForm, isMentor: false })
+                      }
+                      className={`flex-1 text-xs font-bold rounded-lg border transition-all ${!assignForm.isMentor ? "bg-fpt-orange text-white border-fpt-orange shadow-md" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-100"}`}
+                    >
+                      Judge
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!assignForm.trackLocalId || !assignForm.teacherId) {
+                      return Swal.fire(
+                        "Missing",
+                        "Please select both a track and a personnel.",
+                        "warning",
+                      );
+                    }
+
+                    // 1. Lấy đúng tên nhân sự và tên Track
+                    const selectedTeacher = rawTeachers.find(
+                      (t) =>
+                        String(t.teacherId || t.id) ===
+                        String(assignForm.teacherId),
+                    );
+                    const tName =
+                      selectedTeacher?.teacherName ||
+                      selectedTeacher?.fullName ||
+                      selectedTeacher?.name ||
+                      "Unknown Teacher";
+                    const trName = tracks.find(
+                      (t) => String(t.id) === String(assignForm.trackLocalId),
+                    )?.name;
+
+                    // 2. Tìm xem giáo viên này đã được phân công vào CÙNG 1 TRACK này chưa
+                    const assignmentInSameTrack = pendingAssignments.find(
+                      (pa) =>
+                        String(pa.teacherId) === String(assignForm.teacherId) &&
+                        String(pa.trackLocalId) ===
+                          String(assignForm.trackLocalId),
+                    );
+
+                    if (assignmentInSameTrack) {
+                      // Nếu đã có mặt trong Track này rồi -> Bắt đầu check lỗi
+                      if (
+                        assignmentInSameTrack.isMentor !== assignForm.isMentor
+                      ) {
+                        // Lỗi xung đột: Vừa làm Mentor vừa làm Judge cho CÙNG 1 Track
+                        return Swal.fire({
+                          icon: "error",
+                          title: "Role Conflict",
+                          text: `${tName} is already assigned as a ${assignmentInSameTrack.isMentor ? "Mentor" : "Judge"} for "${trName}". A personnel cannot hold both roles in the same track.`,
+                          confirmButtonColor: "#f26f21",
+                        });
+                      } else {
+                        // Lỗi trùng lặp: Thêm 2 lần y hệt nhau
+                        return Swal.fire({
+                          icon: "warning",
+                          title: "Duplicate",
+                          text: `${tName} is already assigned to "${trName}".`,
+                          confirmButtonColor: "#f26f21",
+                        });
+                      }
+                    }
+
+                    // Vượt qua kiểm tra (Hoặc là Track mới, hoặc là Nhân sự mới) -> Thêm vào danh sách
+                    setPendingAssignments([
+                      ...pendingAssignments,
+                      {
+                        ...assignForm,
+                        teacherName: tName,
+                        trackName: trName,
+                        id: nextId(),
+                      },
+                    ]);
+                    setAssignForm({ ...assignForm, teacherId: "" }); // reset dropdown
+                  }}
+                  className="w-full py-2 bg-slate-800 text-white text-sm font-bold rounded-lg hover:bg-slate-900 transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} /> Add to assignment list
+                </button>
+              </div>
+
+              {pendingAssignments.length > 0 ? (
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3">Track</th>
+                        <th className="px-5 py-3">Personnel</th>
+                        <th className="px-5 py-3 text-center">Role</th>
+                        <th className="px-5 py-3 text-right">Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {pendingAssignments.map((pa) => (
+                        <tr key={pa.id} className="hover:bg-slate-50">
+                          <td className="px-5 py-3">{pa.trackName}</td>
+                          <td className="px-5 py-3 font-semibold text-fpt-orange">
+                            {pa.teacherName}
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-bold ${pa.isMentor ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}
+                            >
+                              {pa.isMentor ? "Mentor" : "Judge"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <button
+                              onClick={() =>
+                                setPendingAssignments(
+                                  pendingAssignments.filter(
+                                    (x) => x.id !== pa.id,
+                                  ),
+                                )
+                              }
+                              className="text-slate-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                  No personnel assigned yet. You can skip this step or add
+                  assignments above.
+                </div>
+              )}
+
+              <div className="flex justify-between pt-6 border-t border-slate-100">
+                <button
+                  onClick={() => advanceTab(4)}
+                  className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleValidateAssignments}
+                  className="px-6 py-3 bg-fpt-orange text-white text-sm font-bold rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2"
+                >
+                  Next: Prizes & Launch <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 6 */}
+          {activeTab === 6 && (
+            <div className="space-y-6 max-w-4xl mx-auto animate-in slide-in-from-left-4 duration-300">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Prizes & Awards
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Configure default prizes. You can assign them to teams
+                    later.
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    setEventPrizes([
+                      ...eventPrizes,
+                      { id: nextId(), name: "", description: "" },
+                    ])
+                  }
+                  className="px-4 py-2 bg-fpt-orange-soft text-fpt-orange text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-orange-100 transition-colors"
+                >
+                  <Plus size={14} /> Add Prize
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {eventPrizes.map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-5 bg-white border border-slate-200 rounded-xl relative flex flex-col md:flex-row gap-4 shadow-sm group"
+                  >
+                    <button
+                      onClick={() =>
+                        setEventPrizes(eventPrizes.filter((x) => x.id !== p.id))
+                      }
+                      className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <div className="w-full md:w-1/3">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                        Prize Name
+                      </label>
+                      <input
+                        type="text"
+                        value={p.name}
+                        onChange={(e) =>
+                          setEventPrizes(
+                            eventPrizes.map((x) =>
+                              x.id === p.id
+                                ? { ...x, name: e.target.value }
+                                : x,
+                            ),
+                          )
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-fpt-orange"
+                        placeholder="e.g. First Prize"
+                      />
+                    </div>
+                    <div className="flex-1 pr-8">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                        Description / Reward
+                      </label>
+                      <input
+                        type="text"
+                        value={p.description}
+                        onChange={(e) =>
+                          setEventPrizes(
+                            eventPrizes.map((x) =>
+                              x.id === p.id
+                                ? { ...x, description: e.target.value }
+                                : x,
+                            ),
+                          )
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-fpt-orange"
+                        placeholder="e.g. 5,000,000 VND + Trophy"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {eventPrizes.length === 0 && (
+                  <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                    No prizes configured. You can skip this step and add them
+                    later in Prize Management.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between pt-6 border-t border-slate-100">
+                <button
+                  onClick={() => advanceTab(5)}
+                  className="px-6 py-3 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl shadow-sm hover:bg-slate-50"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleLaunchEvent}
                   disabled={isLaunching}
-                  className="px-8 py-3 bg-fpt-orange text-white text-sm font-black rounded-xl shadow-md hover:bg-fpt-orange-dark flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  className="px-8 py-3 bg-emerald-600 text-white text-sm font-black rounded-xl shadow-md hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-60 transition-colors"
                 >
                   {isLaunching ? (
                     <Loader2 size={18} className="animate-spin" />
                   ) : (
                     <CheckCircle2 size={18} />
                   )}
-                  {isLaunching ? "Launching..." : "Finish & Launch Event"}
+                  {isLaunching ? "Deploying..." : "Finish & Launch Event"}
                 </button>
               </div>
             </div>

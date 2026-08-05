@@ -53,6 +53,10 @@ export function AuthLayout() {
     if (location.state?.view) {
       setView(location.state.view as AuthView);
     }
+    // Đây chính là khúc nó lấy cái email được "xách hộ" về điền vào ô nè
+    if (location.state?.prefillEmail) {
+      setLoginEmail(location.state.prefillEmail);
+    }
   }, [location]);
 
   // ================= STATES =================
@@ -60,7 +64,7 @@ export function AuthLayout() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [role, setRole] = useState("player");
-  const [isRoleOpen, setIsRoleOpen] = useState(false); // State for Custom Role Dropdown
+  const [isRoleOpen, setIsRoleOpen] = useState(false);
 
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -72,7 +76,14 @@ export function AuthLayout() {
   const [regAddress, setRegAddress] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regUniversityId, setRegUniversityId] = useState("");
-  const [isUniOpen, setIsUniOpen] = useState(false); // State for Custom University Dropdown
+  const [isUniOpen, setIsUniOpen] = useState(false);
+
+  // --- THÊM 3 STATE MỚI CHO CCCD VÀ ẢNH ---
+  const [regCccdNumber, setRegCccdNumber] = useState("");
+  const [regIdCardImage, setRegIdCardImage] = useState<File | null>(null);
+  const [regStudentCardImage, setRegStudentCardImage] = useState<File | null>(
+    null,
+  );
 
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -183,23 +194,56 @@ export function AuthLayout() {
       return;
     }
 
-    const loadingToastId = toast.loading("Creating student account...");
+    // Validate 3 trường mới
+    if (!regCccdNumber.trim()) {
+      Swal.fire("Error", "Please enter your CCCD number!", "warning");
+      return;
+    }
+    if (!regIdCardImage) {
+      Swal.fire("Error", "Please upload your ID Card Image!", "warning");
+      return;
+    }
+    if (!regStudentCardImage) {
+      Swal.fire("Error", "Please upload your Student Card Image!", "warning");
+      return;
+    }
+
+    const loadingToastId = toast.loading(
+      "Creating student account (Uploading images to Cloudinary)...",
+    );
     try {
-      await playerApi.register({
-        email: regEmail.trim(),
-        password: regPassword,
-        fullName: regFullName.trim(),
-        address: regAddress.trim(),
-        phone: regPhone.trim(),
-        universityId: regUniversityId.trim(),
+      const formData = new FormData();
+      formData.append("Email", regEmail.trim());
+      formData.append("Password", regPassword);
+      formData.append("FullName", regFullName.trim());
+      formData.append("Address", regAddress.trim());
+      formData.append("Phone", regPhone.trim());
+      formData.append("UniversityId", regUniversityId.trim());
+      formData.append("CccdNumber", regCccdNumber.trim());
+      formData.append("IdCardImage", regIdCardImage);
+      formData.append("StudentCardImage", regStudentCardImage);
+
+      await playerApi.register(formData as any);
+
+      toast.dismiss(loadingToastId);
+
+      // 1. Hiện thông báo bắt user ấn OK
+      await Swal.fire({
+        icon: "success",
+        title: "Registration successful!",
+        text: "Please check your email to get the 6-digit verification code.",
+        confirmButtonColor: "#ea580c",
+        confirmButtonText: "Got it!",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        },
       });
 
-      toast.success("Registration successful! Please login.", {
-        id: loadingToastId,
-      });
-      setView("login");
-      setLoginEmail(regEmail);
-      setRole("player");
+      // 2. CHỈ DÙNG 1 LỆNH DUY NHẤT NÀY ĐỂ CHUYỂN TRANG
+      // Tuyệt đối KHÔNG xài setView("login") ở đây nữa nhé!
+      // navigate("/verify-otp", { state: { email: regEmail.trim() } });
+      navigate(`/verify-otp?email=${encodeURIComponent(regEmail.trim())}`);
     } catch (error: any) {
       const errorMsg = getServerMsg(error) || "Unable to register account.";
       toast.error(errorMsg, { id: loadingToastId });
@@ -224,6 +268,7 @@ export function AuthLayout() {
         <div className="absolute top-1/4 -right-24 w-64 h-64 bg-orange-300 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
+      {/* Tăng max-w để form Register rộng rãi hơn chứa ảnh */}
       <div className="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-12 lg:p-24 bg-white relative">
         <button
           onClick={() => navigate("/")}
@@ -232,10 +277,10 @@ export function AuthLayout() {
           <ArrowLeft size={16} /> Back to Home
         </button>
 
-        <div className="w-full max-w-[440px]">
+        <div className="w-full max-w-[500px]">
           {/* ================= LOGIN ================= */}
           {view === "login" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[440px] mx-auto">
               <div className="mb-10">
                 <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
                   Welcome back
@@ -393,19 +438,40 @@ export function AuthLayout() {
               </div>
 
               <form className="space-y-4" onSubmit={handleRegisterSubmit}>
-                <div className="space-y-1.5">
-                  <label className="text-[13px] font-bold text-slate-700">
-                    Full Name
-                  </label>
-                  <input
-                    id="reg-fullname"
-                    type="text"
-                    required
-                    placeholder="Nguyen Van A"
-                    className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
-                    value={regFullName}
-                    onChange={(e) => setRegFullName(e.target.value)}
-                  />
+                <div className="flex gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      Full Name
+                    </label>
+                    <input
+                      id="reg-fullname"
+                      type="text"
+                      required
+                      placeholder="Nguyen Van A"
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
+                      value={regFullName}
+                      onChange={(e) => setRegFullName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* CCCD NUMBER */}
+                  <div className="space-y-1.5 flex-1">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      CCCD Number
+                    </label>
+                    <input
+                      id="reg-cccd"
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      placeholder="079206..."
+                      className="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:bg-white transition-all"
+                      value={regCccdNumber}
+                      onChange={(e) =>
+                        setRegCccdNumber(e.target.value.replace(/\D/g, ""))
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-4">
@@ -460,6 +526,38 @@ export function AuthLayout() {
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                   />
+                </div>
+
+                {/* UPLOAD IMAGES SECTION */}
+                <div className="flex gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="space-y-1.5 flex-1 overflow-hidden">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      ID Card Image
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      required
+                      onChange={(e) =>
+                        setRegIdCardImage(e.target.files?.[0] || null)
+                      }
+                      className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1.5 flex-1 overflow-hidden border-l border-slate-200 pl-4">
+                    <label className="text-[13px] font-bold text-slate-700">
+                      Student Card Image
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      required
+                      onChange={(e) =>
+                        setRegStudentCardImage(e.target.files?.[0] || null)
+                      }
+                      className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
+                    />
+                  </div>
                 </div>
 
                 {/* CUSTOM UNIVERSITY DROPDOWN */}

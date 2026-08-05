@@ -9,6 +9,7 @@ import {
   User,
   Trophy,
   BarChart2,
+  History,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authApi } from "../../lib/api/authApi";
@@ -51,6 +52,11 @@ export function AdminLayout() {
       name: "Leader Board",
       icon: <BarChart2 size={20} />,
       path: "/admin/leaderboard",
+    },
+    {
+      name: "Audit Log Management",
+      icon: <History size={20} />,
+      path: "/admin/audit-log",
     },
   ];
 
