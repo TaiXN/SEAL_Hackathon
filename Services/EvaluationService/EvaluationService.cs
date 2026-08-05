@@ -23,30 +23,74 @@ namespace Services.EvaluationService
             _leaderBoardService = leaderBoardService;
         }
 
+        private static bool IsWithinScoringWindow(
+            Round round,
+            DateTime currentTime)
+        {
+            if (!round.ScoringStartDate.HasValue ||
+             !round.ScoringEndDate.HasValue)
+            {
+                return false;
+            }
+
+            return currentTime >= round.ScoringStartDate.Value &&
+               currentTime < round.ScoringEndDate.Value;
+        }
+
         public async Task<bool> CreateEvaluateAsync(string teacherId, EvaluationAPIViewModel info)
         {
             try
             {
-             
-                Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == info.SubmissionID, "TeamInRound");
-                if (submission == null || submission.TeamInRound == null) return false;
+                Submission submission =
+                    await _uow.Submission.GetFirstOrDefaultAsync(
+                        q => q.Id == info.SubmissionID,
+                        "TeamInRound");
 
-                TeacherList teacherlist = await _uow.TeacherList.GetFirstOrDefaultAsync(q => q.TrackId == submission.TeamInRound.TrackId && !q.IsMentor && q.TeacherId == teacherId);
-                if (teacherlist == null) return false;
-
-              
-                Evaluation existingEval = await _uow.Evaluation.GetFirstOrDefaultAsync(q =>
-                    q.SubmissionId == info.SubmissionID &&
-                    q.TeacherId == teacherId);
-
-                if (existingEval != null)
+                if (submission == null ||
+                    submission.TeamInRound == null)
                 {
-                  
                     return false;
                 }
 
-               
-                Evaluation newEval = new Evaluation()
+                Round currentRound =
+                    await _uow.Round.GetFirstOrDefaultAsync(
+                        r => r.RoundId ==
+                             submission.TeamInRound.RoundId);
+
+                if (currentRound == null)
+                {
+                    return false;
+                }
+
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+                if (!IsWithinScoringWindow(currentRound, vnNow))
+                {
+                    return false;
+                }
+
+                TeacherList teacherlist =
+                    await _uow.TeacherList.GetFirstOrDefaultAsync(q =>
+                        q.TrackId == submission.TeamInRound.TrackId &&
+                        !q.IsMentor &&
+                        q.TeacherId == teacherId);
+
+                if (teacherlist == null)
+                {
+                    return false;
+                }
+
+                Evaluation existingEval =
+                    await _uow.Evaluation.GetFirstOrDefaultAsync(q =>
+                        q.SubmissionId == info.SubmissionID &&
+                        q.TeacherId == teacherId);
+
+                if (existingEval != null)
+                {
+                    return false;
+                }
+
+                Evaluation newEval = new Evaluation
                 {
                     Id = Guid.NewGuid().ToString(),
                     SubmissionId = info.SubmissionID,
@@ -58,13 +102,12 @@ namespace Services.EvaluationService
                 await _uow.Evaluation.AddAsync(newEval);
                 await _uow.SaveAsync();
 
-                
                 await CalculateAndUpdateAverageScoreAsync(
-                      info.SubmissionID,
-                      submission.TeamInRound.TrackId,
-                      submission.TeamInRound.RoundId,
-                      submission.TeamInRound.Id
-                     );
+                    info.SubmissionID,
+                    submission.TeamInRound.TrackId,
+                    submission.TeamInRound.RoundId,
+                    submission.TeamInRound.Id
+                );
 
                 return true;
             }
@@ -192,21 +235,84 @@ namespace Services.EvaluationService
         {
             try
             {
-                Evaluation evalDb = await _uow.Evaluation.GetFirstOrDefaultAsync(q => q.Id == info.EvaluationID && q.TeacherId == teacherId);
-                if (evalDb == null) return false;
+                Evaluation evalDb =
+                    await _uow.Evaluation.GetFirstOrDefaultAsync(q =>
+                        q.Id == info.EvaluationID &&
+                        q.TeacherId == teacherId);
 
-                Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == evalDb.SubmissionId, "TeamInRound");
-                if (submission == null || submission.TeamInRound == null) return false;
+                if (evalDb == null)
+                {
+                    return false;
+                }
 
-                TeacherList teacherlist = await _uow.TeacherList.GetFirstOrDefaultAsync(q =>
-                    q.TrackId == submission.TeamInRound.TrackId &&
-                    q.TeacherId == teacherId &&
-                    !q.IsMentor);
+                Submission submission =
+                    await _uow.Submission.GetFirstOrDefaultAsync(
+                        q => q.Id == evalDb.SubmissionId,
+                        "TeamInRound");
 
-                if (teacherlist == null) return false;
+                if (submission == null ||
+                    submission.TeamInRound == null)
+                {
+                    return false;
+                }
+
+                Round currentRound =
+                    await _uow.Round.GetFirstOrDefaultAsync(r =>
+                        r.RoundId == submission.TeamInRound.RoundId);
+
+                if (currentRound == null)
+                {
+                    return false;
+                }
+
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+                if (!IsWithinScoringWindow(currentRound, vnNow))
+                {
+                    return false;
+                }
+
+                TeacherList teacherList =
+                    await _uow.TeacherList.GetFirstOrDefaultAsync(q =>
+                        q.TrackId == submission.TeamInRound.TrackId &&
+                        q.TeacherId == teacherId &&
+                        !q.IsMentor);
+
+                if (teacherList == null)
+                {
+                    return false;
+                }
+
+                bool isScoreChanged = evalDb.Score != info.Score;
+
+                if (isScoreChanged &&
+                    string.IsNullOrWhiteSpace(info.Reason))
+                {
+                    return false;
+                }
+
+                if (isScoreChanged)
+                {
+                    EvaluationAuditLog auditLog =
+                        new EvaluationAuditLog
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            EvaluationId = evalDb.Id,
+                            JudgeId = teacherId,
+
+                            OldScore = evalDb.Score,
+                            NewScore = info.Score,
+
+                            Reason = info.Reason.Trim(),
+                            Timestamp = vnNow
+                        };
+
+                    await _uow.EvaluationAuditLog.AddAsync(auditLog);
+                }
 
                 evalDb.Score = info.Score;
-                evalDb.Reason = info.Reason;
+                evalDb.Reason = info.Reason?.Trim();
+
                 _uow.Evaluation.Update(evalDb);
                 await _uow.SaveAsync();
 
@@ -225,27 +331,84 @@ namespace Services.EvaluationService
             }
         }
 
-        public async Task<bool> DeleteEvaluationAsync(string evaluationID)
+        public async Task<bool> DeleteEvaluationAsync(string teacherId, string evaluationID)
         {
             try
             {
-                Evaluation result = await _uow.Evaluation.GetFirstOrDefaultAsync(q => q.Id.Equals(evaluationID));
-                if (result == null) return false;
+                if (string.IsNullOrWhiteSpace(teacherId) ||
+                    string.IsNullOrWhiteSpace(evaluationID))
+                {
+                    return false;
+                }
 
-                Submission submission = await _uow.Submission.GetFirstOrDefaultAsync(q => q.Id == result.SubmissionId, "TeamInRound");
+                Evaluation evaluation =
+                    await _uow.Evaluation.GetFirstOrDefaultAsync(e =>
+                        e.Id == evaluationID &&
+                        e.TeacherId == teacherId);
 
-                _uow.Evaluation.Remove(result);
+                if (evaluation == null)
+                {
+                    return false;
+                }
+
+                Submission submission =
+                    await _uow.Submission.GetFirstOrDefaultAsync(
+                        s => s.Id == evaluation.SubmissionId,
+                        "TeamInRound");
+
+                if (submission == null ||
+                    submission.TeamInRound == null)
+                {
+                    return false;
+                }
+
+                Round round =
+                    await _uow.Round.GetFirstOrDefaultAsync(r =>
+                        r.RoundId == submission.TeamInRound.RoundId);
+
+                if (round == null)
+                {
+                    return false;
+                }
+
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+                if (!IsWithinScoringWindow(round, vnNow))
+                {
+                    return false;
+                }
+
+                TeacherList teacherList =
+                    await _uow.TeacherList.GetFirstOrDefaultAsync(t =>
+                        t.TeacherId == teacherId &&
+                        t.TrackId == submission.TeamInRound.TrackId &&
+                        !t.IsMentor);
+
+                if (teacherList == null)
+                {
+                    return false;
+                }
+
+                bool hasAuditLogs =
+                    await _uow.EvaluationAuditLog
+                        .GetAllQueryable()
+                        .AnyAsync(log =>
+                            log.EvaluationId == evaluation.Id);
+
+                if (hasAuditLogs)
+                {
+                    return false;
+                }
+
+                _uow.Evaluation.Remove(evaluation);
                 await _uow.SaveAsync();
 
-                if (submission != null && submission.TeamInRound != null)
-                {
-                    await CalculateAndUpdateAverageScoreAsync(
-                        submission.Id,
-                        submission.TeamInRound.TrackId,
-                        submission.TeamInRound.RoundId,
-                        submission.TeamInRound.Id
-                    );
-                }
+                await CalculateAndUpdateAverageScoreAsync(
+                    submission.Id,
+                    submission.TeamInRound.TrackId,
+                    submission.TeamInRound.RoundId,
+                    submission.TeamInRound.Id
+                );
 
                 return true;
             }
@@ -302,7 +465,7 @@ namespace Services.EvaluationService
         {
             try
             {
-            
+
                 List<string> assignedTrackIds = await _uow.TeacherList.GetAllQueryable()
                     .Where(t => t.TeacherId == teacherId && !t.IsMentor)
                     .Select(t => t.TrackId)
@@ -310,7 +473,7 @@ namespace Services.EvaluationService
 
                 if (!assignedTrackIds.Any()) return new List<JudgeDashboardAssignmentAPIViewModel>();
 
-              
+
                 List<TeamInRound> teamInRounds = await _uow.TeamInRound.GetAllQueryable()
                     .Include(tir => tir.Team)
                     .Include(tir => tir.Track)
@@ -321,7 +484,7 @@ namespace Services.EvaluationService
 
                 List<string> tirIds = teamInRounds.Select(tir => tir.Id).ToList();
 
-              
+
                 List<Submission> submissions = await _uow.Submission.GetAllQueryable()
                     .Where(s => tirIds.Contains(s.TeamInRoundId))
                     .AsNoTracking()
@@ -329,21 +492,21 @@ namespace Services.EvaluationService
 
                 List<string> submissionIds = submissions.Select(s => s.Id).ToList();
 
-               
+
                 List<Evaluation> evaluations = await _uow.Evaluation.GetAllQueryable()
                     .Where(e => e.TeacherId == teacherId && submissionIds.Contains(e.SubmissionId))
                     .AsNoTracking()
                     .ToListAsync();
 
-              
+
                 List<JudgeDashboardAssignmentAPIViewModel> result = new List<JudgeDashboardAssignmentAPIViewModel>();
 
                 foreach (TeamInRound tir in teamInRounds)
                 {
-                   
+
                     Submission submission = submissions.FirstOrDefault(s => s.TeamInRoundId == tir.Id);
 
-                    
+
                     Evaluation evaluation = submission != null ? evaluations.FirstOrDefault(e => e.SubmissionId == submission.Id) : null;
 
                     JudgeDashboardAssignmentAPIViewModel model = new JudgeDashboardAssignmentAPIViewModel()
@@ -370,6 +533,46 @@ namespace Services.EvaluationService
             catch (Exception ex)
             {
                 return new List<JudgeDashboardAssignmentAPIViewModel>();
+            }
+        }
+
+        public async Task<List<EvaluationAuditLogAPIViewModel>> GetAuditLogsByEvaluationIdAsync(string evaluationId)
+        {
+            try
+            {
+                List<EvaluationAuditLog> logs = await _uow.EvaluationAuditLog.GetAllQueryable()
+                    .Where(log => log.EvaluationId == evaluationId)
+                    .OrderByDescending(log => log.Timestamp)
+                    .ToListAsync();
+
+                List<EvaluationAuditLogAPIViewModel> result = new List<EvaluationAuditLogAPIViewModel>();
+
+                foreach (EvaluationAuditLog log in logs)
+                {
+                    Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == log.JudgeId);
+
+                    EvaluationAuditLogAPIViewModel model = new EvaluationAuditLogAPIViewModel
+                    {
+                        LogId = log.Id,
+                        EvaluationId = log.EvaluationId,
+                        JudgeId = log.JudgeId,
+
+                        JudgeName = accountDb != null ? accountDb.FullName : "Unknown Judge",
+
+                        OldScore = log.OldScore,
+                        NewScore = log.NewScore,
+                        Reason = log.Reason,
+                        Timestamp = log.Timestamp
+                    };
+
+                    result.Add(model);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<EvaluationAuditLogAPIViewModel>();
             }
         }
     }

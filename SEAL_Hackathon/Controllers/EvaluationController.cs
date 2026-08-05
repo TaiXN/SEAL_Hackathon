@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.EvaluationService;
 using Services.LeaderBoardService;
+using System.Security.Claims;
+
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -75,39 +77,81 @@ namespace SEAL_Hackathon.Controllers
         }
 
 
-        [HttpPut("{teacherId}")]
-        [Authorize(Roles = "Judge, Teacher, Admin")]
-        public async Task<IActionResult> Update(string teacherId, UpdateEvaluationAPIViewModel info)
+        [HttpPut("update-score/{teacherId}")]
+        [Authorize(Roles = "Judge, Teacher")]
+        public async Task<IActionResult> UpdateScore(string teacherId, UpdateEvaluationAPIViewModel request)
         {
-            if (ModelState.IsValid)
+            try
             {
-                bool isSuccess = await _evaluation.UpdateEvaluationAsync(teacherId, info);
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                bool isSuccess = await _evaluation.UpdateEvaluationAsync(teacherId, request);
 
                 if (isSuccess)
                 {
-                    return Ok("Update evaluation successfully");
+                    return Ok("Successfully updated the score and recorded the system history!");
                 }
                 else
                 {
-                    return BadRequest("Update failed. Evaluation not found or you are not the owner of this score.");
+                    return BadRequest("Update failed. You do not have permission to edit this score or the data is invalid.");
                 }
             }
-            return BadRequest(ModelState);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Server error: {ex.Message}");
+            }
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Judge, Teacher, Admin")]
+        [Authorize(Roles = "Judge, Teacher")]
         public async Task<IActionResult> Delete(string id)
         {
-            bool isSuccess = await _evaluation.DeleteEvaluationAsync(id);
+            string? teacherId =
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(teacherId))
+            {
+                return Unauthorized("Cannot identify the current account.");
+            }
+
+            bool isSuccess =
+                await _evaluation.DeleteEvaluationAsync(
+                    teacherId,
+                    id
+                );
 
             if (isSuccess)
             {
                 return Ok("Delete evaluation successfully");
             }
-            else
+
+            return BadRequest(
+                "Delete failed. The evaluation may not belong to you, " +
+                "the scoring period may be closed, or it may already have audit logs."
+            );
+        }
+
+        [HttpGet("{evaluationId}/audit-logs")]
+        [Authorize(Roles = "Admin")] 
+        public async Task<IActionResult> GetAuditLogs(string evaluationId)
+        {
+            try
             {
-                return BadRequest("Delete failed. Evaluation ID not found.");
+                if (string.IsNullOrEmpty(evaluationId))
+                {
+                    return BadRequest("Evaluation ID cannot be empty.");
+                }
+
+                List<EvaluationAuditLogAPIViewModel> result = await _evaluation.GetAuditLogsByEvaluationIdAsync(evaluationId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Server error: {ex.Message}");
             }
         }
 

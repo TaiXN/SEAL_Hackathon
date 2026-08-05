@@ -1,6 +1,7 @@
 ﻿using DataAccess.Repositories.AccountRepository;
 using DataAccess.Repositories.CriteriaRepository;
 using DataAccess.Repositories.CriteriaSetRepository;
+using DataAccess.Repositories.EvaluationAuditLogRepository;
 using DataAccess.Repositories.EvaluationRepository;
 using DataAccess.Repositories.EventRepository;
 using DataAccess.Repositories.LeaderBoardDetailRepository;
@@ -53,6 +54,7 @@ namespace DataAccess.Repositories.UnitOfWork
         ILeaderBoardDetailRepository LeaderBoardDetail { get; }
         IPrizeRepository Prize { get; }
         ISubmissionAuditLogRepository SubmissionAuditLog { get; }
+        IEvaluationAuditLogRepository EvaluationAuditLog { get; }
         Task SaveAsync();
     }
 }

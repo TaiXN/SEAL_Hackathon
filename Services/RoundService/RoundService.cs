@@ -17,34 +17,49 @@ namespace Services.RoundService
 
         private static bool IsEventUnpublished(Event eventInfo)
         {
-            return eventInfo.CurrentRound <= 0;
+            return eventInfo.IsActive &&
+                   eventInfo.CurrentRound == -1;
+        }
+
+        private static bool IsValidRoundTimeline(
+            DateTime startDate,
+            DateTime endDate,
+            DateTime scoringStartDate,
+            DateTime scoringEndDate)
+        {
+            return startDate < endDate
+                && endDate <= scoringStartDate
+                && scoringStartDate < scoringEndDate;
         }
 
         public async Task<bool> CreateRoundAsync(CreateRoundAPIViewModel info, string accID)
         {
             try
             {
-                Event currentEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == info.EventID);
-                if (currentEvent == null) return false;
+                if (info == null ||
+                    string.IsNullOrWhiteSpace(info.EventID) ||
+                    string.IsNullOrWhiteSpace(info.RoundName) ||
+                    string.IsNullOrWhiteSpace(info.CriteriaSetID))
+                {
+                    return false;
+                }
+
+                Event currentEvent =
+                    await _uow.Event.GetFirstOrDefaultAsync(e =>
+                        e.EventId == info.EventID &&
+                        e.IsActive);
+
+                if (currentEvent == null)
+                {
+                    return false;
+                }
 
                 if (!IsEventUnpublished(currentEvent))
                 {
                     return false;
                 }
 
-                if (info.TopNPromotion < 0) return false;
-
-                DateTime vnNow = DateTime.UtcNow.AddHours(7);
-                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
-                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
-
-
-                if (startDateVn < vnNow)
-                {
-                    return false;
-                }
-
-                if (startDateVn >= endDateVn) return false;
+                string normalizedRoundName = info.RoundName.Trim();
 
                 if (info.MinTeam <= 0 ||
                     info.MaxTeam <= 0 ||
@@ -53,47 +68,126 @@ namespace Services.RoundService
                     return false;
                 }
 
-                List<Round> existingRounds = await _uow.Round.GetAllQueryable()
-                    .Where(e => e.EventId == info.EventID)
-                    .ToListAsync();
-
-                if (existingRounds.Count > 0)
+                if (info.TopNPromotion < 0 ||
+                    info.TopNPromotion > info.MaxTeam)
                 {
-                    DateTime earliestStartDate = existingRounds.Min(r => r.StartDate);
+                    return false;
+                }
 
-                    if (vnNow >= earliestStartDate)
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+                DateTime startDateVn =
+                    info.StartDate.ToUniversalTime().AddHours(7);
+
+                DateTime endDateVn =
+                    info.EndDate.ToUniversalTime().AddHours(7);
+
+                DateTime scoringStartDateVn =
+                    info.ScoringStartDate.ToUniversalTime().AddHours(7);
+
+                DateTime scoringEndDateVn =
+                    info.ScoringEndDate.ToUniversalTime().AddHours(7);
+
+                if (startDateVn < vnNow)
+                {
+                    return false;
+                }
+
+
+                if (!IsValidRoundTimeline(
+                        startDateVn,
+                        endDateVn,
+                        scoringStartDateVn,
+                        scoringEndDateVn))
+                {
+                    return false;
+                }
+
+                CriteriaSet targetSet =
+                    await _uow.CriteriaSet.GetFirstOrDefaultAsync(c =>
+                        c.CriteriaSetId == info.CriteriaSetID &&
+                        c.IsActive);
+
+                if (targetSet == null)
+                {
+                    return false;
+                }
+
+                string normalizedNameLower =
+                    normalizedRoundName.ToLower();
+
+                Round duplicateName =
+                    await _uow.Round.GetFirstOrDefaultAsync(r =>
+                        r.EventId == info.EventID &&
+                        r.IsActive &&
+                        r.RoundName.ToLower() == normalizedNameLower);
+
+                if (duplicateName != null)
+                {
+                    return false;
+                }
+
+                List<Round> activeRounds =
+                    await _uow.Round.GetAllQueryable()
+                        .Where(r =>
+                            r.EventId == info.EventID &&
+                            r.IsActive)
+                        .OrderBy(r => r.RoundIndex)
+                        .ToListAsync();
+
+                Round previousRound = activeRounds.LastOrDefault();
+
+                if (previousRound != null)
+                {
+                    if (!previousRound.ScoringEndDate.HasValue)
+                    {
+                        return false;
+                    }
+
+ 
+                    if (startDateVn <
+                        previousRound.ScoringEndDate.Value)
                     {
                         return false;
                     }
                 }
 
-                CriteriaSet targetSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == info.CriteriaSetID && e.IsActive);
-                if (targetSet == null) return false;
 
-                Round duplicateName = await _uow.Round.GetFirstOrDefaultAsync(e => e.EventId == info.EventID && e.RoundName.ToLower() == info.RoundName.ToLower() && e.IsActive);
-                if (duplicateName != null) return false;
+                List<Round> allEventRounds =
+                    await _uow.Round.GetAllQueryable()
+                        .Where(r => r.EventId == info.EventID)
+                        .ToListAsync();
 
-                int RoundIndex = existingRounds.Count + 1;
+                int roundIndex = allEventRounds.Count == 0
+                    ? 1
+                    : allEventRounds.Max(r => r.RoundIndex) + 1;
 
-                Round newRound = new Round()
+                Round newRound = new Round
                 {
                     RoundId = Guid.NewGuid().ToString(),
                     EventId = info.EventID,
                     Creator = accID,
-                    RoundName = info.RoundName,
+
+                    RoundName = normalizedRoundName,
+                    RoundIndex = roundIndex,
+
                     StartDate = startDateVn,
                     EndDate = endDateVn,
-                    TopNpromotion = info.TopNPromotion,
-                    MaxTeam = info.MaxTeam,
-                    IsActive = true,
-                    RoundIndex = RoundIndex,
-                    CriteriaSetId = info.CriteriaSetID,
-                    MinTeam = info.MinTeam,
 
+                    ScoringStartDate = scoringStartDateVn,
+                    ScoringEndDate = scoringEndDateVn,
+
+                    MinTeam = info.MinTeam,
+                    MaxTeam = info.MaxTeam,
+                    TopNpromotion = info.TopNPromotion,
+
+                    CriteriaSetId = info.CriteriaSetID,
+                    IsActive = true
                 };
 
                 await _uow.Round.AddAsync(newRound);
                 await _uow.SaveAsync();
+
                 return true;
             }
             catch (Exception ex)
@@ -119,7 +213,9 @@ namespace Services.RoundService
                     MaxTeam = r.MaxTeam,
                     IsActive = r.IsActive,
                     RoundIndex = r.RoundIndex,
-                    CriteriaSetId = r.CriteriaSetId
+                    CriteriaSetId = r.CriteriaSetId,
+                    ScoringStartDate = r.ScoringStartDate,
+                    ScoringEndDate = r.ScoringEndDate,
                 }).ToList();
             }
             catch
@@ -147,7 +243,9 @@ namespace Services.RoundService
                     MaxTeam = r.MaxTeam,
                     IsActive = r.IsActive,
                     RoundIndex = r.RoundIndex,
-                    CriteriaSetId = r.CriteriaSetId
+                    CriteriaSetId = r.CriteriaSetId,
+                    ScoringStartDate = r.ScoringStartDate,
+                    ScoringEndDate = r.ScoringEndDate,
                 };
             }
             catch
@@ -175,7 +273,9 @@ namespace Services.RoundService
                     MaxTeam = r.MaxTeam,
                     IsActive = r.IsActive,
                     RoundIndex = r.RoundIndex,
-                    CriteriaSetId = r.CriteriaSetId
+                    CriteriaSetId = r.CriteriaSetId,
+                    ScoringStartDate = r.ScoringStartDate,
+                    ScoringEndDate = r.ScoringEndDate,
                 }).ToList();
             }
             catch
@@ -188,16 +288,47 @@ namespace Services.RoundService
         {
             try
             {
-                if (info.TopNPromotion < 0)
+                if (info == null ||
+                    string.IsNullOrWhiteSpace(info.RoundID) ||
+                    string.IsNullOrWhiteSpace(info.EventID) ||
+                    string.IsNullOrWhiteSpace(info.RoundName) ||
+                    string.IsNullOrWhiteSpace(info.CriteriaSetID))
                 {
                     return false;
                 }
 
-                Round roundDb = await _uow.Round.GetFirstOrDefaultAsync(q => q.RoundId.Equals(info.RoundID));
+                Round roundDb =
+                    await _uow.Round.GetFirstOrDefaultAsync(r =>
+                        r.RoundId == info.RoundID &&
+                        r.IsActive);
+
                 if (roundDb == null)
                 {
                     return false;
                 }
+
+                if (roundDb.EventId != info.EventID)
+                {
+                    return false;
+                }
+
+                Event currentEvent =
+                    await _uow.Event.GetFirstOrDefaultAsync(e =>
+                        e.EventId == roundDb.EventId &&
+                        e.IsActive);
+
+                if (currentEvent == null)
+                {
+                    return false;
+                }
+
+                if (!IsEventUnpublished(currentEvent))
+                {
+                    return false;
+                }
+
+                string normalizedRoundName = info.RoundName.Trim();
+
                 if (info.MinTeam <= 0 ||
                     info.MaxTeam <= 0 ||
                     info.MinTeam > info.MaxTeam)
@@ -205,24 +336,115 @@ namespace Services.RoundService
                     return false;
                 }
 
+                if (info.TopNPromotion < 0 ||
+                    info.TopNPromotion > info.MaxTeam)
+                {
+                    return false;
+                }
+
                 DateTime vnNow = DateTime.UtcNow.AddHours(7);
-                DateTime startDateVn = info.StartDate.ToUniversalTime().AddHours(7);
-                DateTime endDateVn = info.EndDate.ToUniversalTime().AddHours(7);
 
-                if (startDateVn >= endDateVn) return false;
-                if (startDateVn < vnNow) return false;
+                DateTime startDateVn =
+                    info.StartDate.ToUniversalTime().AddHours(7);
 
-                roundDb.EventId = info.EventID;
-                roundDb.RoundName = info.RoundName;
+                DateTime endDateVn =
+                    info.EndDate.ToUniversalTime().AddHours(7);
+
+                DateTime scoringStartDateVn =
+                    info.ScoringStartDate.ToUniversalTime().AddHours(7);
+
+                DateTime scoringEndDateVn =
+                    info.ScoringEndDate.ToUniversalTime().AddHours(7);
+
+                if (startDateVn < vnNow)
+                {
+                    return false;
+                }
+
+                if (!IsValidRoundTimeline(
+                        startDateVn,
+                        endDateVn,
+                        scoringStartDateVn,
+                        scoringEndDateVn))
+                {
+                    return false;
+                }
+
+                CriteriaSet targetSet =
+                    await _uow.CriteriaSet.GetFirstOrDefaultAsync(c =>
+                        c.CriteriaSetId == info.CriteriaSetID &&
+                        c.IsActive);
+
+                if (targetSet == null)
+                {
+                    return false;
+                }
+
+                string normalizedNameLower =
+                    normalizedRoundName.ToLower();
+
+
+                Round duplicateName =
+                    await _uow.Round.GetFirstOrDefaultAsync(r =>
+                        r.EventId == roundDb.EventId &&
+                        r.RoundId != roundDb.RoundId &&
+                        r.IsActive &&
+                        r.RoundName.ToLower() == normalizedNameLower);
+
+                if (duplicateName != null)
+                {
+                    return false;
+                }
+
+                Round previousRound = await _uow.Round.GetAllQueryable()
+                        .FirstOrDefaultAsync(r =>
+                            r.EventId == roundDb.EventId &&
+                            r.RoundIndex == roundDb.RoundIndex - 1 &&
+                            r.IsActive);
+
+                Round nextRound = await _uow.Round.GetAllQueryable()
+                        .FirstOrDefaultAsync(r =>
+                            r.EventId == roundDb.EventId &&
+                            r.RoundIndex == roundDb.RoundIndex + 1 &&
+                            r.IsActive);
+
+                if (previousRound != null)
+                {
+                    if (!previousRound.ScoringEndDate.HasValue)
+                    {
+                        return false;
+                    }
+
+                    if (startDateVn <
+                        previousRound.ScoringEndDate.Value)
+                    {
+                        return false;
+                    }
+                }
+
+                if (nextRound != null &&
+                    scoringEndDateVn > nextRound.StartDate)
+                {
+                    return false;
+                }
+
+                roundDb.RoundName = normalizedRoundName;
+
                 roundDb.StartDate = startDateVn;
                 roundDb.EndDate = endDateVn;
-                roundDb.TopNpromotion = info.TopNPromotion;
-                roundDb.MaxTeam = info.MaxTeam;
-                roundDb.CriteriaSetId = info.CriteriaSetID;
+
+                roundDb.ScoringStartDate = scoringStartDateVn;
+                roundDb.ScoringEndDate = scoringEndDateVn;
+
                 roundDb.MinTeam = info.MinTeam;
+                roundDb.MaxTeam = info.MaxTeam;
+                roundDb.TopNpromotion = info.TopNPromotion;
+
+                roundDb.CriteriaSetId = info.CriteriaSetID;
 
                 _uow.Round.Update(roundDb);
                 await _uow.SaveAsync();
+
                 return true;
             }
             catch (Exception ex)

@@ -29,6 +29,10 @@ public partial class Round
 
     public int MinTeam { get; set; }
 
+    public DateTime? ScoringStartDate { get; set; }
+
+    public DateTime? ScoringEndDate { get; set; }
+
     public virtual CriteriaSet CriteriaSet { get; set; } = null!;
 
     public virtual Event Event { get; set; } = null!;

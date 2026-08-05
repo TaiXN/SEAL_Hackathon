@@ -17,5 +17,8 @@ namespace APIViewModels.Round
         public bool IsActive { get; set; }
         public int RoundIndex { get; set; }
         public string CriteriaSetId { get; set; }
+        public DateTime? ScoringStartDate { get; set; }
+
+        public DateTime? ScoringEndDate { get; set; }
     }
 }
