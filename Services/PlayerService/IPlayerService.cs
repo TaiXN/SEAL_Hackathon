@@ -13,5 +13,9 @@ namespace Services.PlayerService
         Task<bool> RejectPlayerAsync(string studentId);
         Task<bool> VerifyEmailOtpAsync(VerifyOtpAPIViewModel request);
 
+        Task<(bool IsSuccess, string Message)> BanPlayerAsync(string accountId);
+        Task<(bool IsSuccess, string Message)> UnbanPlayerAsync(string accountId);
+        Task<List<StudentAPIViewModel>> GetAllPlayersAsync();
+
     }
 }

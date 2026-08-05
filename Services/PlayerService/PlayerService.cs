@@ -248,5 +248,93 @@ namespace Services.PlayerService
             await _uow.SaveAsync();
             return true;
         }
+        public async Task<List<StudentAPIViewModel>> GetAllPlayersAsync()
+        {
+            List<Student> students = await _uow.Student.GetAllAsync(
+                includeProperties: "StudentNavigation,University"
+            );
+
+            return students.Select(s => new StudentAPIViewModel
+            {
+                StudentId = s.StudentId,
+                FullName = s.StudentNavigation?.FullName,
+                Email = s.StudentNavigation?.Email,
+                Phone = s.StudentNavigation?.Phone,
+                UniversityName = s.University?.UniversityName,
+                IdCardImageUrl = s.IdCardImageUrl,
+                StudentCardImageUrl = s.StudentCardImageUrl,
+                CccdNumber = s.CccdNumber,
+                IsActive = s.StudentNavigation?.IsActive ?? false
+            }).ToList();
+        }
+
+        public async Task<(bool IsSuccess, string Message)> BanPlayerAsync(string accountId)
+        {
+            try
+            {
+                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == accountId);
+                if (accountDb == null) return (false, "Account not found.");
+                if (accountDb.IsActive == false) return (false, "Account is already banned.");
+
+                accountDb.IsActive = false;
+                _uow.Account.Update(accountDb);
+
+                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId);
+                if (playerTeams != null && playerTeams.Count > 0)
+                {
+                    List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
+                    List<TeamInRound> submittedTeams = await _uow.TeamInRound.GetAllAsync(tr => teamIds.Contains(tr.TeamId));
+
+                    foreach (TeamInRound teamRound in submittedTeams)
+                    {
+                        teamRound.IsBanned = true;
+                        _uow.TeamInRound.Update(teamRound);
+                    }
+                }
+
+                await _uow.SaveAsync();
+                return (true, "Player has been banned and their associated teams have been disqualified.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"System error: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool IsSuccess, string Message)> UnbanPlayerAsync(string accountId)
+        {
+            try
+            {
+                // THÊM DataAccess.Entities. VÀO ĐÂY ĐỂ TRÁNH ĐỤNG HÀNG
+                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == accountId);
+                if (accountDb == null) return (false, "Account not found.");
+                if (accountDb.IsActive == true) return (false, "Account is already active.");
+
+                // Mở khóa tài khoản
+                accountDb.IsActive = true;
+                _uow.Account.Update(accountDb);
+
+                // Mở khóa luôn team để họ được thi tiếp
+                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId);
+                if (playerTeams != null && playerTeams.Count > 0)
+                {
+                    List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
+                    List<TeamInRound> submittedTeams = await _uow.TeamInRound.GetAllAsync(tr => teamIds.Contains(tr.TeamId));
+
+                    foreach (TeamInRound teamRound in submittedTeams)
+                    {
+                        teamRound.IsBanned = false;
+                        _uow.TeamInRound.Update(teamRound);
+                    }
+                }
+
+                await _uow.SaveAsync();
+                return (true, "Player has been unbanned and their associated teams have been restored.");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"System error: {ex.Message}");
+            }
+        }
     }
 }

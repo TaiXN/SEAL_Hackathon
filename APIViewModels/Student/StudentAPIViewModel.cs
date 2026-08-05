@@ -11,5 +11,7 @@
         public string? CccdNumber { get; set; }
 
         public string? StudentCardImageUrl { get; set; }
+
+        public bool IsActive { get; set; }
     }
 }
