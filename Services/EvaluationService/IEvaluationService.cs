@@ -14,8 +14,9 @@ namespace Services.EvaluationService
         Task<List<EvaluationDetailAPIViewModel>> GetEvaluationsBySubmissionIdAsync(string submissionId);
         Task<Evaluation> GetEvaluationByIdAsync(string evaluationID);
         Task<bool> UpdateEvaluationAsync(string teacherId, UpdateEvaluationAPIViewModel info);
-        Task<bool> DeleteEvaluationAsync(string evaluationID);
+        Task<bool> DeleteEvaluationAsync(string teacherId, string evaluationID);
         Task<List<JudgeDashboardAssignmentAPIViewModel>> GetDashboardAssignmentsAsync(string teacherId);
+        Task<List<EvaluationAuditLogAPIViewModel>> GetAuditLogsByEvaluationIdAsync(string evaluationId);
 
     }
 }

@@ -23,6 +23,8 @@ public partial class SealContext : DbContext
 
     public virtual DbSet<Evaluation> Evaluations { get; set; }
 
+    public virtual DbSet<EvaluationAuditLog> EvaluationAuditLogs { get; set; }
+
     public virtual DbSet<Event> Events { get; set; }
 
     public virtual DbSet<LeaderBoard> LeaderBoards { get; set; }
@@ -42,6 +44,7 @@ public partial class SealContext : DbContext
     public virtual DbSet<Student> Students { get; set; }
 
     public virtual DbSet<Submission> Submissions { get; set; }
+
     public virtual DbSet<SubmissionAuditLog> SubmissionAuditLogs { get; set; }
 
     public virtual DbSet<Teacher> Teachers { get; set; }
@@ -146,6 +149,32 @@ public partial class SealContext : DbContext
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Evaluation_Submission");
+        });
+
+        modelBuilder.Entity<EvaluationAuditLog>(entity =>
+        {
+            entity.ToTable("EvaluationAuditLog");
+
+            entity.Property(e => e.Id)
+                .HasMaxLength(400)
+                .IsUnicode(false);
+            entity.Property(e => e.EvaluationId)
+                .HasMaxLength(400)
+                .IsUnicode(false);
+            entity.Property(e => e.JudgeId)
+                .HasMaxLength(400)
+                .IsUnicode(false);
+            entity.Property(e => e.Timestamp).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Evaluation).WithMany(p => p.EvaluationAuditLogs)
+                .HasForeignKey(d => d.EvaluationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EvaluationAuditLog_Evaluation");
+
+            entity.HasOne(d => d.Judge).WithMany(p => p.EvaluationAuditLogs)
+                .HasForeignKey(d => d.JudgeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EvaluationAuditLog_Account");
         });
 
         modelBuilder.Entity<Event>(entity =>
@@ -340,6 +369,8 @@ public partial class SealContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("EventID");
             entity.Property(e => e.RoundName).HasMaxLength(255);
+            entity.Property(e => e.ScoringEndDate).HasColumnType("datetime");
+            entity.Property(e => e.ScoringStartDate).HasColumnType("datetime");
             entity.Property(e => e.StartDate).HasColumnType("datetime");
             entity.Property(e => e.TopNpromotion).HasColumnName("TopNPromotion");
 
@@ -412,8 +443,15 @@ public partial class SealContext : DbContext
 
             entity.Property(e => e.EventId).HasMaxLength(450);
             entity.Property(e => e.RoundId).HasMaxLength(450);
-            entity.Property(e => e.SubmissionId).HasMaxLength(450);
+            entity.Property(e => e.SubmissionId)
+                .HasMaxLength(400)
+                .IsUnicode(false);
             entity.Property(e => e.TeamId).HasMaxLength(450);
+
+            entity.HasOne(d => d.Submission).WithMany(p => p.SubmissionAuditLogs)
+                .HasForeignKey(d => d.SubmissionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_SubmissionAuditLogs_Submission");
         });
 
         modelBuilder.Entity<Teacher>(entity =>
@@ -594,36 +632,6 @@ public partial class SealContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("UniversityID");
             entity.Property(e => e.UniversityName).HasMaxLength(400);
-        });
-
-        modelBuilder.Entity<SubmissionAuditLog>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK_SubmissionAuditLog");
-
-            entity.ToTable("SubmissionAuditLogs");
-
-            entity.Property(e => e.Id)
-                .HasMaxLength(450)
-                .IsUnicode(false);
-
-            entity.Property(e => e.SubmissionId)
-                .HasMaxLength(450)
-                .IsUnicode(false);
-
-            entity.Property(e => e.TeamId)
-                .HasMaxLength(450)
-                .IsUnicode(false);
-
-            entity.Property(e => e.EventId)
-                .HasMaxLength(450)
-                .IsUnicode(false);
-
-            entity.Property(e => e.RoundId)
-                .HasMaxLength(450)
-                .IsUnicode(false);
-
-            entity.Property(e => e.CreatedAt)
-                .HasColumnType("datetime2(7)");
         });
 
         OnModelCreatingPartial(modelBuilder);

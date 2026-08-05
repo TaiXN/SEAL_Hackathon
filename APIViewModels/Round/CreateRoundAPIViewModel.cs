@@ -33,5 +33,11 @@ namespace APIViewModels.Round
 
         [Required]
         public int MinTeam { get; set; }
+
+        [Required]
+        public DateTime ScoringStartDate { get; set; }
+
+        [Required]
+        public DateTime ScoringEndDate { get; set; }
     }
 }

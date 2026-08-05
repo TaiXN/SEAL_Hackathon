@@ -22,6 +22,7 @@ using DataAccess.Repositories.TopicRepository;
 using DataAccess.Repositories.TrackRepository;
 using DataAccess.Repositories.UniversityRepository;
 using DataAccess.Repositories.SubmissionAuditLogRepository;
+using DataAccess.Repositories.EvaluationAuditLogRepository;
 namespace DataAccess.Repositories.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
@@ -50,6 +51,7 @@ namespace DataAccess.Repositories.UnitOfWork
         public ILeaderBoardRepository LeaderBoard { get; private set; }
         public ILeaderBoardDetailRepository LeaderBoardDetail { get; private set; }
         public IPrizeRepository Prize { get; private set; }
+        public IEvaluationAuditLogRepository EvaluationAuditLog {  get; private set; }
 
 
 
@@ -85,6 +87,7 @@ namespace DataAccess.Repositories.UnitOfWork
             LeaderBoardDetail = new LeaderBoardDetailRepository.LeaderBoardDetailRepository(context);
             Prize = new PrizeRepository.PrizeRepository(context);
             SubmissionAuditLog = new SubmissionAuditLogRepository.SubmissionAuditLogRepository(context);
+            EvaluationAuditLog = new EvaluationAuditLogRepository.EvaluationAuditLogRepository(context);
         }
 
         public async Task SaveAsync()

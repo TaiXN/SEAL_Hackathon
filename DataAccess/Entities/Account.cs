@@ -27,6 +27,8 @@ public partial class Account
 
     public bool IsEmailConfirmed { get; set; }
 
+    public virtual ICollection<EvaluationAuditLog> EvaluationAuditLogs { get; set; } = new List<EvaluationAuditLog>();
+
     public virtual ICollection<Event> Events { get; set; } = new List<Event>();
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

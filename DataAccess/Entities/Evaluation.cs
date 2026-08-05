@@ -15,5 +15,7 @@ public partial class Evaluation
 
     public string Reason { get; set; } = null!;
 
+    public virtual ICollection<EvaluationAuditLog> EvaluationAuditLogs { get; set; } = new List<EvaluationAuditLog>();
+
     public virtual Submission Submission { get; set; } = null!;
 }

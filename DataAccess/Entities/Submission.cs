@@ -19,5 +19,7 @@ public partial class Submission
 
     public virtual ICollection<Evaluation> Evaluations { get; set; } = new List<Evaluation>();
 
+    public virtual ICollection<SubmissionAuditLog> SubmissionAuditLogs { get; set; } = new List<SubmissionAuditLog>();
+
     public virtual TeamInRound TeamInRound { get; set; } = null!;
 }
