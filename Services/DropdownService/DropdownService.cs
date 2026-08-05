@@ -1,4 +1,5 @@
 ﻿using APIViewModels.Dropdown;
+using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace Services.DropdownService
 
         public async Task<List<EventDropdownAPIViewModel>> GetActiveEventsAsync()
         {
-            var events = await _uow.Event.GetAllAsync(e => e.IsActive == true);
+            List<Event> events = await _uow.Event.GetAllAsync(e => e.IsActive == true);
             return events.Select(e => new EventDropdownAPIViewModel
             {
                 EventId = e.EventId,
@@ -28,7 +29,7 @@ namespace Services.DropdownService
 
         public async Task<List<TrackDropdownAPIViewModel>> GetTracksByEventAsync(string eventId)
         {
-            var tracks = await _uow.Track.GetAllAsync(t => t.EventId == eventId && t.IsActive == true);
+            List<Track> tracks = await _uow.Track.GetAllAsync(t => t.EventId == eventId && t.IsActive == true);
             return tracks.Select(t => new TrackDropdownAPIViewModel
             {
                 TrackId = t.TrackId,
@@ -36,11 +37,9 @@ namespace Services.DropdownService
             }).ToList();
         }
 
-
-
         public async Task<List<TopicDropdownAPIViewModel>> GetTopicsByTrackAsync(string trackId)
         {
-            var topics = await _uow.Topic.GetAllAsync(t => t.TrackId == trackId && t.IsActive == true);
+            List<Topic> topics = await _uow.Topic.GetAllAsync(t => t.TrackId == trackId && t.IsActive == true);
             return topics.Select(t => new TopicDropdownAPIViewModel
             {
                 TopicId = t.TopicId,
@@ -91,7 +90,5 @@ namespace Services.DropdownService
 
             return teamRounds;
         }
-
-
     }
 }
