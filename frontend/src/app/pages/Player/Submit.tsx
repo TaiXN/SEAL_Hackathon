@@ -9,6 +9,10 @@ import {
   getCurrentTeamFromHistory,
   getTeamId,
   isLeaderTeam,
+  isBannedAccount,
+  isEliminatedTeam,
+  getBanReason,
+  unwrapData,
 } from "../../lib/utils/teamHelpers";
 
 const isValidUrl = (value: string) => {
@@ -48,6 +52,8 @@ export function Submit() {
 
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [canSubmitProject, setCanSubmitProject] = useState(false);
+  const [submitBlockTitle, setSubmitBlockTitle] = useState("");
+  const [submitBlockReason, setSubmitBlockReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -61,18 +67,54 @@ export function Submit() {
 
         const currentTeamId = getTeamId(currentTeam);
         const leader = Boolean(currentTeam && isLeaderTeam(currentTeam));
+        let teamInfo: any = null;
+
+        if (currentTeamId) {
+          try {
+            const infoRes = await teamApi.getTeamDashboard(currentTeamId);
+            teamInfo = unwrapData(infoRes);
+          } catch (error) {
+            console.warn("Cannot load team info for submit guard:", error);
+          }
+        }
+
+        const banned = isBannedAccount(response, currentTeam, teamInfo);
+        const eliminated = isEliminatedTeam(currentTeam, teamInfo);
+        const banReason = getBanReason(response, currentTeam, teamInfo);
 
         console.log("SUBMIT TEAM HISTORY:", history);
         console.log("SUBMIT CURRENT TEAM:", currentTeam);
         console.log("SUBMIT TEAM ID:", currentTeamId);
-        console.log("CAN SUBMIT PROJECT:", leader);
+        console.log("CAN SUBMIT PROJECT:", leader && !banned && !eliminated);
 
         setTeamId(currentTeamId);
-        setCanSubmitProject(leader);
+        setCanSubmitProject(leader && !banned && !eliminated);
+
+        if (banned) {
+          setSubmitBlockTitle("Account Banned");
+          setSubmitBlockReason(
+            banReason || "This account cannot submit project links.",
+          );
+        } else if (eliminated) {
+          setSubmitBlockTitle("Team Eliminated");
+          setSubmitBlockReason(
+            "This team has been eliminated and can no longer submit project links.",
+          );
+        } else if (!leader) {
+          setSubmitBlockTitle("You do not have submit permission");
+          setSubmitBlockReason(
+            "Your current account is a Team Member or has no team. Once you successfully create a team, the system will recognize you as Team Leader and enable the Submit Project feature.",
+          );
+        } else {
+          setSubmitBlockTitle("");
+          setSubmitBlockReason("");
+        }
       } catch (error) {
         console.warn("Không kiểm tra được quyền submit:", error);
         setTeamId("");
         setCanSubmitProject(false);
+        setSubmitBlockTitle("Submit Unavailable");
+        setSubmitBlockReason("Unable to verify submit permission.");
       } finally {
         setIsCheckingRole(false);
       }
@@ -87,7 +129,7 @@ export function Submit() {
     if (!canSubmitProject) {
       Swal.fire(
         "Permission Denied",
-        "Only the Team Leader can submit the project.",
+        submitBlockReason || "Only the Team Leader can submit the project.",
         "warning",
       );
       return;
@@ -218,13 +260,12 @@ export function Submit() {
 
             <div>
               <h2 className="text-lg font-bold text-foreground">
-                You do not have submit permission
+                {submitBlockTitle || "You do not have submit permission"}
               </h2>
 
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                Your current account is a Team Member or has no team. Once you
-                successfully create a team, the system will recognize you as Team Leader
-                and enable the Submit Project feature.
+                {submitBlockReason ||
+                  "Your current account is a Team Member or has no team. Once you successfully create a team, the system will recognize you as Team Leader and enable the Submit Project feature."}
               </p>
             </div>
           </div>

@@ -38,6 +38,8 @@ type TeacherEventGroup = {
   eventId?: string;
   eventName: string;
   currentRoundName?: string;
+  startDate?: string;
+  endDate?: string;
   judgeTracks: TeacherPortalTrack[];
   mentorTracks: TeacherPortalTrack[];
   summary: {
@@ -242,6 +244,8 @@ const portalEventToGroup = (
     eventId: event.eventId,
     eventName: event.eventName,
     currentRoundName: event.currentRoundName,
+    startDate: event.startDate,
+    endDate: event.endDate,
     judgeTracks: event.judgeTracks || [],
     mentorTracks: event.mentorTracks || [],
     summary: event.summary,
@@ -271,6 +275,8 @@ const eventMatchesSearch = (group: TeacherEventGroup, query: string) => {
   if (!query) return true;
   const haystack = [
     group.eventName,
+    group.startDate,
+    group.endDate,
     ...group.judgeTracks.map((track) => track.trackName),
     ...group.mentorTracks.map((track) => track.trackName),
     ...uniqueValues(group.allTeams, getTrackName),
@@ -278,6 +284,21 @@ const eventMatchesSearch = (group: TeacherEventGroup, query: string) => {
     .join(" ")
     .toLowerCase();
   return haystack.includes(query);
+};
+
+const formatEventDate = (value?: string) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 };
 
 const TEACHER_PORTAL_STATE_KEY = "teacherPortal:selectedEvent";
@@ -732,6 +753,11 @@ function EventCard({
           ))}
         </div>
 
+        <div className="mt-4 flex flex-wrap gap-2">
+          <DatePill label="Start" value={group.startDate} />
+          <DatePill label="End" value={group.endDate} />
+        </div>
+
         <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
           <Metric label="Teams" value={countUniqueTeams(group)} />
           <Metric label="Submissions" value={submittedCount} />
@@ -838,6 +864,10 @@ function EventDetailView({
                 Track Mentor: {track}
               </RoleBadge>
             ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <DatePill label="Start" value={group.startDate} />
+            <DatePill label="End" value={group.endDate} />
           </div>
         </div>
 
@@ -950,6 +980,8 @@ function OverviewPanel({
           Assignment Summary
         </h2>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <InfoBlock label="Start Date" value={formatEventDate(group.startDate)} />
+          <InfoBlock label="End Date" value={formatEventDate(group.endDate)} />
           <InfoBlock label="Judge Tracks" value={judgeTracks.join(", ") || "-"} />
           <InfoBlock label="Mentor Tracks" value={mentorTracks.join(", ") || "-"} />
           <InfoBlock label="Judge Teams" value={String(group.judgeTeams.length)} />
@@ -1482,6 +1514,16 @@ function RoleBadge({
       className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-extrabold ${className}`}
     >
       {children}
+    </span>
+  );
+}
+
+function DatePill({ label, value }: { label: string; value?: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
+      <CalendarDays className="h-4 w-4 text-[#f26f21]" />
+      <span className="uppercase text-slate-400">{label}</span>
+      <span>{formatEventDate(value)}</span>
     </span>
   );
 }

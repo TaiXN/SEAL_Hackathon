@@ -2,7 +2,7 @@
 import {
   Clock,
   Trophy,
-  Map,
+  Map as MapIcon,
   ShieldCheck,
   Target,
   Medal,
@@ -24,6 +24,10 @@ import {
   getTeamId,
   getCurrentTeamFromHistory,
   isLeaderTeam,
+  isBannedAccount,
+  isEliminatedTeam,
+  getBanReason,
+  teamHasBannedMember,
 } from "../../lib/utils/teamHelpers";
 
 // ==========================================
@@ -275,6 +279,51 @@ const getTeamNotice = (obj: any) => {
   return null;
 };
 
+const getParticipationKey = (record: any) => {
+  const parts = [
+    extractEventId(record) || extractEventName(record),
+    extractTrackId(record) || extractTrackName(record),
+    extractTopicId(record) || extractTopicName(record),
+    extractRoundId(record) || extractRoundName(record),
+  ].filter(Boolean);
+  return parts.join("|") || "current";
+};
+
+const extractEventParticipations = (obj: any): any[] => {
+  if (!obj) return [];
+
+  const possibleLists = [
+    obj.participations,
+    obj.Participations,
+    obj.registeredEvents,
+    obj.RegisteredEvents,
+    obj.teamEvents,
+    obj.TeamEvents,
+    obj.events,
+    obj.Events,
+    obj.eventRegistrations,
+    obj.EventRegistrations,
+    obj.teamInRounds,
+    obj.TeamInRounds,
+    obj.roundParticipations,
+    obj.RoundParticipations,
+  ];
+
+  const records = possibleLists.flatMap((value) => normalizeList(value));
+  const topLevelEventName = extractEventName(obj);
+  if (hasRegisteredEvent(obj, topLevelEventName)) records.unshift(obj);
+
+  const unique = new Map<string, any>();
+  records.forEach((record) => {
+    const eventName = extractEventName(record);
+    if (!hasRegisteredEvent(record, eventName)) return;
+    const key = getParticipationKey(record);
+    if (!unique.has(key)) unique.set(key, record);
+  });
+
+  return Array.from(unique.values());
+};
+
 // COUNTDOWN TIMER
 function calculateTimeLeft(targetDate: Date) {
   if (!(targetDate instanceof Date) || isNaN(targetDate.getTime())) {
@@ -319,6 +368,14 @@ export function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedTrack, setSelectedTrack] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
+  const [selectedParticipationKey, setSelectedParticipationKey] = useState("");
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [lastNoticeToastKey, setLastNoticeToastKey] = useState("");
+  const [accountBanInfo, setAccountBanInfo] = useState({
+    isBanned: false,
+    reason: "",
+  });
+  const [activeTeamMembers, setActiveTeamMembers] = useState<any[]>([]);
   const [isSubmittingRegistration, setIsSubmittingRegistration] =
     useState(false);
 
@@ -361,15 +418,22 @@ export function Dashboard() {
       setSelectedEvent("");
       setSelectedTrack("");
       setSelectedTopic("");
+      setShowRegistrationForm(false);
       setTracks([]);
       setTopics([]);
       setLbSelectedRound("");
       setLbSelectedTrack("");
       setLeaderboard([]);
+      setActiveTeamMembers([]);
 
       const historyResponse = await teamApi.getMyTeamsHistory();
       const teamHistory = normalizeList(historyResponse);
       const currentTeam = getCurrentTeamFromHistory(teamHistory);
+      const responseData = unwrapData(historyResponse);
+      setAccountBanInfo({
+        isBanned: isBannedAccount(historyResponse, responseData, currentTeam),
+        reason: getBanReason(historyResponse, responseData, currentTeam),
+      });
 
       if (!currentTeam) {
         setDashboardData(null);
@@ -377,6 +441,8 @@ export function Dashboard() {
         setTimeLeft(emptyTimeLeft);
         setCurrentRoundName("");
         setLeaderboard([]);
+        setSelectedParticipationKey("");
+        setShowRegistrationForm(false);
         setIsLoading(false);
         return;
       }
@@ -385,8 +451,19 @@ export function Dashboard() {
       let dashData = { ...currentTeam };
 
       try {
+        const membersRes = await teamApi.getTeamMembers(activeTeamId);
+        setActiveTeamMembers(normalizeList(membersRes));
+      } catch {
+        setActiveTeamMembers([]);
+      }
+
+      try {
         const infoRes = await teamApi.getTeamDashboard(activeTeamId);
         dashData = { ...dashData, ...unwrapData(infoRes) };
+        setAccountBanInfo((prev) => ({
+          isBanned: prev.isBanned || isBannedAccount(infoRes, unwrapData(infoRes)),
+          reason: prev.reason || getBanReason(infoRes, unwrapData(infoRes)),
+        }));
       } catch (err) {
         console.warn("KhÃ´ng táº£i Ä‘Æ°á»£c /api/Team/{teamId}/info:", err);
       }
@@ -436,6 +513,15 @@ export function Dashboard() {
       }
 
       setDashboardData(dashData);
+      const participationRecords = extractEventParticipations(dashData);
+      setSelectedParticipationKey((prev) => {
+        if (participationRecords.length === 0) return "";
+        const stillExists = participationRecords.some(
+          (record) => getParticipationKey(record) === prev,
+        );
+        return stillExists ? prev : getParticipationKey(participationRecords[0]);
+      });
+      setShowRegistrationForm(participationRecords.length === 0);
 
       const roundLabel = getRoundLabel(
         extractCurrentRoundIndex(dashData),
@@ -511,22 +597,6 @@ export function Dashboard() {
         const eventsRes = await teamApi.getActiveEvents();
         setEvents(normalizeList(eventsRes));
       } catch (error) {}
-
-      if (foundEventId) {
-        setSelectedEvent(String(foundEventId));
-        try {
-          const tRes = await teamApi.getTracksByEvent(String(foundEventId));
-          setTracks(normalizeList(tRes));
-        } catch (e) {}
-      }
-      if (foundTrackId) {
-        setSelectedTrack(String(foundTrackId));
-        try {
-          const tpRes = await teamApi.getTopicsByTrack(String(foundTrackId));
-          setTopics(normalizeList(tpRes));
-        } catch (e) {}
-      }
-      if (foundTopicId) setSelectedTopic(String(foundTopicId));
 
       if (foundEventId || foundRoundId) {
         // Má»‘c thá»i gian Äáº¿m ngÆ°á»£c
@@ -686,30 +756,75 @@ export function Dashboard() {
 
   const teamId = getTeamId(dashboardData);
   const currentUserIsLeader = isLeaderTeam(dashboardData);
-  const eventName = extractEventName(dashboardData);
-  const trackName = extractTrackName(dashboardData);
-  const topicName = extractTopicName(dashboardData);
-  const currentRoundIndex = extractCurrentRoundIndex(dashboardData);
+  const currentAccountBanned =
+    accountBanInfo.isBanned || isBannedAccount(dashboardData);
+  const currentTeamHasBannedMember = teamHasBannedMember({
+    ...dashboardData,
+    members: activeTeamMembers,
+  });
+  const participationRecords = extractEventParticipations(dashboardData);
+  const selectedParticipation =
+    participationRecords.find(
+      (record) => getParticipationKey(record) === selectedParticipationKey,
+    ) ||
+    participationRecords[0] ||
+    null;
+  const activeEventContext = selectedParticipation || dashboardData;
+  const registeredEventIds = new Set(
+    participationRecords.map(extractEventId).filter(Boolean),
+  );
+  const registeredEventNames = new Set(
+    participationRecords
+      .map((record) => extractEventName(record).toLowerCase())
+      .filter((name) => name && name !== "not registered"),
+  );
+  const availableRegistrationEvents = events.filter((event) => {
+    const eventId = safeString(
+      event.EventID || event.eventID || event.eventId || event.id,
+    );
+    const eventName = safeString(
+      event.EventName || event.eventName || event.name,
+    ).toLowerCase();
+    return !registeredEventIds.has(eventId) && !registeredEventNames.has(eventName);
+  });
+  const eventName = extractEventName(activeEventContext);
+  const trackName = extractTrackName(activeEventContext);
+  const topicName = extractTopicName(activeEventContext);
+  const currentRoundIndex = extractCurrentRoundIndex(activeEventContext);
   const currentRoundLabel = getRoundLabel(
     currentRoundIndex,
-    extractRoundName(dashboardData),
+    extractRoundName(activeEventContext),
   );
-  const eliminated = isTeamEliminated(dashboardData);
-  const hasEventRegistration = hasRegisteredEvent(dashboardData, eventName);
+  const eliminated =
+    isTeamEliminated(activeEventContext) ||
+    isEliminatedTeam(activeEventContext, dashboardData);
+  const teamPermanentlyLocked = eliminated;
+  const hasEventRegistration =
+    participationRecords.length > 0 ||
+    hasRegisteredEvent(activeEventContext, eventName);
   const hasKnownRound =
     currentRoundLabel !== "Not Registered" || Boolean(currentRoundName);
   const hasInfoRegistration = hasEventRegistration;
-  const teamNotice = hasInfoRegistration ? getTeamNotice(dashboardData) : null;
+  const teamNotice = hasInfoRegistration
+    ? getTeamNotice(activeEventContext)
+    : null;
+  const noticeToastKey =
+    teamNotice && teamNotice.tone !== "success"
+      ? `${getParticipationKey(activeEventContext)}|${teamNotice.tone}|${teamNotice.title}|${teamNotice.message}`
+      : "";
 
   // Logic kiá»ƒm tra Ä‘á»ƒ hiá»ƒn thá»‹ cho khung Current Round
   const hasSubmittedRegistration = Boolean(
     hasInfoRegistration ||
-    dashboardData?.teamInRound,
+      dashboardData?.teamInRound,
   );
   const isActuallySubmitted = hasSubmittedRegistration;
 
   const isApprovedIntoRound = Boolean(
-    dashboardData?.teamInRound || hasInfoRegistration || hasKnownRound,
+    selectedParticipation ||
+      dashboardData?.teamInRound ||
+      hasInfoRegistration ||
+      hasKnownRound,
   );
   const displayRoundName =
     currentRoundLabel !== "Not Registered"
@@ -724,6 +839,51 @@ export function Dashboard() {
     : currentRoundIndex === 0
       ? "bg-amber-500"
       : "bg-emerald-500";
+
+  useEffect(() => {
+    if (participationRecords.length === 0) {
+      if (selectedParticipationKey) setSelectedParticipationKey("");
+      return;
+    }
+
+    const selectedStillExists = participationRecords.some(
+      (record) => getParticipationKey(record) === selectedParticipationKey,
+    );
+    if (!selectedParticipationKey || !selectedStillExists) {
+      setSelectedParticipationKey(getParticipationKey(participationRecords[0]));
+    }
+  }, [dashboardData, selectedParticipationKey]);
+
+  useEffect(() => {
+    if (!noticeToastKey || noticeToastKey === lastNoticeToastKey || !teamNotice) {
+      return;
+    }
+
+    setLastNoticeToastKey(noticeToastKey);
+    void Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: teamNotice.tone === "danger" ? "error" : "warning",
+      title: teamNotice.title,
+      text: teamNotice.message,
+      showConfirmButton: false,
+      timer: teamNotice.tone === "danger" ? 6500 : 5000,
+      timerProgressBar: true,
+    });
+  }, [noticeToastKey, lastNoticeToastKey, teamNotice]);
+
+  const handleParticipationChange = (key: string) => {
+    setSelectedParticipationKey(key);
+    const record = participationRecords.find(
+      (item) => getParticipationKey(item) === key,
+    );
+    if (!record) return;
+
+    const trackId = extractTrackId(record);
+    const roundId = extractRoundId(record);
+    if (trackId) setLbSelectedTrack(trackId);
+    if (roundId) setLbSelectedRound(roundId);
+  };
 
   const handleEventChange = async (eventId: string) => {
     setSelectedEvent(eventId);
@@ -754,6 +914,37 @@ export function Dashboard() {
   };
 
   const handleSubmitRegistration = () => {
+    if (currentAccountBanned) {
+      Swal.fire({
+        icon: "error",
+        title: "Account Banned",
+        text:
+          accountBanInfo.reason ||
+          "This account cannot register a team for an event.",
+      });
+      return;
+    }
+
+    if (teamPermanentlyLocked) {
+      Swal.fire({
+        icon: "error",
+        title: "Team Eliminated",
+        text:
+          "This team has been eliminated and can no longer be reused. Please create a new team.",
+      });
+      return;
+    }
+
+    if (currentTeamHasBannedMember) {
+      Swal.fire({
+        icon: "error",
+        title: "Banned Member Detected",
+        text:
+          "Kick the banned member from this team before registering for an event.",
+      });
+      return;
+    }
+
     if (!selectedEvent || !selectedTrack || !selectedTopic) {
       Swal.fire({
         icon: "warning",
@@ -766,7 +957,7 @@ export function Dashboard() {
       isOpen: true,
       title: "Confirm Registration",
       description:
-        "Are you sure you want to register with this Event, Track, and Topic? You cannot change this later.",
+        "Are you sure you want to register this team for the selected Event, Track, and Topic?",
     });
   };
 
@@ -784,6 +975,12 @@ export function Dashboard() {
       });
 
       localStorage.setItem(`team_${teamId}_submitted`, "true");
+      setSelectedEvent("");
+      setSelectedTrack("");
+      setSelectedTopic("");
+      setTracks([]);
+      setTopics([]);
+      setShowRegistrationForm(false);
       await fetchDashboard();
 
       Swal.fire({
@@ -924,21 +1121,6 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-
-          {teamNotice && (
-            <div
-              className={`border p-4 rounded-radius-lg shadow-sm ${
-                teamNotice.tone === "danger"
-                  ? "bg-red-50 border-red-200 text-red-700"
-                  : teamNotice.tone === "warning"
-                    ? "bg-amber-50 border-amber-200 text-amber-700"
-                    : "bg-emerald-50 border-emerald-200 text-emerald-700"
-              }`}
-            >
-              <p className="text-sm font-bold">{teamNotice.title}</p>
-              <p className="text-sm mt-1 font-medium">{teamNotice.message}</p>
-            </div>
-          )}
 
           <section className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mt-8">
             <div className="p-6 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1090,39 +1272,147 @@ export function Dashboard() {
           </section>
         </div>
 
-        {/* ================= RIGHT COLUMN (Ratio 4): REGISTRATION FORM ================= */}
+        {/* ================= RIGHT COLUMN (Ratio 4): EVENT CONTEXT + REGISTRATION ================= */}
         <div className="lg:col-span-4 space-y-6">
-          <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col">
+          <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2 shrink-0">
-              <Map className="w-4 h-4 text-slate-400" /> Event & Track
+              <MapIcon className="w-4 h-4 text-slate-400" /> Team Events
             </h2>
 
-            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-5">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-5">
               {!teamId ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
+                <div className="bg-white border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">No Team Yet</p>
                   <p className="text-sm text-slate-500 mt-1">
                     Create team on the My Team page before registering for an
                     event.
                   </p>
                 </div>
-              ) : isActuallySubmitted ? (
+              ) : participationRecords.length > 0 ? (
                 <div className="space-y-4">
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg p-4">
                     <p className="font-bold flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5" /> Registration Locked!
+                      <ShieldCheck className="w-5 h-5" /> Registered Events
                     </p>
                     <p className="text-sm mt-1">
-                      Below is the Event and Track your team has registered for.
+                      Select an event to update the dashboard context.
                     </p>
                   </div>
 
+                  {participationRecords.length > 1 ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700">
+                        Viewing event
+                      </label>
+                      <select
+                        className="w-full p-3 bg-white border border-slate-200 rounded-radius-md text-sm outline-none focus:border-[#f26f21] font-bold text-slate-800"
+                        value={
+                          selectedParticipation
+                            ? getParticipationKey(selectedParticipation)
+                            : ""
+                        }
+                        onChange={(e) => handleParticipationChange(e.target.value)}
+                      >
+                        {participationRecords.map((record) => {
+                          const key = getParticipationKey(record);
+                          return (
+                            <option key={key} value={key}>
+                              {extractEventName(record)}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="rounded-radius-md border border-orange-100 bg-orange-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#c2410c]">
+                        Viewing
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {eventName}
+                      </p>
+                    </div>
+                  )}
+
                   <InfoRow label="Event" value={eventName} />
-                  <InfoRow label="Track" value={trackName} />
+                  <InfoRow
+                    label="Track / Topic"
+                    value={`${trackName}${topicName !== "No topic" ? ` - ${topicName}` : ""}`}
+                  />
                   <InfoRow label="Current Round" value={registeredRoundName} />
                 </div>
-              ) : !currentUserIsLeader ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
+              ) : (
+                <div className="bg-white border border-amber-200 rounded-radius-md p-4">
+                  <p className="font-bold text-amber-700">No Event Registered</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Register this team for an event to unlock event-specific
+                    dashboard data.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <MapIcon className="w-4 h-4 text-[#f26f21]" /> Register Another Event
+                </h2>
+                <p className="text-sm text-slate-500 mt-2">
+                  Add this team to another eligible event.
+                </p>
+              </div>
+              {teamId &&
+                currentUserIsLeader &&
+                hasInfoRegistration &&
+                !currentAccountBanned &&
+                !teamPermanentlyLocked &&
+                !currentTeamHasBannedMember && (
+                <button
+                  type="button"
+                  onClick={() => setShowRegistrationForm((prev) => !prev)}
+                  className="shrink-0 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-[#c2410c] hover:bg-orange-100 transition-colors"
+                >
+                  {showRegistrationForm ? "Hide" : "+ Add"}
+                </button>
+              )}
+            </div>
+
+            {currentAccountBanned ? (
+              <div className="bg-red-50 border border-red-200 rounded-radius-md p-4">
+                <p className="font-bold text-red-700">Account Banned</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {accountBanInfo.reason ||
+                    "This account cannot register teams for events."}
+                </p>
+              </div>
+            ) : teamPermanentlyLocked ? (
+              <div className="bg-red-50 border border-red-200 rounded-radius-md p-4">
+                <p className="font-bold text-red-700">Team Eliminated</p>
+                <p className="text-sm text-red-600 mt-1">
+                  This team is permanently locked. Create a new team to join
+                  another event.
+                </p>
+              </div>
+            ) : currentTeamHasBannedMember ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-radius-md p-4">
+                <p className="font-bold text-amber-700">Banned Member Detected</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Kick the banned member from My Team before registering this
+                  team for an event.
+                </p>
+              </div>
+            ) : !teamId ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
+                <p className="font-bold text-slate-900">No Team Yet</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Create team on the My Team page before registering for an
+                  event.
+                </p>
+              </div>
+            ) : !currentUserIsLeader ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-radius-md p-4">
                   <p className="font-bold text-slate-900">
                     Leader Registration Only
                   </p>
@@ -1130,9 +1420,9 @@ export function Dashboard() {
                     You are a Team Member. Wait for your Team Leader to select
                     the Event, Track, and Topic.
                   </p>
-                </div>
-              ) : (
-                <>
+              </div>
+            ) : showRegistrationForm || !hasInfoRegistration ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-5">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">
                       Event
@@ -1141,10 +1431,14 @@ export function Dashboard() {
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-radius-md text-sm outline-none focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-100 disabled:cursor-not-allowed font-medium text-slate-800"
                       value={selectedEvent}
                       onChange={(e) => handleEventChange(e.target.value)}
-                      disabled={isActuallySubmitted}
+                      disabled={availableRegistrationEvents.length === 0}
                     >
-                      <option value="">Choose an event...</option>
-                      {events.map((event) => {
+                      <option value="">
+                        {availableRegistrationEvents.length === 0
+                          ? "No more events available"
+                          : "Choose an event..."}
+                      </option>
+                      {availableRegistrationEvents.map((event) => {
                         const evId = safeString(
                           event.EventID ||
                             event.eventID ||
@@ -1174,7 +1468,7 @@ export function Dashboard() {
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-radius-md text-sm outline-none focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-100 disabled:cursor-not-allowed font-medium text-slate-800"
                       value={selectedTrack}
                       onChange={(e) => handleTrackChange(e.target.value)}
-                      disabled={!selectedEvent || isActuallySubmitted}
+                      disabled={!selectedEvent}
                     >
                       <option value="">Choose a track...</option>
                       {tracks.map((track) => {
@@ -1207,7 +1501,7 @@ export function Dashboard() {
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-radius-md text-sm outline-none focus:border-blue-500 disabled:opacity-70 disabled:bg-slate-100 disabled:cursor-not-allowed font-medium text-slate-800"
                       value={selectedTopic}
                       onChange={(e) => setSelectedTopic(e.target.value)}
-                      disabled={!selectedTrack || isActuallySubmitted}
+                      disabled={!selectedTrack}
                     >
                       <option value="">Choose a topic...</option>
                       {topics.map((topic) => {
@@ -1233,21 +1527,33 @@ export function Dashboard() {
                     </select>
                   </div>
 
-                  {!isActuallySubmitted && (
-                    <button
-                      onClick={handleSubmitRegistration}
-                      disabled={isSubmittingRegistration}
-                      className="w-full bg-[#f26f21] text-white font-bold py-3.5 rounded-lg hover:bg-[#d85f16] transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
-                    >
-                      <Map className="w-4 h-4" />
-                      {isSubmittingRegistration
-                        ? "Submitting..."
-                        : "Confirm Registration"}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+                  <button
+                    onClick={handleSubmitRegistration}
+                    disabled={
+                      isSubmittingRegistration ||
+                      availableRegistrationEvents.length === 0 ||
+                      currentAccountBanned ||
+                      teamPermanentlyLocked ||
+                      currentTeamHasBannedMember
+                    }
+                    className="w-full bg-[#f26f21] text-white font-bold py-3.5 rounded-lg hover:bg-[#d85f16] transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+                  >
+                    <MapIcon className="w-4 h-4" />
+                    {isSubmittingRegistration
+                      ? "Submitting..."
+                      : "Confirm Registration"}
+                  </button>
+              </div>
+            ) : (
+              <div className="rounded-radius-md border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-800">
+                  Ready to join another event?
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Use the add button to open the registration form.
+                </p>
+              </div>
+            )}
           </section>
 
           <MentorSupportCard

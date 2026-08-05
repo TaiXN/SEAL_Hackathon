@@ -15,6 +15,8 @@ import {
   getCurrentTeamFromHistory,
   getTeamId,
   isLeaderTeam,
+  isBannedAccount,
+  isEliminatedTeam,
 } from "../../lib/utils/teamHelpers";
 
 export function Sidebar() {
@@ -35,7 +37,14 @@ export function Sidebar() {
       const currentTeam = getCurrentTeamFromHistory(history);
       setActiveTeamId(getTeamId(currentTeam));
 
-      setCanSubmitProject(Boolean(currentTeam && isLeaderTeam(currentTeam)));
+      setCanSubmitProject(
+        Boolean(
+          currentTeam &&
+            isLeaderTeam(currentTeam) &&
+            !isBannedAccount(response, currentTeam) &&
+            !isEliminatedTeam(currentTeam),
+        ),
+      );
     } catch (error) {
       console.warn("Không lấy được quyền team của player:", error);
       setTeamHistory([]);
@@ -69,7 +78,9 @@ export function Sidebar() {
 
     localStorage.setItem("activeTeamId", nextTeamId);
     setActiveTeamId(nextTeamId);
-    setCanSubmitProject(isLeaderTeam(team));
+    setCanSubmitProject(
+      isLeaderTeam(team) && !isBannedAccount(team) && !isEliminatedTeam(team),
+    );
     window.dispatchEvent(new Event("player-team-updated"));
   };
 
