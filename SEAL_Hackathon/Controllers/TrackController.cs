@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.TrackService;
 using System.Security.Claims;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SEAL_Hackathon.Controllers
 {
@@ -17,70 +19,73 @@ namespace SEAL_Hackathon.Controllers
         public TrackController(ITrackService track)
         {
             _track = track;
-
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPost]
-        public async Task<IActionResult> Create(CreateTrackAPIViewModel info)
+        public async Task<IActionResult> CreateTrack(CreateTrackAPIViewModel info)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             string accId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(accId)) return Unauthorized("Not found Admin.");
 
-            bool isCreated = await _track.CreateTrackAsync(info, accId);
-
-            if (isCreated) return Ok("Create track successfully");
-
-            return BadRequest("Error while creating track");
+            (bool IsSuccess, string Message) result = await _track.CreateTrackAsync(info, accId);
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+            return BadRequest(new { message = result.Message });
         }
 
         [Authorize(Roles = "Admin")]
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAllTrack()
         {
-            List<TrackAPIViewModel> tracks = await _track.GetAllTracksAsync();
-            return Ok(tracks);
+            List<TrackAPIViewModel> result = await _track.GetAllTracksAsync();
+            return Ok(result);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(string id)
+        public async Task<IActionResult> GetTrackById(string id)
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid track ID.");
 
-            TrackAPIViewModel currentTrack = await _track.GetTrackByIdAsync(id);
-            if (currentTrack == null) return NotFound("No track found.");
-
-            return Ok(currentTrack);
+            TrackAPIViewModel result = await _track.GetTrackByIdAsync(id);
+            if (result == null)
+            {
+                return NotFound(new { message = "No track found." });
+            }
+            return Ok(result);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, UpdateTrackAPIViewModel info)
+        public async Task<IActionResult> UpdateTrack(string id, UpdateTrackAPIViewModel info)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            bool isUpdated = await _track.UpdateTrackAsync(id, info);
-
-            if (isUpdated) return Ok("Track update successful!");
-
-            return BadRequest("Error occurred during the track update process or track not found.");
+            (bool IsSuccess, string Message) result = await _track.UpdateTrackAsync(id, info);
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+            return BadRequest(new { message = result.Message });
         }
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> DeleteTrack(string id)
         {
             if (string.IsNullOrEmpty(id)) return BadRequest("Invalid track ID.");
 
-            bool isDeleted = await _track.DeleteTrackAsync(id);
-            if (isDeleted) return Ok("Track successfully deleted.");
-
-            return BadRequest("The track was not found, or an error occurred while deleting.");
+            bool isSuccess = await _track.DeleteTrackAsync(id);
+            if (isSuccess)
+            {
+                return Ok(new { message = "Track successfully deleted." });
+            }
+            return BadRequest(new { message = "The track was not found, or an error occurred while deleting." });
         }
-
-       
     }
 }
