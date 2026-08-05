@@ -11,6 +11,7 @@ import {
   Users,
   UserPlus,
   UserCog,
+  Eye,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -85,6 +86,23 @@ export function ManageUsersAndAssign() {
     }
   };
 
+  // Hàm hiển thị ảnh to khi Admin muốn kiểm tra giấy tờ
+  const handleViewImage = (url: string, title: string) => {
+    Swal.fire({
+      title: title,
+      imageUrl: url,
+      imageAlt: title,
+      showConfirmButton: false,
+      showCloseButton: true,
+      width: "auto",
+      customClass: {
+        popup: "rounded-[2rem] pb-8",
+        image:
+          "rounded-xl max-h-[70vh] object-contain mt-4 border border-slate-200 shadow-sm",
+      },
+    });
+  };
+
   // ==========================================
   // TAB 2: CREATE TEACHER
   // ==========================================
@@ -115,7 +133,7 @@ export function ManageUsersAndAssign() {
         icon: "success",
         title: "Account Created!",
         html: "Redirecting to Assignment tab...",
-        confirmButtonColor: "#f26f21",
+        confirmButtonColor: "#ea580c",
         customClass: {
           popup: "rounded-[2rem]",
           confirmButton: "rounded-xl font-bold px-8 py-3",
@@ -341,7 +359,7 @@ export function ManageUsersAndAssign() {
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="mb-10">
-          <h2 className="text-4xl font-extrabold text-[#f26f21] tracking-tight">
+          <h2 className="text-4xl font-extrabold text-[#ea580c] tracking-tight">
             Users & Assignments
           </h2>
           <p className="text-slate-500 font-medium text-base mt-2">
@@ -374,7 +392,7 @@ export function ManageUsersAndAssign() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`whitespace-nowrap px-8 py-4 text-sm font-extrabold border-b-[3px] transition-all flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? "border-fpt-orange text-fpt-orange bg-white rounded-t-2xl shadow-sm"
+                    ? "border-orange-600 text-orange-600 bg-white rounded-t-2xl shadow-sm"
                     : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white rounded-t-2xl"
                 }`}
               >
@@ -387,17 +405,19 @@ export function ManageUsersAndAssign() {
             {/* TAB 1: APPROVE STUDENTS */}
             {activeTab === "approve" && (
               <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                <div className="border border-slate-100 rounded-[1.5rem] overflow-hidden shadow-sm">
-                  <table className="w-full table-fixed text-left text-sm">
+                <div className="border border-slate-100 rounded-[1.5rem] overflow-x-auto shadow-sm">
+                  <table className="w-full text-left text-sm min-w-[1300px]">
                     <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-extrabold tracking-widest border-b border-slate-100">
                       <tr>
-                        <th className="w-[26%] px-8 py-5">Full Name</th>
-                        <th className="w-[20%] px-6 py-5">Phone Number</th>
-                        <th className="w-[30%] px-6 py-5">Email Address</th>
-                        <th className="w-[30%] px-6 py-5">University Name</th>
-                        <th className="w-[24%] px-8 py-5 text-right">
-                          Actions
+                        <th className="px-6 py-5">Full Name</th>
+                        <th className="px-6 py-5">Email & Phone</th>
+                        <th className="px-6 py-5">University Name</th>
+                        <th className="px-6 py-5">CCCD Number</th>
+                        <th className="px-4 py-5 text-center">
+                          ID Card (CCCD)
                         </th>
+                        <th className="px-4 py-5 text-center">Student Card</th>
+                        <th className="px-6 py-5 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -406,36 +426,104 @@ export function ManageUsersAndAssign() {
                           key={studentKey(s)}
                           className="hover:bg-slate-50 transition-colors"
                         >
-                          <td className="px-8 py-5 font-extrabold text-[#f26f21] truncate">
+                          <td className="px-6 py-5 font-extrabold text-[#ea580c]">
                             {s.fullName || s.name || s.studentName || "—"}
                           </td>
-                          <td className="px-6 py-5 font-bold text-slate-500 truncate">
-                            {s.phone || "—"}
+                          <td className="px-6 py-5">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-slate-700">
+                                {s.email || "—"}
+                              </span>
+                              <span className="font-bold text-slate-400 text-xs">
+                                {s.phone || "—"}
+                              </span>
+                            </div>
                           </td>
-                          <td className="px-6 py-5 font-medium text-slate-500 truncate">
-                            {s.email || "—"}
-                          </td>
-                          <td className="px-6 py-5 font-medium text-slate-500 truncate">
+                          <td className="px-6 py-5 font-medium text-slate-500">
                             {s.universityName || "—"}
                           </td>
-                          <td className="px-8 py-5">
-                            <div className="flex justify-end gap-3">
+
+                          {/* Cột CCCD Number */}
+                          <td className="px-6 py-5 font-bold text-slate-600">
+                            {s.cccdNumber || s.CccdNumber || "—"}
+                          </td>
+
+                          {/* Cột ID Card */}
+                          <td className="px-4 py-5">
+                            <div className="flex justify-center">
+                              {s.idCardImageUrl ||
+                              s.IdCardImageUrl ||
+                              s.idCardImage ||
+                              s.idCardUrl ? (
+                                <button
+                                  onClick={() =>
+                                    handleViewImage(
+                                      s.idCardImageUrl ||
+                                        s.IdCardImageUrl ||
+                                        s.idCardImage ||
+                                        s.idCardUrl,
+                                      "ID Card (CCCD)",
+                                    )
+                                  }
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:text-orange-600 hover:border-orange-600 transition-all shadow-sm"
+                                >
+                                  <Eye size={14} /> View
+                                </button>
+                              ) : (
+                                <span className="text-slate-400 italic text-xs">
+                                  No image
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Cột Student Card */}
+                          <td className="px-4 py-5">
+                            <div className="flex justify-center">
+                              {s.studentCardImageUrl ||
+                              s.StudentCardImageUrl ||
+                              s.studentCardImage ||
+                              s.studentCardUrl ? (
+                                <button
+                                  onClick={() =>
+                                    handleViewImage(
+                                      s.studentCardImageUrl ||
+                                        s.StudentCardImageUrl ||
+                                        s.studentCardImage ||
+                                        s.studentCardUrl,
+                                      "Student Card",
+                                    )
+                                  }
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:text-orange-600 hover:border-orange-600 transition-all shadow-sm"
+                                >
+                                  <Eye size={14} /> View
+                                </button>
+                              ) : (
+                                <span className="text-slate-400 italic text-xs">
+                                  No image
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <div className="flex justify-end gap-2">
                               <button
                                 onClick={() =>
                                   handleApproveStudent(studentKey(s), true)
                                 }
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs transition-colors"
+                                className="flex items-center gap-1 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs transition-colors"
                               >
-                                <CheckCircle size={16} strokeWidth={2.5} />{" "}
+                                <CheckCircle size={14} strokeWidth={2.5} />{" "}
                                 Approve
                               </button>
                               <button
                                 onClick={() =>
                                   handleApproveStudent(studentKey(s), false)
                                 }
-                                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-600 font-bold text-xs transition-colors"
+                                className="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 hover:text-red-600 font-bold text-xs transition-colors"
                               >
-                                <XCircle size={16} strokeWidth={2.5} /> Reject
+                                <XCircle size={14} strokeWidth={2.5} /> Reject
                               </button>
                             </div>
                           </td>
@@ -444,7 +532,7 @@ export function ManageUsersAndAssign() {
                       {students.length === 0 && (
                         <tr>
                           <td
-                            colSpan={4}
+                            colSpan={7}
                             className="text-center py-20 text-slate-400 font-medium text-base"
                           >
                             <CheckCircle
@@ -481,7 +569,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Nguyen Van A"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] placeholder:text-slate-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -498,7 +586,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., teacher@fpt.edu.vn"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] placeholder:text-slate-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -515,7 +603,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., 0987654321"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] placeholder:text-slate-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -532,7 +620,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="Enter secure password"
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-orange-600 placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-extrabold text-orange-600 placeholder:text-slate-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -549,7 +637,7 @@ export function ManageUsersAndAssign() {
                           })
                         }
                         placeholder="e.g., Software Engineering Dept."
-                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] placeholder:text-slate-400 focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none"
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] placeholder:text-slate-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-2.5">
@@ -562,7 +650,7 @@ export function ManageUsersAndAssign() {
                           onClick={() =>
                             setNewTeacher({ ...newTeacher, isGuest: false })
                           }
-                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${!newTeacher.isGuest ? "bg-white shadow-sm text-[#f26f21]" : "text-slate-400 hover:text-slate-600"}`}
+                          className={`flex-1 text-sm font-extrabold rounded-xl transition-all ${!newTeacher.isGuest ? "bg-white shadow-sm text-[#ea580c]" : "text-slate-400 hover:text-slate-600"}`}
                         >
                           Internal
                         </button>
@@ -582,7 +670,7 @@ export function ManageUsersAndAssign() {
                     <button
                       type="button"
                       onClick={handleCreateTeacher}
-                      className="px-8 py-3.5 bg-fpt-orange text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-fpt-orange-dark hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
+                      className="px-8 py-3.5 bg-orange-600 text-white text-sm font-bold rounded-2xl shadow-lg shadow-slate-900/10 hover:bg-orange-700 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
                     >
                       <Plus size={18} strokeWidth={2.5} /> Create Account
                     </button>
@@ -605,7 +693,7 @@ export function ManageUsersAndAssign() {
                     <select
                       value={selectedEventId}
                       onChange={(e) => setSelectedEventId(e.target.value)}
-                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
+                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 cursor-pointer transition-all"
                     >
                       <option
                         value=""
@@ -641,7 +729,7 @@ export function ManageUsersAndAssign() {
                       <select
                         value={trackIdToManage}
                         onChange={(e) => setTrackIdToManage(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all"
+                        className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 cursor-pointer transition-all"
                       >
                         <option
                           value=""
@@ -687,7 +775,7 @@ export function ManageUsersAndAssign() {
                           <button
                             onClick={loadAllTeachers}
                             disabled={isRefreshing}
-                            className="text-[11px] text-fpt-orange-dark font-extrabold flex items-center gap-1.5 hover:text-fpt-orange transition-colors"
+                            className="text-[11px] text-orange-600 font-extrabold flex items-center gap-1.5 hover:text-orange-700 transition-colors"
                           >
                             <RefreshCw
                               size={12}
@@ -704,7 +792,7 @@ export function ManageUsersAndAssign() {
                               teacherId: e.target.value,
                             })
                           }
-                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer appearance-none transition-all"
+                          className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm font-semibold text-[#ea580c] outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 cursor-pointer appearance-none transition-all"
                         >
                           <option
                             value=""
@@ -758,7 +846,7 @@ export function ManageUsersAndAssign() {
                       <button
                         type="button"
                         onClick={handleAssignTeacher}
-                        className="w-full md:w-auto px-8 py-3.5 bg-fpt-orange text-white font-bold rounded-2xl hover:bg-fpt-orange-dark shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 active:translate-y-0 transition-all h-[52px] mb-0.5"
+                        className="w-full md:w-auto px-8 py-3.5 bg-orange-600 text-white font-bold rounded-2xl hover:bg-orange-700 shadow-lg shadow-slate-900/10 hover:-translate-y-0.5 active:translate-y-0 transition-all h-[52px] mb-0.5"
                       >
                         Assign Role
                       </button>
@@ -766,7 +854,7 @@ export function ManageUsersAndAssign() {
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-extrabold text-[#f26f21] mb-5 px-2">
+                    <h3 className="text-xl font-extrabold text-[#ea580c] mb-5 px-2">
                       Current Assignments
                     </h3>
                     <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
@@ -797,7 +885,7 @@ export function ManageUsersAndAssign() {
                                 key={`assigned-${item.id}-${idx}`}
                                 className="hover:bg-slate-50 transition-colors"
                               >
-                                <td className="px-8 py-5 font-bold text-[#f26f21]">
+                                <td className="px-8 py-5 font-bold text-[#ea580c]">
                                   {realName}
                                 </td>
                                 <td className="px-6 py-5 font-medium text-slate-500">

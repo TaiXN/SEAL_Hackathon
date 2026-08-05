@@ -245,9 +245,62 @@ export function AuthLayout() {
       // navigate("/verify-otp", { state: { email: regEmail.trim() } });
       navigate(`/verify-otp?email=${encodeURIComponent(regEmail.trim())}`);
     } catch (error: any) {
-      const errorMsg = getServerMsg(error) || "Unable to register account.";
-      toast.error(errorMsg, { id: loadingToastId });
-      Swal.fire("Error", errorMsg, "error");
+      toast.dismiss(loadingToastId);
+
+      // 1. Bới móc bằng sạch mọi ngóc ngách để lấy câu chửi chính xác của Backend
+      let errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.response?.data?.title ||
+        (typeof error.response?.data === "string" ? error.response.data : "") ||
+        "Invalid email or password.";
+
+      setLoginError(errorMsg);
+
+      // 2. Kiểm tra xem lỗi này có phải là do chưa Verify Email hay không
+      // Tùy Backend của bà trả về câu gì, thường sẽ chứa chữ "verify", "confirm", "active"
+      const isUnverified =
+        errorMsg.toLowerCase().includes("verify") ||
+        errorMsg.toLowerCase().includes("confirm") ||
+        errorMsg.toLowerCase().includes("not active");
+
+      if (isUnverified) {
+        // NẾU CHƯA VERIFY: Bật cảnh báo vàng + Nút dắt tay sang tận trang OTP
+        Swal.fire({
+          icon: "warning",
+          title: "Account Not Verified!",
+          text:
+            errorMsg + " Please check your inbox or verify your account now.",
+          confirmButtonText: "Verify Now",
+          confirmButtonColor: "#ea580c",
+          showCancelButton: true,
+          cancelButtonText: "Close",
+          customClass: {
+            popup: "rounded-[2rem]",
+            confirmButton: "rounded-xl font-bold px-6 py-2.5",
+            cancelButton: "rounded-xl font-bold px-6 py-2.5",
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Bà bấm Verify Now là nó xách cái email đi thẳng qua trang OTP luôn
+            navigate(
+              `/verify-otp?email=${encodeURIComponent(loginEmail.trim())}`,
+            );
+          }
+        });
+      } else {
+        // NẾU SAI PASS HAY LỖI KHÁC: Hiện lỗi đỏ rực nguyên bản từ Backend
+        Swal.fire({
+          icon: "error",
+          title: "Login Failed",
+          text: errorMsg,
+          confirmButtonColor: "#ea580c",
+          customClass: {
+            popup: "rounded-[2rem]",
+            confirmButton: "rounded-xl font-bold px-6 py-2.5",
+          },
+        });
+      }
     }
   };
 
