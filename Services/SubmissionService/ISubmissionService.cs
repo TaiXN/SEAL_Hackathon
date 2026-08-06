@@ -11,5 +11,8 @@ namespace Services.SubmissionService
         Task<bool> SubmitUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request);
         Task<List<SubmissionAuditLogAPIViewModel>> GetAuditLogsByTeamAsync(string teamId);
         Task<List<SubmissionAPIViewModel>> GetAllSubmissionsAsync();
+
+        Task<SubmissionAPIViewModel> GetMyTeamSubmissionAsync(string accountId, string teamId);
+        Task<List<SubmissionAuditLogAPIViewModel>> GetMyTeamSubmissionAuditLogsAsync(string accountId, string teamId);
     }
 }

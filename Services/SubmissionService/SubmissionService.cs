@@ -181,5 +181,84 @@ namespace Services.SubmissionService
                 return new List<SubmissionAPIViewModel>();
             }
         }
+
+        public async Task<SubmissionAPIViewModel> GetMyTeamSubmissionAsync(string accountId, string teamId)
+        {
+            TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+
+            if (myTeamInfo == null)
+            {
+                throw new Exception("You are not currently in this team, access denied.");
+            }
+
+            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
+            TeamInRound teamInRound = null;
+            Round currentRound = null;
+
+            foreach (TeamInRound tr in allTeamRounds)
+            {
+                Round r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                if (r != null)
+                {
+                    if (currentRound == null || r.RoundIndex > currentRound.RoundIndex)
+                    {
+                        currentRound = r;
+                        teamInRound = tr;
+                    }
+                }
+            }
+
+            if (teamInRound == null)
+            {
+                throw new Exception("Your team must register for a Track and Topic before viewing submissions.");
+            }
+
+            Submission existingSubmission = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRound.Id);
+
+            if (existingSubmission == null)
+            {
+                return null;
+            }
+
+            return new SubmissionAPIViewModel
+            {
+                SubmissionId = existingSubmission.Id,
+                TeamInRoundId = existingSubmission.TeamInRoundId,
+                UrlGithub = existingSubmission.Urlgithub,
+                UrlDemo = existingSubmission.Urldemo,
+                UrlSlide = existingSubmission.Urlslide,
+                AverageScore = existingSubmission.AverageScore
+            };
+        }
+
+        public async Task<List<SubmissionAuditLogAPIViewModel>> GetMyTeamSubmissionAuditLogsAsync(string accountId, string teamId)
+        {
+            TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
+
+            if (myTeamInfo == null)
+            {
+                throw new Exception("You are not currently in this team, access denied.");
+            }
+
+            List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
+
+            List<SubmissionAuditLogAPIViewModel> result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
+            {
+                LogId = log.Id,
+                SubmissionId = log.SubmissionId,
+                TeamId = log.TeamId,
+                EventId = log.EventId,
+                RoundId = log.RoundId,
+                OldUrlGithub = log.OldUrlGithub,
+                OldUrlDemo = log.OldUrlDemo,
+                OldUrlSlide = log.OldUrlSlide,
+                NewUrlGithub = log.NewUrlGithub,
+                NewUrlDemo = log.NewUrlDemo,
+                NewUrlSlide = log.NewUrlSlide,
+                CreatedAt = log.CreatedAt
+            }).ToList();
+
+            return result;
+        }
     }
 }
