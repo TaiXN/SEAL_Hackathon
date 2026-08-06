@@ -26,6 +26,7 @@ public partial class Account
     public DateTime? OtpExpiryTime { get; set; }
 
     public bool IsEmailConfirmed { get; set; }
+    public string? BanReason { get; set; }
 
     public virtual ICollection<EvaluationAuditLog> EvaluationAuditLogs { get; set; } = new List<EvaluationAuditLog>();
 

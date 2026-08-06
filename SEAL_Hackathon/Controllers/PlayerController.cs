@@ -134,15 +134,15 @@ namespace SEAL_Hackathon.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPut("{studentId}/ban")]
-        public async Task<IActionResult> BanPlayer(string studentId)
+        [HttpPut("ban")]
+        public async Task<IActionResult> BanPlayer([FromBody] BanPlayerAPIViewModel request)
         {
-            if (string.IsNullOrEmpty(studentId))
+            if (request == null || string.IsNullOrEmpty(request.StudentId))
             {
                 return BadRequest(new { message = "Student ID is required." });
             }
 
-            (bool IsSuccess, string Message) result = await _player.BanPlayerAsync(studentId);
+            (bool IsSuccess, string Message) result = await _player.BanPlayerAsync(request);
             if (result.IsSuccess)
             {
                 return Ok(new { message = result.Message });

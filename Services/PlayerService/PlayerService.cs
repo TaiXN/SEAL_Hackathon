@@ -268,18 +268,19 @@ namespace Services.PlayerService
             }).ToList();
         }
 
-        public async Task<(bool IsSuccess, string Message)> BanPlayerAsync(string accountId)
+        public async Task<(bool IsSuccess, string Message)> BanPlayerAsync(BanPlayerAPIViewModel request)
         {
             try
             {
-                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == accountId);
+                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == request.StudentId);
                 if (accountDb == null) return (false, "Account not found.");
                 if (accountDb.IsActive == false) return (false, "Account is already banned.");
 
                 accountDb.IsActive = false;
+                accountDb.BanReason = request.Reason;
                 _uow.Account.Update(accountDb);
 
-                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId);
+                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == request.StudentId);
                 if (playerTeams != null && playerTeams.Count > 0)
                 {
                     List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
@@ -293,6 +294,9 @@ namespace Services.PlayerService
                 }
 
                 await _uow.SaveAsync();
+
+                SendBanEmail(accountDb.Email, request.Reason);
+
                 return (true, "Player has been banned and their associated teams have been disqualified.");
             }
             catch (Exception ex)
@@ -301,18 +305,50 @@ namespace Services.PlayerService
             }
         }
 
-        public async Task<(bool IsSuccess, string Message)> UnbanPlayerAsync(string accountId)
+        private void SendBanEmail(string toEmail, string reason)
         {
             try
             {
-                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == accountId);
+                string fromEmail = "tkchgpt1@gmail.com";
+                string appPassword = "nxsb ojwi cpib pcug";
+
+                MailMessage mail = new MailMessage();
+                mail.From = new MailAddress(fromEmail, "SEAL Hackathon System");
+                mail.To.Add(toEmail);
+                mail.Subject = "Hackathon Account Suspension Notice";
+
+                mail.Body = $"<h3 style='color:red;'>Account Suspended</h3>" +
+                            $"<p>We regret to inform you that your account at SEAL Hackathon has been permanently suspended.</p>" +
+                            $"<p><b>Reason:</b> {reason}</p>" +
+                            $"<p>All your ongoing team activities have been disqualified. If you believe this is a mistake, please contact the administrator.</p>";
+                mail.IsBodyHtml = true;
+
+                using (SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587))
+                {
+                    smtp.Credentials = new System.Net.NetworkCredential(fromEmail, appPassword);
+                    smtp.EnableSsl = true;
+                    smtp.Send(mail);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send ban email: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool IsSuccess, string Message)> UnbanPlayerAsync(string studentId)
+        {
+            try
+            {
+                DataAccess.Entities.Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == studentId);
                 if (accountDb == null) return (false, "Account not found.");
                 if (accountDb.IsActive == true) return (false, "Account is already active.");
 
                 accountDb.IsActive = true;
+                accountDb.BanReason = null;
                 _uow.Account.Update(accountDb);
 
-                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == accountId);
+                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == studentId);
                 if (playerTeams != null && playerTeams.Count > 0)
                 {
                     List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
@@ -326,11 +362,44 @@ namespace Services.PlayerService
                 }
 
                 await _uow.SaveAsync();
+
+                SendUnbanEmail(accountDb.Email);
+
                 return (true, "Player has been unbanned and their associated teams have been restored.");
             }
             catch (Exception ex)
             {
                 return (false, $"System error: {ex.Message}");
+            }
+        }
+        private void SendUnbanEmail(string toEmail)
+        {
+            try
+            {
+                string fromEmail = "tkchgpt1@gmail.com";
+                string appPassword = "nxsb ojwi cpib pcug";
+
+                MailMessage mail = new MailMessage();
+                mail.From = new MailAddress(fromEmail, "SEAL Hackathon System");
+                mail.To.Add(toEmail);
+                mail.Subject = "Hackathon Account Restored";
+
+                mail.Body = $"<h3 style='color:green;'>Account Restored</h3>" +
+                            $"<p>We are pleased to inform you that your account at SEAL Hackathon has been successfully restored.</p>" +
+                            $"<p>You can now log in and continue participating in the events. Your team status and all related activities have been reinstated.</p>" +
+                            $"<p>Welcome back and good luck!</p>";
+                mail.IsBodyHtml = true;
+
+                using (SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587))
+                {
+                    smtp.Credentials = new System.Net.NetworkCredential(fromEmail, appPassword);
+                    smtp.EnableSsl = true;
+                    smtp.Send(mail);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send unban email: {ex.Message}");
             }
         }
     }
