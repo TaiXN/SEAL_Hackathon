@@ -68,5 +68,56 @@ namespace SEAL_Hackathon.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("my-team/{teamId}/submission")]
+        [Authorize(Roles = "Player")]
+        public async Task<IActionResult> GetMySubmission(string teamId)
+        {
+            try
+            {
+                string accountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return Unauthorized("Cannot identify the current account.");
+                }
+
+                SubmissionAPIViewModel result = await _submission.GetMyTeamSubmissionAsync(accountId, teamId);
+
+                if (result == null)
+                {
+                    return Ok(new { message = "Your team hasn't submitted anything yet." });
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("my-team/{teamId}/audit-logs")]
+        [Authorize(Roles = "Player")]
+        public async Task<IActionResult> GetMyTeamAuditLogs(string teamId)
+        {
+            try
+            {
+                string accountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return Unauthorized("Cannot identify the current account.");
+                }
+
+                List<SubmissionAuditLogAPIViewModel> result = await _submission.GetMyTeamSubmissionAuditLogsAsync(accountId, teamId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
