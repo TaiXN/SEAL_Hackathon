@@ -45,7 +45,7 @@ namespace Services.SubmissionService
 
             if (teamInRound == null) throw new Exception("Your team must register for a Track and Topic before submitting URLs.");
 
-            if (!teamInRound.IsCheck)
+            if (!teamInRound.IsCheck && currentRound.RoundIndex == 1)
                 throw new Exception("Your team has not been approved by the Admin yet. Please wait for approval before submitting.");
 
             if (teamInRound.IsBanned)

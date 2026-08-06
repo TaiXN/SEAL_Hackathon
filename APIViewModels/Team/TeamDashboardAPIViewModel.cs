@@ -11,5 +11,7 @@
         public bool IsEliminated { get; set; }
         public string StatusMessage { get; set; }
 
+        public int TotalCompetitors { get; set; }
+
     }
 }
