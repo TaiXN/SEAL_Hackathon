@@ -22,8 +22,6 @@ namespace Services.TeamService
         Task<bool> TransferLeaderRoleAsync(string teamId, string newLeaderPlayerId, string requesterAccountId);
 
         Task<bool> JoinTeamDirectlyAsync(string teamId, string requesterAccountId);
-
-
         Task<bool> UpdateTeamInfoAsync(string accountId, string teamId, UpdateTeamAPIViewModel request);
 
     }

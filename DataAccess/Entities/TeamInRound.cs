@@ -18,6 +18,7 @@ public partial class TeamInRound
     public string RoundId { get; set; } = null!;
 
     public string TopicId { get; set; } = null!;
+    public string? BanReason { get; set; }
 
     public virtual ICollection<LeaderBoardDetail> LeaderBoardDetails { get; set; } = new List<LeaderBoardDetail>();
 

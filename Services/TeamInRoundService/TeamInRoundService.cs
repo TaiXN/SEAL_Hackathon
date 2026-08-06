@@ -170,7 +170,8 @@ namespace Services.TeamInRoundService
                 RoundName = tir.Round?.RoundName ?? "N/A",
                 TopicId = tir.TopicId,
                 IsBanned = tir.IsBanned,
-                IsCheck = tir.IsCheck
+                IsCheck = tir.IsCheck,
+                BanReason = tir.BanReason
             }).ToList();
 
             return result;
@@ -198,47 +199,137 @@ namespace Services.TeamInRoundService
             }
         }
 
-        public async Task<bool> BanTeamInRoundAsync(string teamInRoundId)
+        public async Task<(bool IsSuccess, string Message)> BanTeamInRoundAsync(APIViewModels.Team.DisqualifyTeamAPIViewModel request)
         {
             try
             {
-                TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
-                if (teamDb == null) return false;
-
-                if (teamDb.IsBanned == true) return true;
+                TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == request.TeamInRoundId);
+                if (teamDb == null) return (false, "Team record not found.");
+                if (teamDb.IsBanned == true) return (false, "This team is already disqualified.");
 
                 teamDb.IsBanned = true;
-
+                teamDb.BanReason = request.Reason;
                 _uow.TeamInRound.Update(teamDb);
+
+                Team teamInfo = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamDb.TeamId);
+                string teamName = teamInfo != null ? teamInfo.TeamName : "Unknown Team";
+
+                List<TeamMember> members = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamDb.TeamId);
+                List<string> studentIds = members.Select(m => m.StudentId).ToList();
+
+                List<Account> accounts = await _uow.Account.GetAllAsync(a => studentIds.Contains(a.AccountId));
+
                 await _uow.SaveAsync();
 
-                return true;
+                foreach (Account acc in accounts)
+                {
+                    SendDisqualifyEmail(acc.Email, teamName, request.Reason);
+                }
+
+                return (true, "Team has been disqualified successfully and emails have been sent.");
             }
             catch (Exception ex)
             {
-                return false;
+                return (false, $"System error: {ex.Message}");
             }
         }
 
-        public async Task<bool> UnbanTeamInRoundAsync(string teamInRoundId)
+        public async Task<(bool IsSuccess, string Message)> UnbanTeamInRoundAsync(string teamInRoundId)
         {
             try
             {
                 TeamInRound teamDb = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == teamInRoundId);
-                if (teamDb == null) return false;
+                if (teamDb == null) return (false, "Team record not found.");
+                if (teamDb.IsBanned == false) return (false, "This team is already active.");
 
-                if (teamDb.IsBanned == false) return true;
-
+    
                 teamDb.IsBanned = false;
-
+                teamDb.BanReason = null;
                 _uow.TeamInRound.Update(teamDb);
+
+ 
+                Team teamInfo = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamDb.TeamId);
+                string teamName = teamInfo != null ? teamInfo.TeamName : "Unknown Team";
+
+
+                List<TeamMember> members = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamDb.TeamId);
+                List<string> studentIds = members.Select(m => m.StudentId).ToList();
+                List<Account> accounts = await _uow.Account.GetAllAsync(a => studentIds.Contains(a.AccountId));
+
                 await _uow.SaveAsync();
 
-                return true;
+                foreach (Account acc in accounts)
+                {
+                    SendRestoreTeamEmail(acc.Email, teamName);
+                }
+
+                return (true, "Team has been restored successfully and emails have been sent.");
             }
             catch (Exception ex)
             {
-                return false;
+                return (false, $"System error: {ex.Message}");
+            }
+        }
+
+
+        private void SendDisqualifyEmail(string toEmail, string teamName, string reason)
+        {
+            try
+            {
+                string fromEmail = "tkchgpt1@gmail.com";
+                string appPassword = "nxsb ojwi cpib pcug";
+
+                System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
+                mail.From = new System.Net.Mail.MailAddress(fromEmail, "SEAL Hackathon System");
+                mail.To.Add(toEmail);
+                mail.Subject = "Hackathon Team Disqualification Notice";
+
+                mail.Body = $"<h3 style='color:red;'>Team Disqualified</h3>" +
+                            $"<p>We regret to inform you that your team <b>{teamName}</b> has been disqualified from the current event.</p>" +
+                            $"<p><b>Reason:</b> {reason}</p>" +
+                            $"<p>Your team's submissions and activities for this round will no longer be considered.</p>";
+                mail.IsBodyHtml = true;
+
+                using (System.Net.Mail.SmtpClient smtp = new System.Net.Mail.SmtpClient("smtp.gmail.com", 587))
+                {
+                    smtp.Credentials = new System.Net.NetworkCredential(fromEmail, appPassword);
+                    smtp.EnableSsl = true;
+                    smtp.Send(mail);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send disqualify email: {ex.Message}");
+            }
+        }
+
+        private void SendRestoreTeamEmail(string toEmail, string teamName)
+        {
+            try
+            {
+                string fromEmail = "tkchgpt1@gmail.com";
+                string appPassword = "nxsb ojwi cpib pcug";
+
+                System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
+                mail.From = new System.Net.Mail.MailAddress(fromEmail, "SEAL Hackathon System");
+                mail.To.Add(toEmail);
+                mail.Subject = "Hackathon Team Restored";
+
+                mail.Body = $"<h3 style='color:green;'>Team Restored</h3>" +
+                            $"<p>Good news! The disqualification for your team <b>{teamName}</b> has been lifted.</p>" +
+                            $"<p>You may now continue participating in the event. Good luck!</p>";
+                mail.IsBodyHtml = true;
+
+                using (System.Net.Mail.SmtpClient smtp = new System.Net.Mail.SmtpClient("smtp.gmail.com", 587))
+                {
+                    smtp.Credentials = new System.Net.NetworkCredential(fromEmail, appPassword);
+                    smtp.EnableSsl = true;
+                    smtp.Send(mail);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send restore email: {ex.Message}");
             }
         }
     }

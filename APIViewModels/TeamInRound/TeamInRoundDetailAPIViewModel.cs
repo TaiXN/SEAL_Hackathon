@@ -19,5 +19,6 @@ namespace APIViewModels.TeamInRound
         public string TopicId { get; set; } = string.Empty;
         public bool? IsBanned { get; set; }
         public bool? IsCheck { get; set; }
+        public string? BanReason { get; set; }
     }
 }

@@ -1,4 +1,5 @@
-﻿using APIViewModels.TeamInRound;
+﻿using APIViewModels.Team;
+using APIViewModels.TeamInRound;
 using APIViewModels.TeamProject;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -52,27 +53,41 @@ namespace SEAL_Hackathon.Controllers
             return BadRequest("Failed to approve team. Team ID not found.");
         }
 
-       
-        [HttpPut("ban/{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> BanTeam(string id)
-        {
-            bool isSuccess = await _teamInRoundService.BanTeamInRoundAsync(id);
-            if (isSuccess)
-                return Ok("Team has been successfully banned.");
 
-            return BadRequest("Failed to ban team. Team ID not found.");
+        [HttpPut("ban")]
+        [Authorize(Roles = "Admin")] 
+        public async Task<IActionResult> BanTeam([FromBody] DisqualifyTeamAPIViewModel request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.TeamInRoundId))
+            {
+                return BadRequest(new { message = "TeamInRound ID is required." });
+            }
+
+            (bool IsSuccess, string Message) result = await _teamInRoundService.BanTeamInRoundAsync(request);
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpPut("unban/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UnbanTeam(string id)
         {
-            bool isSuccess = await _teamInRoundService.UnbanTeamInRoundAsync(id);
-            if (isSuccess)
-                return Ok("Team has been successfully unbanned.");
+            if (string.IsNullOrEmpty(id))
+            {
+                return BadRequest(new { message = "TeamInRound ID is required." });
+            }
 
-            return BadRequest("Failed to unban team. Team ID not found.");
+            (bool IsSuccess, string Message) result = await _teamInRoundService.UnbanTeamInRoundAsync(id);
+            if (result.IsSuccess)
+            {
+                return Ok(new { message = result.Message });
+            }
+
+            return BadRequest(new { message = result.Message });
         }
 
         [HttpGet("details/round/{roundId}")]
