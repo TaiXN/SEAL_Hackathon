@@ -8,8 +8,6 @@ import {
   LogOut,
   User,
   Trophy,
-  BarChart2,
-  History,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authApi } from "../../lib/api/authApi";
@@ -48,16 +46,9 @@ export function AdminLayout() {
       icon: <Trophy size={20} />,
       path: "/admin/prizes",
     }, // update admin sidebar
-    {
-      name: "Leader Board",
-      icon: <BarChart2 size={20} />,
-      path: "/admin/leaderboard",
-    },
-    {
-      name: "Audit Log Management",
-      icon: <History size={20} />,
-      path: "/admin/audit-log",
-    },
+    // Leaderboard và Audit Log đã chuyển vào trang chi tiết sự kiện: cả hai chỉ
+    // có nghĩa khi gắn với MỘT sự kiện cụ thể, xem gộp toàn hệ thống thì admin
+    // không biết số liệu thuộc giải nào.
   ];
 
   const handleLogout = async () => {

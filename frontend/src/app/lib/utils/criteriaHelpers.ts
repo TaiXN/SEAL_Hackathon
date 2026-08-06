@@ -55,7 +55,11 @@ export const pickTrackId = (obj: any): string | null => {
   return d?.trackId || d?.trackID || d?.id || obj.trackId || obj.trackID || obj.id || null;
 };
 
-const looksLikeGuid = (v: unknown): v is string =>
+/** Kiểm tra một giá trị có đúng dạng GUID hay không.
+ * ⚠️ Bắt buộc dùng trước khi đem một giá trị "dò" được từ response đi làm ID:
+ * backend có khi chỉ trả về câu thông báo, nếu không kiểm tra thì câu thông báo
+ * đó sẽ bị dùng làm ID và request kế tiếp chết với lỗi 400. */
+export const looksLikeGuid = (v: unknown): v is string =>
   typeof v === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 

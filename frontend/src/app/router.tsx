@@ -23,13 +23,11 @@ import { EventDetailsPage as EventDetailsPage } from "./pages/Admin/EventDetails
 import { EventHistoryPage as EventHistoryPage } from "./pages/Admin/EventHistoryPage";
 import { ProfilePage as AdminProfile } from "./pages/Admin/ProfilePage";
 import { AdminPrizesPage } from "./pages/Admin/AdminPrizesPage";
-import { AdminLeaderboardPage } from "./pages/Admin/AdminLeaderboardPage";
 
 // 4. IMPORT CỤM TRANG JUDGE
 import { JudgeDashboard } from "./pages/Judge/JudgeDashboard";
 import { ProfilePage as JudgeProfile } from "./pages/Judge/ProfilePage";
 import { ScoringPage } from "./pages/Judge/ScoringPage";
-import { AuditLogPage } from "./pages/Admin/AuditLogPage";
 import { VerifyOtpPage } from "./pages/Admin/VerifyOtpPage";
 
 export const router = createBrowserRouter([
@@ -60,8 +58,16 @@ export const router = createBrowserRouter([
           { path: "events/:id", element: <EventDetailsPage /> },
           { path: "profile", element: <AdminProfile /> },
           { path: "prizes", element: <AdminPrizesPage /> },
-          { path: "leaderboard", element: <AdminLeaderboardPage /> },
-          { path: "audit-log", element: <AuditLogPage /> },
+          // /admin/leaderboard và /admin/audit-log đã gỡ: cả hai giờ là tab
+          // trong /admin/events/:id, xem theo từng sự kiện.
+          {
+            path: "leaderboard",
+            element: <Navigate to="/admin/events" replace />,
+          },
+          {
+            path: "audit-log",
+            element: <Navigate to="/admin/events" replace />,
+          },
         ],
       },
 

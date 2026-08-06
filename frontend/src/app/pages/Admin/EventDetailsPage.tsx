@@ -20,6 +20,14 @@ import {
   Users,
   Plus,
   Calendar,
+  Rocket,
+  PlayCircle,
+  Info,
+  Layers,
+  History,
+  CalendarClock,
+  UserMinus,
+  Clock,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import apiClient from "../../lib/api/apiClient";
@@ -39,6 +47,17 @@ import {
   getList,
   grabSetId,
 } from "../../lib/utils/criteriaHelpers";
+import {
+  getEventPhase,
+  canEditStructure,
+  canPublishNow,
+  isRegistrationOverdue,
+  getRegistrationWindow,
+  PHASE_LABEL,
+  type EventPhase,
+} from "../../lib/utils/eventLifecycle";
+import { PrizesSection } from "./eventDetails/PrizesSection";
+import { AuditLogsSection } from "./eventDetails/AuditLogsSection";
 
 const isInactiveRecord = (obj: any): boolean => {
   if (!obj) return false;
@@ -67,7 +86,6 @@ const isNotFoundError = (e: any): boolean => {
   return msg.includes("not found") || msg.includes("không tìm thấy");
 };
 
-// Chuyển ISO string (UTC) sang định dạng cho input datetime-local (giờ local)
 const toDatetimeLocalValue = (isoStr: string): string => {
   if (!isoStr) return "";
   const d = new Date(isoStr);
@@ -76,7 +94,6 @@ const toDatetimeLocalValue = (isoStr: string): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// Định dạng ngày giờ để hiển thị đẹp trên UI (dd/mm/yyyy hh:mm)
 const formatDisplayDateTime = (isoStr: string): string => {
   if (!isoStr) return "N/A";
   const d = new Date(isoStr);
@@ -84,6 +101,18 @@ const formatDisplayDateTime = (isoStr: string): string => {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
+
+const toDateInput = (d: Date | null) =>
+  d ? toDatetimeLocalValue(d.toISOString()) : "";
+
+type TabId =
+  | "overview"
+  | "tracks"
+  | "rounds"
+  | "rubrics"
+  | "leaderboard"
+  | "prizes"
+  | "audit";
 
 export function EventDetailsPage() {
   const navigate = useNavigate();
@@ -101,10 +130,14 @@ export function EventDetailsPage() {
   const deletedSetIdsRef = useRef<Set<string>>(new Set());
 
   const [eventRounds, setEventRounds] = useState<any[]>([]);
-
-  // State cho Bảng xếp hạng Đội thi
   const [roundTeams, setRoundTeams] = useState<any[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  // Danh sách đội gộp từ MỌI vòng — audit log cần cả những đội đã bị loại ở
+  // vòng trước, không chỉ đội của vòng hiện tại.
+  const [allTeams, setAllTeams] = useState<
+    { teamId: string; teamName: string }[]
+  >([]);
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -145,9 +178,6 @@ export function EventDetailsPage() {
     fetchEventDetails();
   }, [id, reloadKey]);
 
-  // ====================================================
-  // TẢI BẢNG XẾP HẠNG GỘP (LEADERBOARD + TEAM IN ROUND)
-  // ====================================================
   useEffect(() => {
     const loadTeamsAndScores = async () => {
       if (!event || eventRounds.length === 0) return;
@@ -155,7 +185,6 @@ export function EventDetailsPage() {
       const curRoundIndex = Number(event.currentRound);
       let targetRoundIndex = curRoundIndex;
 
-      // NẾU SỰ KIỆN ĐÃ KẾT THÚC -> LUÔN HIỂN THỊ BẢNG ĐIỂM CỦA VÒNG CUỐI CÙNG
       if (curRoundIndex >= eventRounds.length) {
         targetRoundIndex = eventRounds.length - 1;
       }
@@ -195,7 +224,6 @@ export function EventDetailsPage() {
 
         const enrichedTeams = teams.map((t: any) => {
           const scoreData = allScores.find((s: any) => {
-            // Ép kiểu chuẩn và tách riêng từng loại ID ra so sánh
             const sInRoundId = String(
               s.teamInRoundId || s.teamInRoundID || s.id || "",
             ).toLowerCase();
@@ -206,7 +234,6 @@ export function EventDetailsPage() {
             const sTeamId = String(s.teamId || s.teamID || "").toLowerCase();
             const tTeamId = String(t.teamId || t.teamID || "").toLowerCase();
 
-            // Khớp đúng loại ID với nhau, không khớp chéo
             const matchInRoundId =
               sInRoundId &&
               sInRoundId !== "undefined" &&
@@ -214,7 +241,7 @@ export function EventDetailsPage() {
             const matchTeamId =
               sTeamId && sTeamId !== "undefined" && sTeamId === tTeamId;
             const matchName =
-              s.teamName && s.teamName === (t.teamName || t.name); // Cứu cánh cuối cùng
+              s.teamName && s.teamName === (t.teamName || t.name);
 
             return matchInRoundId || matchTeamId || matchName;
           });
@@ -237,10 +264,256 @@ export function EventDetailsPage() {
     loadTeamsAndScores();
   }, [event, eventRounds, reloadKey]);
 
-  // --- HANDLER XỬ LÝ ROUND ---
+  // Gom danh sách đội của tất cả các vòng, khử trùng theo teamId.
+  useEffect(() => {
+    const loadAllTeams = async () => {
+      if (eventRounds.length === 0) return setAllTeams([]);
+      const results = await Promise.allSettled(
+        eventRounds.map((r) =>
+          apiClient.get(
+            `/api/TeamInRound/details/round/${r.roundID || r.roundId || r.id}`,
+          ),
+        ),
+      );
+      const seen = new Map<string, string>();
+      results.forEach((res) => {
+        if (res.status !== "fulfilled") return;
+        getList(res.value.data).forEach((t: any) => {
+          const tid = String(t.teamId ?? t.teamID ?? "");
+          if (!tid || tid === "undefined") return;
+          if (!seen.has(tid))
+            seen.set(tid, t.teamName ?? t.name ?? `Team ${tid.slice(0, 6)}`);
+        });
+      });
+      setAllTeams(
+        Array.from(seen, ([teamId, teamName]) => ({ teamId, teamName })),
+      );
+    };
+    loadAllTeams();
+  }, [eventRounds, reloadKey]);
+
+  // --- API LÀM VIỆC VỚI LIFECYCLE MỚI ---
+  const handlePublishEvent = async () => {
+    const result = await Swal.fire({
+      title: "Publish & Open Registration?",
+      html: "This will officially open the registration form for participants. <br/><br/><b>WARNING:</b> This will lock all Structural Configurations (Tracks, Rounds, Rubrics). You will not be able to edit them afterward.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Publish Event",
+      confirmButtonColor: "#10b981",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        cancelButton:
+          "rounded-xl font-bold px-6 py-2.5 text-slate-700 bg-slate-100 hover:bg-slate-200",
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        setIsLoading(true);
+        await eventApi.publish(id!);
+        Swal.fire({
+          title: "Published!",
+          text: "Registration is now open.",
+          icon: "success",
+          confirmButtonColor: "#f26f21",
+        });
+        setReloadKey((k) => k + 1);
+      } catch (e) {
+        Swal.fire("Error", getServerMsg(e), "error");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleStartRound1 = async () => {
+    const result = await Swal.fire({
+      title: "Close Reg & Start Round 1?",
+      html: "This will <b>permanently close the registration form</b> and lock the participant list. The competition will officially begin.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Start Competition",
+      confirmButtonColor: "#f26f21",
+      customClass: {
+        popup: "rounded-[2rem]",
+        confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        cancelButton:
+          "rounded-xl font-bold px-6 py-2.5 text-slate-700 bg-slate-100 hover:bg-slate-200",
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        setIsLoading(true);
+        await eventApi.startRound1(id!);
+        Swal.fire({
+          title: "Started!",
+          text: "Round 1 has officially begun.",
+          icon: "success",
+          confirmButtonColor: "#f26f21",
+        });
+        setReloadKey((k) => k + 1);
+      } catch (e) {
+        Swal.fire("Error", getServerMsg(e), "error");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  /**
+   * PUT /api/Event/{id} nhận nguyên UpdateEventAPIViewModel. Gửi thiếu field nào
+   * là field đó bị ghi đè rỗng, nên mọi lần cập nhật đều phải dựng lại đầy đủ
+   * hồ sơ sự kiện từ state rồi mới chồng phần thay đổi lên.
+   */
+  const buildEventPayload = (patch: Record<string, any> = {}) => {
+    const { start, end } = getRegistrationWindow(event);
+    return {
+      eventName: event.name,
+      season: event.semester,
+      year: Number(event.year),
+      currentRound: Number(event.currentRound ?? 0),
+      registrationStartDate: start ? start.toISOString() : undefined,
+      registrationEndDate: end ? end.toISOString() : undefined,
+      minTeamMember: Number(event.minTeamMember ?? 0) || undefined,
+      maxTeamMember: Number(event.maxTeamMember ?? 0) || undefined,
+      ...patch,
+    };
+  };
+
+  const applyEventPatch = async (
+    patch: Record<string, any>,
+    successText: string,
+  ) => {
+    setIsLoading(true);
+    try {
+      await eventApi.updateEvent(id!, buildEventPayload(patch) as any);
+      setEvent(await eventApi.getEventById(id!));
+      Swal.fire({
+        icon: "success",
+        title: successText,
+        timer: 1400,
+        showConfirmButton: false,
+      });
+    } catch (e) {
+      Swal.fire("Error", getServerMsg(e), "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cứu vãn #1 khi hết hạn đăng ký mà chưa đủ đội: dời hạn.
+  const handleExtendRegistration = async () => {
+    const { end } = getRegistrationWindow(event);
+    const { value } = await Swal.fire({
+      title: "Extend registration deadline",
+      html: `<div style="text-align:left;padding:0 8px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">New closing date &amp; time</label>
+        <input id="ev-regend" type="datetime-local" class="swal2-input" style="width:100%;margin-top:6px;border-radius:12px;" value="${toDateInput(end)}">
+      </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Extend",
+      confirmButtonColor: "#f26f21",
+      customClass: { popup: "rounded-[2rem]" },
+      preConfirm: () => {
+        const v = (document.getElementById("ev-regend") as HTMLInputElement)
+          .value;
+        if (!v) {
+          Swal.showValidationMessage("Please pick a new deadline");
+          return false;
+        }
+        if (new Date(v) <= new Date()) {
+          Swal.showValidationMessage("The new deadline must be in the future");
+          return false;
+        }
+        return new Date(v).toISOString();
+      },
+    });
+    if (!value) return;
+    await applyEventPatch(
+      { registrationEndDate: value },
+      "Registration extended!",
+    );
+  };
+
+  // Cứu vãn #2: hạ số thành viên tối thiểu của một team.
+  const handleRelaxTeamRequirement = async () => {
+    const current = Number(event.minTeamMember ?? 1);
+    const { value } = await Swal.fire({
+      title: "Lower the team size requirement",
+      html: `<div style="text-align:left;padding:0 8px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Minimum members per team</label>
+        <input id="ev-min" type="number" min="1" max="${Number(event.maxTeamMember ?? 99)}" class="swal2-input" style="width:100%;margin-top:6px;border-radius:12px;" value="${current}">
+        <p style="font-size:11px;color:#94a3b8;margin-top:8px;">Currently ${current} — maximum is ${event.maxTeamMember ?? "—"}.</p>
+      </div>`,
+      showCancelButton: true,
+      confirmButtonText: "Save",
+      confirmButtonColor: "#f26f21",
+      customClass: { popup: "rounded-[2rem]" },
+      preConfirm: () => {
+        const v = Number(
+          (document.getElementById("ev-min") as HTMLInputElement).value,
+        );
+        if (!v || v < 1) {
+          Swal.showValidationMessage("Minimum must be at least 1");
+          return false;
+        }
+        if (v > Number(event.maxTeamMember ?? 99)) {
+          Swal.showValidationMessage("Minimum cannot exceed the maximum");
+          return false;
+        }
+        return v;
+      },
+    });
+    if (!value) return;
+    await applyEventPatch({ minTeamMember: value }, "Requirement updated!");
+  };
+
+  // Cứu vãn #3: hủy hẳn sự kiện.
+  const handleDeleteEvent = async () => {
+    const ok = await Swal.fire({
+      title: "Cancel this event?",
+      html: `This deletes <b>${event.name}</b> along with its rounds and tracks. Participants will lose access immediately.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Yes, delete event",
+      customClass: { popup: "rounded-[2rem]" },
+    });
+    if (!ok.isConfirmed) return;
+    try {
+      setIsLoading(true);
+      await eventApi.deleteEvent(id!);
+      Swal.fire({
+        icon: "success",
+        title: "Event deleted",
+        timer: 1400,
+        showConfirmButton: false,
+      });
+      navigate("/admin/events");
+    } catch (e) {
+      Swal.fire("Error", getServerMsg(e), "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEditRound = async (round: any) => {
     const startVal = toDatetimeLocalValue(round.startDate || round.StartDate);
     const endVal = toDatetimeLocalValue(round.endDate || round.EndDate);
+    // Cửa sổ chấm điểm là field bắt buộc của UpdateRoundAPIViewModel. Vòng cũ
+    // (tạo trước khi backend thêm field này) có thể chưa có giá trị, nên lùi về
+    // hạn nộp bài để form không gửi lên chuỗi rỗng và ăn 400.
+    const scoreStartVal =
+      toDatetimeLocalValue(
+        round.scoringStartDate || round.ScoringStartDate || "",
+      ) || endVal;
+    const scoreEndVal =
+      toDatetimeLocalValue(round.scoringEndDate || round.ScoringEndDate || "") ||
+      endVal;
+    const minTeamVal = round.minTeam ?? round.MinTeam ?? 1;
 
     const { value: formValues } = await Swal.fire({
       title: "Edit Round Details",
@@ -252,8 +525,14 @@ export function EventDetailsPage() {
           <input id="sw-topn" type="number" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.topNPromotion ?? round.TopNPromotion ?? 0}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">START DATE &amp; TIME</label>
           <input id="sw-start" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${startVal}">
-          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">END DATE &amp; TIME</label>
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">SUBMISSION DEADLINE</label>
           <input id="sw-end" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${endVal}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">JUDGING OPENS AT</label>
+          <input id="sw-score-start" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreStartVal}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">JUDGING CLOSES AT</label>
+          <input id="sw-score-end" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreEndVal}">
+          <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">MIN TEAM</label>
+          <input id="sw-minteam" type="number" min="1" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${minTeamVal}">
         </div>
       `,
       focusConfirm: false,
@@ -263,16 +542,48 @@ export function EventDetailsPage() {
         const startInput = (
           document.getElementById("sw-start") as HTMLInputElement
         ).value;
-        const endInput = (
-          document.getElementById("sw-end") as HTMLInputElement
+        const endInput = (document.getElementById("sw-end") as HTMLInputElement)
+          .value;
+        const scoreStartInput = (
+          document.getElementById("sw-score-start") as HTMLInputElement
         ).value;
+        const scoreEndInput = (
+          document.getElementById("sw-score-end") as HTMLInputElement
+        ).value;
+        const minTeamInput = Number(
+          (document.getElementById("sw-minteam") as HTMLInputElement).value,
+        );
 
         if (!startInput || !endInput) {
-          Swal.showValidationMessage("Please select both start and end date/time");
+          Swal.showValidationMessage(
+            "Please select both start and end date/time",
+          );
           return false;
         }
         if (new Date(endInput) <= new Date(startInput)) {
-          Swal.showValidationMessage("End date/time must be after start date/time");
+          Swal.showValidationMessage(
+            "End date/time must be after start date/time",
+          );
+          return false;
+        }
+        if (!scoreStartInput || !scoreEndInput) {
+          Swal.showValidationMessage(
+            "Please select when judging opens and closes",
+          );
+          return false;
+        }
+        if (new Date(scoreEndInput) <= new Date(scoreStartInput)) {
+          Swal.showValidationMessage("Judging must close after it opens");
+          return false;
+        }
+        if (new Date(scoreStartInput) < new Date(endInput)) {
+          Swal.showValidationMessage(
+            "Judging cannot start before the submission deadline",
+          );
+          return false;
+        }
+        if (!minTeamInput || minTeamInput < 1) {
+          Swal.showValidationMessage("Min team must be at least 1");
           return false;
         }
 
@@ -284,6 +595,9 @@ export function EventDetailsPage() {
           ),
           startDate: new Date(startInput).toISOString(),
           endDate: new Date(endInput).toISOString(),
+          scoringStartDate: new Date(scoreStartInput).toISOString(),
+          scoringEndDate: new Date(scoreEndInput).toISOString(),
+          minTeam: minTeamInput,
         };
       },
     });
@@ -296,11 +610,19 @@ export function EventDetailsPage() {
           eventID: id,
           roundName: formValues.roundName,
           topNPromotion: formValues.topNPromotion,
-          maxTeam: round.maxTeam || 0,
+          // Không để rơi về 0: maxTeam < minTeam là cấu hình vô nghĩa và backend
+          // sẽ từ chối.
+          maxTeam: Number(
+            round.maxTeam ?? round.MaxTeam ?? formValues.minTeam,
+          ),
           roundIndex: round.roundIndex ?? round.RoundIndex,
           startDate: formValues.startDate,
           endDate: formValues.endDate,
           criteriaSetID: round.criteriaSetID || round.criteriaSetId,
+          // Bắt buộc trong UpdateRoundAPIViewModel — thiếu là 400.
+          minTeam: formValues.minTeam,
+          scoringStartDate: formValues.scoringStartDate,
+          scoringEndDate: formValues.scoringEndDate,
         });
 
         Swal.fire({
@@ -309,7 +631,6 @@ export function EventDetailsPage() {
           timer: 1200,
           showConfirmButton: false,
         });
-        // Gọi lại hàm loadCriteria() để refetch lại data hiển thị (vì hàm loadCriteria đang chứa eventRounds)
         loadCriteria();
       } catch (e: any) {
         Swal.fire("Error", `Update failed: ${getServerMsg(e)}`, "error");
@@ -342,6 +663,7 @@ export function EventDetailsPage() {
       }
     }
   };
+
   const handleEditTrack = async (track: any) => {
     const { value: newName } = await Swal.fire({
       title: "Rename Track",
@@ -574,7 +896,6 @@ export function EventDetailsPage() {
     }
   };
 
-  // --- THÊM TRACK & TOPIC MỚI ---
   const handleAddTrack = async () => {
     const { value: trackName } = await Swal.fire({
       title: "Add New Track",
@@ -602,7 +923,7 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-        setReloadKey((k) => k + 1); // Load lại dữ liệu
+        setReloadKey((k) => k + 1);
       } catch (error) {
         Swal.fire("Error", "Could not add track.", "error");
       }
@@ -637,7 +958,7 @@ export function EventDetailsPage() {
           timer: 1000,
           showConfirmButton: false,
         });
-        setReloadKey((k) => k + 1); // Load lại dữ liệu
+        setReloadKey((k) => k + 1);
       } catch (error) {
         Swal.fire("Error", "Could not add topic.", "error");
       }
@@ -657,14 +978,9 @@ export function EventDetailsPage() {
     try {
       setIsLoading(true);
       const roundBefore = Number(event.currentRound);
-      const payload = {
-        eventName: event.name,
-        season: event.semester,
-        year: Number(event.year),
-        currentRound: event.currentRound,
-      };
+      const payload = buildEventPayload();
 
-      await eventApi.updateEvent(id, payload);
+      await eventApi.updateEvent(id, payload as any);
       const after = await eventApi.getEventById(id);
       const roundAfter = Number(after.currentRound);
       setEvent(after);
@@ -694,22 +1010,16 @@ export function EventDetailsPage() {
   const handleNextRound = async () => {
     if (!id || eventRounds.length === 0) return;
 
-    // --- ĐOẠN CODE ĐÃ FIX ---
-    // Lấy giá trị thô từ Backend (ví dụ: 1 hoặc 2)
     const rawCurrentRound = Number(event?.currentRound);
-
-    // Quy đổi về index mảng (0-based) bằng cách dò roundIndex
     let curRoundIndex = eventRounds.findIndex(
       (r: any) => Number(r.roundIndex ?? r.RoundIndex) === rawCurrentRound,
     );
 
-    // Fallback: Nếu không khớp roundIndex, tự động lùi 1 đơn vị
     if (curRoundIndex === -1) {
       curRoundIndex = rawCurrentRound > 0 ? rawCurrentRound - 1 : 0;
     }
 
     const currentRoundObj = eventRounds[curRoundIndex];
-    // ------------------------
 
     if (!currentRoundObj) {
       return Swal.fire(
@@ -755,12 +1065,10 @@ export function EventDetailsPage() {
 
       try {
         setIsLoading(true);
-        await eventApi.updateEvent(id, {
-          eventName: event.name,
-          season: event.semester,
-          year: Number(event.year),
-          currentRound: lastRoundIndex + 1,
-        } as any);
+        await eventApi.updateEvent(
+          id,
+          buildEventPayload({ currentRound: lastRoundIndex + 1 }) as any,
+        );
         Swal.fire({
           icon: "success",
           title: "Concluded!",
@@ -856,7 +1164,6 @@ export function EventDetailsPage() {
         (allCrit || []).filter((c: any) => isInactiveRecord(c)),
       );
 
-      // TẠO TỪ ĐIỂN TÊN BỘ TIÊU CHÍ (WORKAROUND THẦN THÁNH)
       let allSetsRaw: any[] = [];
       try {
         const res = await criteriaApi.getAllSet();
@@ -865,7 +1172,6 @@ export function EventDetailsPage() {
 
       const setNameDictionary: Record<string, string> = {};
       allSetsRaw.forEach((st: any) => {
-        // DÙNG HÀM grabSetId CHUYÊN TRỊ MỌI TÊN ID TỪ BACKEND
         const sId = String(grabSetId(st));
         if (sId && sId !== "undefined" && sId !== "null") {
           const validName = st.setName || st.SetName || st.name;
@@ -912,7 +1218,6 @@ export function EventDetailsPage() {
             })
             .filter((it: any) => it.isActive);
 
-          // LẤY TÊN TỪ TỪ ĐIỂN TRƯỚC, NẾU KHÔNG CÓ MỚI XÀI HÀNG SERVER
           const dictName = setNameDictionary[String(setId)];
           const serverName = s.setName || s.SetName;
           const finalName = dictName || serverName || "Rubric Set";
@@ -1196,7 +1501,6 @@ export function EventDetailsPage() {
       </div>
     );
 
-  // --- ĐOẠN CODE ĐÃ FIX LỖI ROUND 4 ---
   const numRounds = eventRounds.length || 2;
   const rawCurrentRound = Number(event?.currentRound);
 
@@ -1210,7 +1514,6 @@ export function EventDetailsPage() {
     if (foundIndex !== -1) {
       curRound = foundIndex;
     } else {
-      // FIX: Nếu không tìm thấy, kiểm tra xem nó đang ở trước vòng 1 hay sau vòng cuối
       const firstRoundIdx = Number(
         eventRounds[0].roundIndex ?? eventRounds[0].RoundIndex,
       );
@@ -1220,27 +1523,37 @@ export function EventDetailsPage() {
       );
 
       if (rawCurrentRound < firstRoundIdx) {
-        curRound = 0; // Sự kiện mới tinh, Backend trả 0 -> Ép về vòng đầu tiên
+        curRound = 0;
       } else if (rawCurrentRound > lastRoundIdx) {
-        curRound = numRounds; // Lớn hơn vòng cuối -> Đã kết thúc
+        curRound = numRounds;
       } else {
-        curRound = 0; // An toàn nhất vẫn là vòng đầu
+        curRound = 0;
       }
     }
   }
 
-  const isEnded = curRound >= numRounds;
-  const currentRoundName =
-    curRound < 0
-      ? "Upcoming"
-      : isEnded
-        ? "Concluded"
-        : eventRounds[curRound]?.roundName || `Round ${curRound + 1}`;
-  // ----------------------------------------------
+  // --- VÒNG ĐỜI SỰ KIỆN: draft -> registration -> running -> ended ---
+  // Toàn bộ quyền sửa và mọi nút hành động đều rẽ nhánh từ đây.
+  const phase: EventPhase = getEventPhase(event, eventRounds.length);
+  const isLocked = !canEditStructure(phase);
+  const isEnded = phase === "ended";
+  const isRegistrationPhase = phase === "registration";
+  const regWindow = getRegistrationWindow(event);
+  const publishReady = canPublishNow(event, phase);
+  const regOverdue = isRegistrationOverdue(event, phase);
 
-  // TÍNH TOÁN VÒNG ĐANG XEM Ở BẢNG XẾP HẠNG
+  const currentRoundName =
+    phase === "running"
+      ? eventRounds[curRound]?.roundName || `Round ${curRound + 1}`
+      : PHASE_LABEL[phase];
+
   const displayRoundIndex = isEnded ? numRounds - 1 : curRound;
-  const canShowLeaderboard = displayRoundIndex >= 0 && eventRounds.length > 0;
+  // Bảng leader board chỉ có nghĩa khi giải đã bắt đầu diễn ra hoặc đã kết thúc
+  const canShowLeaderboard =
+    (phase === "running" || phase === "ended") &&
+    displayRoundIndex >= 0 &&
+    eventRounds.length > 0;
+
   const displayRoundObj = canShowLeaderboard
     ? eventRounds[displayRoundIndex]
     : null;
@@ -1250,13 +1563,11 @@ export function EventDetailsPage() {
     displayRoundObj?.TopNPromotion ??
     0;
   const isLastRound = displayRoundIndex === numRounds - 1;
-  // ----------------------------------------------
-  // ------------------------
 
   return (
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans selection:bg-slate-200">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-10">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-8">
           <div>
             <div className="flex items-center gap-4 mb-2">
               <button
@@ -1266,15 +1577,30 @@ export function EventDetailsPage() {
                 <ArrowLeft size={24} />
               </button>
               <h2 className="text-4xl font-black text-[#f26f21] tracking-tight">
-                Event Configuration
+                {event.name || "Event Configuration"}
               </h2>
+              <span
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                  phase === "draft"
+                    ? "bg-slate-100 border-slate-200 text-slate-500"
+                    : phase === "registration"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : phase === "running"
+                        ? "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"
+                        : "bg-slate-100 border-slate-300 text-slate-600"
+                }`}
+              >
+                {currentRoundName}
+              </span>
             </div>
             <p className="text-slate-500 font-medium text-base ml-[3.25rem]">
-              Manage details, tracks, and rubrics.
+              {event.semester} {event.year} • {eventRounds.length} round
+              {eventRounds.length === 1 ? "" : "s"} • {tracks.length} track
+              {tracks.length === 1 ? "" : "s"}
             </p>
           </div>
 
-          {!isEnded && (
+          {!isLocked && activeTab === "overview" && (
             <div className="flex items-center gap-3">
               <button
                 onClick={handleSave}
@@ -1288,6 +1614,111 @@ export function EventDetailsPage() {
           )}
         </div>
 
+        {/* ========================================================= */}
+        {/* BANNER ĐIỀU KHIỂN LIFECYCLE ĐẶC BIỆT */}
+        {/* ========================================================= */}
+        {phase === "draft" && (
+          <div className="bg-slate-800 text-white p-6 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl shadow-slate-800/10">
+            <div>
+              <h4 className="text-lg font-black flex items-center gap-2 mb-1">
+                <Rocket size={20} className="text-fpt-orange" /> Event is in
+                Draft Mode
+              </h4>
+              <p className="text-slate-300 text-sm font-medium">
+                Nobody outside this page can see it yet. Edit tracks, rounds,
+                rubrics and prizes freely — publishing locks them.
+              </p>
+              {regWindow.start && (
+                <p className="text-slate-400 text-xs font-bold mt-2 flex items-center gap-1.5">
+                  <Clock size={13} strokeWidth={2.5} />
+                  Registration is scheduled to open{" "}
+                  {formatDisplayDateTime(regWindow.start.toISOString())}
+                </p>
+              )}
+            </div>
+            <div className="shrink-0 w-full md:w-auto">
+              <button
+                onClick={handlePublishEvent}
+                disabled={!publishReady}
+                title={
+                  publishReady
+                    ? "Publish the event and open the registration form"
+                    : "You cannot open registration before the scheduled date"
+                }
+                className="w-full md:w-auto bg-fpt-orange hover:bg-fpt-orange-dark text-white px-8 py-3.5 rounded-xl font-black transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-fpt-orange"
+              >
+                <Rocket size={18} strokeWidth={2.5} /> Open Registration
+              </button>
+              {!publishReady && (
+                <p className="text-[11px] text-slate-400 font-bold mt-2 text-center md:text-right">
+                  Available from the scheduled opening date
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {phase === "registration" && (
+          <div
+            className={`p-6 rounded-[2rem] border-2 shadow-sm space-y-5 ${regOverdue ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-emerald-50 border-emerald-200 text-emerald-900"}`}
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h4 className="text-lg font-black flex items-center gap-2 mb-1">
+                  <Users size={20} />{" "}
+                  {regOverdue
+                    ? "Registration deadline has passed"
+                    : "Registration is Open"}
+                </h4>
+                <p
+                  className={`text-sm font-medium ${regOverdue ? "text-amber-700" : "text-emerald-700"}`}
+                >
+                  {regOverdue
+                    ? "Close registration and start Round 1, or use one of the options below if you are short on teams."
+                    : "Students are joining teams. Structural configuration is locked while the form is open."}
+                </p>
+                {regWindow.end && (
+                  <p className="text-xs font-bold mt-2 flex items-center gap-1.5 opacity-80">
+                    <Clock size={13} strokeWidth={2.5} /> Closes{" "}
+                    {formatDisplayDateTime(regWindow.end.toISOString())}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleStartRound1}
+                className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3.5 rounded-xl font-black transition-colors shrink-0 shadow-md flex items-center justify-center gap-2"
+              >
+                <PlayCircle size={18} strokeWidth={2.5} /> Close Reg & Start
+                Round 1
+              </button>
+            </div>
+
+            {/* Không đủ chỉ tiêu khi tới hạn: dời hạn, hạ tiêu chí, hoặc hủy. */}
+            {regOverdue && (
+              <div className="border-t border-amber-200 pt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={handleExtendRegistration}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-amber-200 text-amber-800 text-xs font-extrabold rounded-xl hover:bg-amber-100 transition-colors"
+                >
+                  <CalendarClock size={15} strokeWidth={2.5} /> Extend deadline
+                </button>
+                <button
+                  onClick={handleRelaxTeamRequirement}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-amber-200 text-amber-800 text-xs font-extrabold rounded-xl hover:bg-amber-100 transition-colors"
+                >
+                  <UserMinus size={15} strokeWidth={2.5} /> Lower min team size
+                </button>
+                <button
+                  onClick={handleDeleteEvent}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-600 text-xs font-extrabold rounded-xl hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={15} strokeWidth={2.5} /> Cancel event
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {isEnded && (
           <div className="bg-slate-100/80 border border-slate-200 text-slate-600 p-5 rounded-[2rem] flex items-center gap-4 shadow-sm mb-6">
             <div className="p-3 bg-white rounded-xl shadow-sm text-slate-400">
@@ -1300,7 +1731,51 @@ export function EventDetailsPage() {
           </div>
         )}
 
+        {/* SUB-MENU: mỗi mảng cấu hình của sự kiện là một tab riêng */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex gap-1 overflow-x-auto">
+          {(
+            [
+              { id: "overview", label: "Overview", icon: <Info size={16} /> },
+              {
+                id: "tracks",
+                label: "Tracks & Topics",
+                icon: <Layers size={16} />,
+              },
+              {
+                id: "rounds",
+                label: "Rounds",
+                icon: <FastForward size={16} />,
+              },
+              {
+                id: "rubrics",
+                label: "Rubrics",
+                icon: <ListChecks size={16} />,
+              },
+              {
+                id: "leaderboard",
+                label: "Leaderboard",
+                icon: <Trophy size={16} />,
+              },
+              { id: "prizes", label: "Prizes", icon: <Medal size={16} /> },
+              { id: "audit", label: "Audit Logs", icon: <History size={16} /> },
+            ] as { id: TabId; label: string; icon: any }[]
+          ).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-[1.25rem] text-[13px] font-extrabold whitespace-nowrap transition-colors ${
+                activeTab === t.id
+                  ? "bg-fpt-orange text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-8">
+          {activeTab === "overview" && (
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
@@ -1314,31 +1789,84 @@ export function EventDetailsPage() {
                   Event Display Name
                 </label>
                 <input
-                  disabled={isEnded}
+                  disabled={isLocked}
                   type="text"
                   value={event.name || ""}
                   onChange={(e) => setEvent({ ...event, name: e.target.value })}
-                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#f26f21] text-base ${isEnded ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
+                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#f26f21] text-base ${isLocked ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
                 />
               </div>
 
-              {/* HIỂN THỊ CURRENT STATUS NGẮN GỌN */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
                   Current Status
                 </label>
                 <div
-                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${curRound < 0 ? "bg-amber-50 border-amber-200 text-amber-700" : isEnded ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"}`}
+                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${phase === "draft" ? "bg-slate-50 border-slate-200 text-slate-500" : isRegistrationPhase ? "bg-emerald-50 border-emerald-200 text-emerald-700" : isEnded ? "bg-slate-100 border-slate-300 text-slate-600" : "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"}`}
                 >
                   <span className="text-sm uppercase tracking-widest">
                     {currentRoundName}
                   </span>
                 </div>
               </div>
+
+              {/* Điều kiện đăng ký — quyết định lúc nào được bấm Publish */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-6">
+                <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                    Registration window
+                  </span>
+                  <p className="text-sm font-extrabold text-slate-700">
+                    {regWindow.start
+                      ? formatDisplayDateTime(regWindow.start.toISOString())
+                      : "Not set"}
+                  </p>
+                  <p className="text-xs font-bold text-slate-400 my-1">
+                    &darr; until
+                  </p>
+                  <p className="text-sm font-extrabold text-slate-700">
+                    {regWindow.end
+                      ? formatDisplayDateTime(regWindow.end.toISOString())
+                      : "Not set"}
+                  </p>
+                </div>
+                <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                    Team size
+                  </span>
+                  <p className="text-2xl font-black text-[#f26f21]">
+                    {event.minTeamMember ?? "—"} – {event.maxTeamMember ?? "—"}
+                  </p>
+                  <p className="text-xs font-medium text-slate-500 mt-1">
+                    members allowed per team
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: "Rounds", value: eventRounds.length },
+                  { label: "Tracks", value: tracks.length },
+                  { label: "Teams joined", value: allTeams.length },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="p-5 bg-white border border-slate-200 rounded-2xl text-center"
+                  >
+                    <p className="text-3xl font-black text-slate-700">
+                      {s.value}
+                    </p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      {s.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+          )}
 
-          {/* QUẢN LÝ CÁC VÒNG THI */}
+          {activeTab === "rounds" && (
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -1356,7 +1884,7 @@ export function EventDetailsPage() {
                     : "max-w-md mx-auto w-full"
               }`}
             >
-              {eventRounds.map((r, idx) => (
+              {eventRounds.map((r) => (
                 <div
                   key={r.roundID || r.roundId || r.id}
                   className="p-6 bg-slate-50/50 border border-slate-200 rounded-2xl relative group"
@@ -1370,7 +1898,7 @@ export function EventDetailsPage() {
                         {r.roundName}
                       </h4>
                     </div>
-                    {!isEnded && (
+                    {!isLocked && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleEditRound(r)}
@@ -1390,7 +1918,6 @@ export function EventDetailsPage() {
                   <div className="space-y-2 text-sm font-semibold text-slate-600">
                     <p className="flex justify-between">
                       <span>Advance Top N:</span>
-                      {/* FIX: Bắt tất cả các case viết hoa/thường từ API */}
                       <span className="text-fpt-blue">
                         {r.topNPromotion ??
                           r.topNpromotion ??
@@ -1408,32 +1935,51 @@ export function EventDetailsPage() {
                           <Calendar size={13} strokeWidth={2.5} /> Start:
                         </span>
                         <span className="text-[#f26f21] text-xs font-bold">
-                          {formatDisplayDateTime(
-                            r.startDate || r.StartDate,
-                          )}
+                          {formatDisplayDateTime(r.startDate || r.StartDate)}
                         </span>
                       </p>
                       <p className="flex items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-slate-500">
-                          <Calendar size={13} strokeWidth={2.5} /> End:
+                          <Calendar size={13} strokeWidth={2.5} /> Submit by:
                         </span>
                         <span className="text-[#f26f21] text-xs font-bold">
                           {formatDisplayDateTime(r.endDate || r.EndDate)}
+                        </span>
+                      </p>
+                      <p className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Scale size={13} strokeWidth={2.5} /> Judging:
+                        </span>
+                        <span className="text-slate-600 text-xs font-bold">
+                          {formatDisplayDateTime(
+                            r.scoringStartDate || r.ScoringStartDate,
+                          )}{" "}
+                          &rarr;{" "}
+                          {formatDisplayDateTime(
+                            r.scoringEndDate || r.ScoringEndDate,
+                          )}
                         </span>
                       </p>
                     </div>
                   </div>
                 </div>
               ))}
+              {eventRounds.length === 0 && (
+                <div className="col-span-full p-10 border-2 border-dashed border-slate-200 rounded-[1.5rem] text-center text-slate-500 font-medium">
+                  No rounds configured for this event.
+                </div>
+              )}
             </div>
           </div>
+          )}
 
-          {/* NÚT ADD TRACK NẰM Ở ĐÂY */}
+          {activeTab === "tracks" && (
+          <div className="space-y-6">
           <div className="flex justify-between items-center px-2">
             <h3 className="text-xl font-extrabold text-[#f26f21] ml-2">
               Event Tracks
             </h3>
-            {!isEnded && (
+            {!isLocked && (
               <button
                 onClick={handleAddTrack}
                 className="px-5 py-2.5 bg-fpt-orange-soft text-fpt-orange-dark text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-fpt-orange/15 transition-colors"
@@ -1460,7 +2006,7 @@ export function EventDetailsPage() {
                         {track.trackName}
                       </div>
                     </div>
-                    {!isEnded && (
+                    {!isLocked && (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditTrack(track)}
@@ -1491,7 +2037,7 @@ export function EventDetailsPage() {
                             className="group inline-flex items-center gap-2 px-3.5 py-2 bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all hover:bg-white hover:border-slate-300"
                           >
                             <span>{topic.topicDetail}</span>
-                            {!isEnded && (
+                            {!isLocked && (
                               <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => handleEditTopic(topic, track)}
@@ -1518,8 +2064,7 @@ export function EventDetailsPage() {
                           No topics added yet.
                         </span>
                       )}
-                      {/* NÚT ADD TOPIC CHO TỪNG TRACK */}
-                      {!isEnded && (
+                      {!isLocked && (
                         <button
                           onClick={() => handleAddTopic(track)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-slate-300 text-slate-400 rounded-xl text-xs font-bold hover:border-fpt-orange hover:text-fpt-orange transition-colors"
@@ -1537,7 +2082,10 @@ export function EventDetailsPage() {
               </div>
             )}
           </div>
+          </div>
+          )}
 
+          {activeTab === "rubrics" && (
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
@@ -1579,7 +2127,6 @@ export function EventDetailsPage() {
                       className="border border-slate-200 rounded-[1.5rem] overflow-hidden bg-white shadow-sm flex flex-col"
                     >
                       <div className="flex items-center justify-between bg-slate-50 px-6 py-4 border-b border-slate-100">
-                        {/* THAY ĐỔI LỚN: TÊN BỘ TIÊU CHÍ BÂY GIỜ LÀ Ô INPUT ĐỂ SỬA TRỰC TIẾP TRÊN FORM */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <input
                             type="text"
@@ -1587,8 +2134,8 @@ export function EventDetailsPage() {
                             onChange={(e) =>
                               updateSetNameLocal(setIdx, e.target.value)
                             }
-                            disabled={isEnded}
-                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isEnded ? "bg-transparent text-[#f26f21] cursor-not-allowed" : "bg-white border border-slate-200 text-[#f26f21] focus:border-fpt-orange focus:ring-2 focus:ring-fpt-orange/10 transition-all shadow-sm"}`}
+                            disabled={isLocked}
+                            className={`font-extrabold text-base px-3 py-1.5 rounded-lg outline-none w-full max-w-[300px] ${isLocked ? "bg-transparent text-[#f26f21] cursor-not-allowed" : "bg-white border border-slate-200 text-[#f26f21] focus:border-fpt-orange focus:ring-2 focus:ring-fpt-orange/10 transition-all shadow-sm"}`}
                           />
                           {set.roundName && (
                             <span className="text-[9px] px-2.5 py-1 rounded-md bg-fpt-orange text-white font-bold uppercase tracking-widest shrink-0 shadow-sm">
@@ -1596,7 +2143,7 @@ export function EventDetailsPage() {
                             </span>
                           )}
                         </div>
-                        {!isEnded && (
+                        {!isLocked && (
                           <div className="flex items-center gap-2 shrink-0 ml-2">
                             <button
                               onClick={() => handleDeleteSet(set)}
@@ -1633,7 +2180,7 @@ export function EventDetailsPage() {
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <input
                                   type="number"
-                                  disabled={isEnded}
+                                  disabled={isLocked}
                                   value={it.score}
                                   onChange={(e) =>
                                     updateScoreLocal(
@@ -1642,13 +2189,13 @@ export function EventDetailsPage() {
                                       Number(e.target.value),
                                     )
                                   }
-                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isEnded ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#f26f21] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10"}`}
+                                  className={`w-16 px-3 py-2 text-center border border-slate-200 rounded-xl text-sm font-extrabold outline-none transition-all ${isLocked ? "bg-slate-50 cursor-not-allowed text-slate-500" : "text-[#f26f21] focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10"}`}
                                 />
                                 <span className="text-xs text-slate-400 font-bold">
                                   %
                                 </span>
                               </div>
-                              {!isEnded && (
+                              {!isLocked && (
                                 <div className="flex items-center gap-1 shrink-0 ml-2">
                                   <button
                                     onClick={() => handleEditCriterion(it)}
@@ -1676,7 +2223,7 @@ export function EventDetailsPage() {
                           <Scale size={14} strokeWidth={2.5} /> Total Weight:{" "}
                           {total}%
                         </span>
-                        {!isEnded && (
+                        {!isLocked && (
                           <button
                             onClick={() => handleSaveSet(set)}
                             disabled={total !== 100 || !set.setName.trim()}
@@ -1692,7 +2239,7 @@ export function EventDetailsPage() {
               </div>
             )}
 
-            {deletedCriteria.length > 0 && !isEnded && (
+            {deletedCriteria.length > 0 && !isLocked && (
               <div className="mt-8 border-t border-slate-100 pt-6">
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <RotateCcw size={14} strokeWidth={2.5} /> Recover Deleted
@@ -1719,12 +2266,23 @@ export function EventDetailsPage() {
               </div>
             )}
           </div>
+          )}
 
-          {/* ========================================================= */}
-          {/* SECTION: BẢNG XẾP HẠNG TRỰC TIẾP & NÚT CHUYỂN VÒNG (MỚI) */}
+          {activeTab === "leaderboard" && !canShowLeaderboard && (
+            <div className="bg-white rounded-[2rem] border border-slate-100 p-14 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center">
+              <Trophy
+                size={40}
+                className="text-slate-300 mx-auto mb-4"
+                strokeWidth={1.5}
+              />
+              <p className="text-slate-500 font-medium">
+                The leaderboard appears once Round 1 has started and teams have
+                been scored.
+              </p>
+            </div>
+          )}
 
-          {/* ========================================================= */}
-          {canShowLeaderboard && (
+          {activeTab === "leaderboard" && canShowLeaderboard && (
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden flex flex-col">
               <div className="p-8 border-b border-slate-100">
                 <h3 className="text-xl font-extrabold text-[#f26f21] flex items-center gap-3">
@@ -1860,8 +2418,7 @@ export function EventDetailsPage() {
                 )}
               </div>
 
-              {/* CHỈ HIỂN THỊ NÚT CHUYỂN VÒNG NẾU SỰ KIỆN CHƯA KẾT THÚC */}
-              {!isEnded && (
+              {!isEnded && !isRegistrationPhase && (
                 <div className="p-8 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-6">
                   <div className="flex items-center gap-4 text-slate-500 text-sm font-medium">
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-[#f26f21]">
@@ -1890,16 +2447,23 @@ export function EventDetailsPage() {
                         ? "Conclude Event"
                         : `Advance Top ${advanceTopN} Teams to Next Round`}
                     </button>
-                    {/* {isLastRound && (
-                      <p className="text-xs text-slate-400 font-medium text-right max-w-xs">
-                        No backend "conclude" step exists yet — this manually
-                        marks the event as ended on the frontend.
-                      </p>
-                    )} */}
                   </div>
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === "prizes" && (
+            <PrizesSection
+              eventId={String(id)}
+              phase={phase}
+              canEdit={!isLocked}
+              finalStandings={roundTeams}
+            />
+          )}
+
+          {activeTab === "audit" && (
+            <AuditLogsSection rounds={eventRounds} teams={allTeams} />
           )}
         </div>
       </div>

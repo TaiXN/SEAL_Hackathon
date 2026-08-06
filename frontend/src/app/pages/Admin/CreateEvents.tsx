@@ -10,7 +10,6 @@ import {
   AlertCircle,
   RefreshCw,
   CalendarClock,
-  ClipboardList,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -20,7 +19,6 @@ import { criteriaApi } from "../../lib/api/criteriaApi";
 import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
-import { prizeApi } from "../../lib/api/prizeApi";
 import apiClient from "../../lib/api/apiClient";
 
 // SHARED HELPERS
@@ -33,12 +31,78 @@ import {
   buildCriteriaMap,
   loadSetsWithItems,
   getServerMsg,
+  looksLikeGuid,
   DEFAULT_CRITERIA_DESCRIPTION,
 } from "../../lib/utils/criteriaHelpers";
 
 const BRAND = "#f26f21";
 let seq = 1000;
 const nextId = () => ++seq;
+
+const escapeHtml = (s: string) =>
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      (
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }) as Record<string, string>
+      )[c],
+  );
+
+/**
+ * Mô tả ĐẦY ĐỦ một lỗi API để dán thẳng cho bên Backend.
+ *
+ * ⚠️ Backend của dự án này hay trả 400 kèm câu chung chung ("Error while
+ * creating round") hoặc thậm chí body rỗng — lúc đó axios chỉ đưa ra
+ * "Request failed with status code 400", không đủ để sửa. Nên phải in kèm:
+ * endpoint đã gọi, status, payload ĐÃ GỬI (error.config.data) và body thô
+ * backend trả về. Payload gửi đi thường mới là thứ tố cáo field nào sai.
+ */
+const describeApiError = (error: any): string => {
+  const res = error?.response;
+  if (!res) return getServerMsg(error);
+
+  const cfg = error.config || {};
+  const endpoint =
+    `${String(cfg.method || "").toUpperCase()} ${cfg.baseURL || ""}${cfg.url || ""}`.trim();
+
+  const stringify = (v: any) => {
+    if (v === undefined || v === null || v === "") return "(rỗng)";
+    if (typeof v === "string") {
+      try {
+        return JSON.stringify(JSON.parse(v), null, 2);
+      } catch {
+        return v;
+      }
+    }
+    try {
+      return JSON.stringify(v, null, 2);
+    } catch {
+      return String(v);
+    }
+  };
+
+  const body = stringify(res.data);
+
+  return [
+    getServerMsg(error),
+    "",
+    `${endpoint} → ${res.status} ${res.statusText || ""}`.trim(),
+    "",
+    "── Payload frontend ĐÃ GỬI ──",
+    stringify(cfg.data),
+    "",
+    "── Body backend TRẢ VỀ ──",
+    body === "(rỗng)"
+      ? "(rỗng — backend không kèm lý do, cần sửa ở phía Backend)"
+      : body,
+  ].join("\n");
+};
 
 interface CriterionRow {
   id: number;
@@ -52,6 +116,11 @@ interface RoundConfig {
   roundName: string;
   startDate: string;
   endDate: string;
+  // Cửa sổ chấm điểm — TÁCH RIÊNG khỏi cửa sổ nộp bài (startDate/endDate).
+  // Backend bắt buộc cả hai mốc này trong CreateRoundAPIViewModel.
+  scoringStartDate: string;
+  scoringEndDate: string;
+  minTeam: number;
   maxTeam: number;
   topNPromotion: number;
 }
@@ -66,8 +135,11 @@ interface RubricConfig {
 const makeRound = (prev?: RoundConfig): RoundConfig => ({
   id: nextId(),
   roundName: "",
-  startDate: prev?.endDate || "",
+  startDate: prev?.scoringEndDate || prev?.endDate || "",
   endDate: "",
+  scoringStartDate: "",
+  scoringEndDate: "",
+  minTeam: 1,
   maxTeam: prev ? Number(prev.topNPromotion) || 10 : 40,
   topNPromotion: prev ? 1 : 10,
 });
@@ -87,9 +159,21 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
   const dEnd = round.endDate ? new Date(round.endDate) : null;
   const dPrevEnd = prevEnd ? new Date(prevEnd) : null;
 
+  const dScoreStart = round.scoringStartDate
+    ? new Date(round.scoringStartDate)
+    : null;
+  const dScoreEnd = round.scoringEndDate ? new Date(round.scoringEndDate) : null;
+
   const endBeforeStart = !!(dStart && dEnd && dEnd <= dStart);
   const overlapsPrev = !!(dStart && dPrevEnd && dStart < dPrevEnd);
   const topTooHigh = Number(round.topNPromotion) > Number(round.maxTeam);
+  const scoreEndBeforeStart = !!(
+    dScoreStart &&
+    dScoreEnd &&
+    dScoreEnd <= dScoreStart
+  );
+  const scoreBeforeSubmit = !!(dEnd && dScoreStart && dScoreStart < dEnd);
+  const minOverMax = Number(round.minTeam) > Number(round.maxTeam);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm relative">
@@ -137,7 +221,7 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
         </div>
         <div className="space-y-2">
           <label className="text-[11px] font-bold text-slate-500 uppercase">
-            Closes at (scoring deadline)
+            Closes at (submission deadline)
           </label>
           <input
             type="datetime-local"
@@ -148,7 +232,45 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+      {/* Cửa sổ chấm điểm: backend lưu riêng, không suy ra từ start/end nộp bài */}
+      <div className="grid grid-cols-2 gap-4 mb-4 border-t border-slate-100 pt-4">
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold text-slate-500 uppercase">
+            Judging opens at
+          </label>
+          <input
+            type="datetime-local"
+            value={round.scoringStartDate}
+            onChange={(e) => onChange({ scoringStartDate: e.target.value })}
+            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold text-slate-500 uppercase">
+            Judging closes at
+          </label>
+          <input
+            type="datetime-local"
+            value={round.scoringEndDate}
+            onChange={(e) => onChange({ scoringEndDate: e.target.value })}
+            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 border-t border-slate-100 pt-4">
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold text-slate-500 uppercase">
+            Min teams
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={round.minTeam}
+            onChange={(e) => onChange({ minTeam: Number(e.target.value) })}
+            className="w-full px-3 py-2 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
+          />
+        </div>
         <div className="space-y-2">
           <label className="text-[11px] font-bold text-slate-500 uppercase">
             Max teams
@@ -177,7 +299,12 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
         </div>
       </div>
 
-      {(endBeforeStart || overlapsPrev || topTooHigh) && (
+      {(endBeforeStart ||
+        overlapsPrev ||
+        topTooHigh ||
+        scoreEndBeforeStart ||
+        scoreBeforeSubmit ||
+        minOverMax) && (
         <div className="mt-4 space-y-1">
           {endBeforeStart && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
@@ -187,13 +314,29 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
           )}
           {overlapsPrev && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
-              <AlertCircle size={12} /> This round cannot start before previous
-              has closed.
+              <AlertCircle size={12} /> This round cannot start before the
+              previous one has finished judging.
             </p>
           )}
           {topTooHigh && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
               <AlertCircle size={12} /> Teams advancing cannot exceed max teams.
+            </p>
+          )}
+          {scoreEndBeforeStart && (
+            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
+              <AlertCircle size={12} /> Judging must close after it opens.
+            </p>
+          )}
+          {scoreBeforeSubmit && (
+            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
+              <AlertCircle size={12} /> Judging cannot start before the
+              submission deadline.
+            </p>
+          )}
+          {minOverMax && (
+            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
+              <AlertCircle size={12} /> Min teams cannot exceed max teams.
             </p>
           )}
         </div>
@@ -408,18 +551,22 @@ function RubricCard({
 export function CreateEvents() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(1);
-  const [furthestTab, setFurthestTab] = useState(1); // Cho phép user quay lại các tab đã hoàn thành
+  const [furthestTab, setFurthestTab] = useState(1);
 
   // 1. STATE BƯỚC 1
   const [eventForm, setEventForm] = useState({
     eventName: "",
     season: "Fall",
     year: new Date().getFullYear(),
+    registrationStartDate: "",
+    registrationEndDate: "",
+    minTeamMember: 3,
+    maxTeamMember: 5,
   });
 
   // 2. STATE BƯỚC 2
   const [tracks, setTracks] = useState<any[]>([
-    { id: nextId(), name: "", topics: [] },
+    { id: nextId(), name: "", topics: [], maxTeam: 20 },
   ]);
   const [topicInputs, setTopicInputs] = useState<{ [key: number]: string }>({});
 
@@ -448,23 +595,21 @@ export function CreateEvents() {
   const [eventPrizes, setEventPrizes] = useState<any[]>([
     {
       id: nextId(),
-      name: "First Prize",
+      prizeName: "First Prize",
       description: "Gold Medal + 5,000,000 VND",
+      rankIndex: 1,
     },
     {
       id: nextId(),
-      name: "Second Prize",
+      prizeName: "Second Prize",
       description: "Silver Medal + 3,000,000 VND",
+      rankIndex: 2,
     },
     {
       id: nextId(),
-      name: "Third Prize",
+      prizeName: "Third Prize",
       description: "Bronze Medal + 1,000,000 VND",
-    },
-    {
-      id: nextId(),
-      name: "Consolation Prize",
-      description: "Certificate + 500,000 VND",
+      rankIndex: 3,
     },
   ]);
 
@@ -486,7 +631,16 @@ export function CreateEvents() {
 
   const patchRound = (id: number, patch: Partial<RoundConfig>) =>
     setRounds((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const next = { ...r, ...patch };
+        // Chấm điểm gần như luôn bắt đầu ngay khi hết hạn nộp bài, nên điền hộ
+        // mốc đó — nhưng CHỈ khi admin chưa tự đặt, để không đè lên lựa chọn
+        // của họ. Không tự điền scoringEndDate: không đoán được chấm bao lâu.
+        if (patch.endDate !== undefined && !r.scoringStartDate)
+          next.scoringStartDate = patch.endDate;
+        return next;
+      }),
     );
   const patchRubric = (roundId: number, patch: Partial<RubricConfig>) =>
     setRubrics((prev) => ({
@@ -552,6 +706,46 @@ export function CreateEvents() {
         text: "Please enter the event name.",
         confirmButtonColor: BRAND,
       });
+
+    if (!eventForm.registrationStartDate || !eventForm.registrationEndDate) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Missing Reg Timeline",
+        text: "Please provide both opening and closing dates for registration.",
+        confirmButtonColor: BRAND,
+      });
+    }
+
+    if (
+      new Date(eventForm.registrationEndDate) <=
+      new Date(eventForm.registrationStartDate)
+    ) {
+      return Swal.fire({
+        icon: "error",
+        title: "Invalid Dates",
+        text: "The registration end date must be after the start date.",
+        confirmButtonColor: BRAND,
+      });
+    }
+
+    if (eventForm.minTeamMember < 1) {
+      return Swal.fire({
+        icon: "error",
+        title: "Invalid Minimum",
+        text: "A team must have at least 1 member.",
+        confirmButtonColor: BRAND,
+      });
+    }
+
+    if (eventForm.maxTeamMember < eventForm.minTeamMember) {
+      return Swal.fire({
+        icon: "error",
+        title: "Limit Conflict",
+        text: "Max team members cannot be less than Min team members.",
+        confirmButtonColor: BRAND,
+      });
+    }
+
     advanceTab(2);
   };
 
@@ -564,6 +758,18 @@ export function CreateEvents() {
         text: "Please create at least one track.",
         confirmButtonColor: BRAND,
       });
+
+    for (const t of tracks) {
+      if (t.name.trim() && (!t.maxTeam || Number(t.maxTeam) < 1)) {
+        return Swal.fire({
+          icon: "warning",
+          title: "Invalid Max Teams",
+          text: `Please enter a valid max team number (greater than 0) for track "${t.name}".`,
+          confirmButtonColor: BRAND,
+        });
+      }
+    }
+
     advanceTab(3);
   };
 
@@ -575,6 +781,12 @@ export function CreateEvents() {
         text: "The event needs at least one round.",
         confirmButtonColor: BRAND,
       });
+
+    const totalTrackCapacity = tracks.reduce(
+      (sum, t) => sum + (Number(t.maxTeam) || 0),
+      0,
+    );
+
     for (let i = 0; i < rounds.length; i++) {
       const r = rounds[i];
       const label = r.roundName.trim() || `Round ${i + 1}`;
@@ -592,9 +804,25 @@ export function CreateEvents() {
           text: `Please fill in the opening and closing time of "${label}".`,
           confirmButtonColor: BRAND,
         });
+      // Backend đánh dấu scoringStartDate/scoringEndDate là BẮT BUỘC, bỏ trống
+      // là ăn 400 "Error while creating round" mà không nói thiếu field nào.
+      if (!r.scoringStartDate || !r.scoringEndDate)
+        return Swal.fire({
+          icon: "warning",
+          title: "Missing judging window",
+          text: `Please fill in when judging opens and closes for "${label}".`,
+          confirmButtonColor: BRAND,
+        });
       const dStart = new Date(r.startDate),
-        dEnd = new Date(r.endDate);
-      if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime()))
+        dEnd = new Date(r.endDate),
+        dScoreStart = new Date(r.scoringStartDate),
+        dScoreEnd = new Date(r.scoringEndDate);
+      if (
+        isNaN(dStart.getTime()) ||
+        isNaN(dEnd.getTime()) ||
+        isNaN(dScoreStart.getTime()) ||
+        isNaN(dScoreEnd.getTime())
+      )
         return Swal.fire({
           icon: "warning",
           title: "Invalid date",
@@ -608,20 +836,74 @@ export function CreateEvents() {
           text: `"${label}" must close after it opens.`,
           confirmButtonColor: BRAND,
         });
-      if (i > 0 && dStart < new Date(rounds[i - 1].endDate))
+      if (dScoreEnd <= dScoreStart)
         return Swal.fire({
           icon: "warning",
-          title: "Overlapping rounds",
-          text: `"${label}" cannot start before the previous round has closed.`,
+          title: "Wrong judging window",
+          text: `Judging for "${label}" must close after it opens.`,
           confirmButtonColor: BRAND,
         });
-      if (Number(r.maxTeam) < 1 || Number(r.topNPromotion) < 1)
+      if (dScoreStart < dEnd)
+        return Swal.fire({
+          icon: "warning",
+          title: "Wrong judging window",
+          text: `Judging for "${label}" cannot start before its submission deadline.`,
+          confirmButtonColor: BRAND,
+        });
+
+      if (i === 0 && eventForm.registrationEndDate) {
+        const regEnd = new Date(eventForm.registrationEndDate);
+        if (dStart < regEnd) {
+          return Swal.fire({
+            icon: "error",
+            title: "Timeline Conflict",
+            text: `Round 1 cannot start before the Registration closes (${regEnd.toLocaleString()}).`,
+            confirmButtonColor: BRAND,
+          });
+        }
+      }
+
+      // Vòng sau chỉ mở được khi vòng trước đã chấm xong: danh sách đội vào
+      // vòng này chính là Top N lấy từ điểm của vòng trước.
+      if (i > 0) {
+        const prev = rounds[i - 1];
+        const prevDone = new Date(prev.scoringEndDate || prev.endDate);
+        if (dStart < prevDone)
+          return Swal.fire({
+            icon: "warning",
+            title: "Overlapping rounds",
+            text: `"${label}" cannot start before the previous round has finished judging.`,
+            confirmButtonColor: BRAND,
+          });
+      }
+      if (
+        Number(r.maxTeam) < 1 ||
+        Number(r.topNPromotion) < 1 ||
+        Number(r.minTeam) < 1
+      )
         return Swal.fire({
           icon: "warning",
           title: "Invalid team numbers",
-          text: `Max teams and teams advancing must be at least 1.`,
+          text: `Min teams, max teams and teams advancing must be at least 1.`,
           confirmButtonColor: BRAND,
         });
+      if (Number(r.minTeam) > Number(r.maxTeam))
+        return Swal.fire({
+          icon: "warning",
+          title: "Invalid team numbers",
+          text: `Min teams of "${label}" cannot exceed its max teams.`,
+          confirmButtonColor: BRAND,
+        });
+
+      if (i === 0 && Number(r.maxTeam) < totalTrackCapacity) {
+        return Swal.fire({
+          icon: "error",
+          title: "Capacity Conflict",
+          html: `Total capacity across all Tracks is <b>${totalTrackCapacity} teams</b>.<br/>However, ${label} only allows a maximum of <b>${r.maxTeam} teams</b>.<br/><br/>Please increase ${label}'s Max Teams to at least ${totalTrackCapacity}.`,
+          confirmButtonColor: BRAND,
+        });
+      }
+
       if (Number(r.topNPromotion) > Number(r.maxTeam))
         return Swal.fire({
           icon: "warning",
@@ -691,10 +973,9 @@ export function CreateEvents() {
   };
 
   const handleValidateAssignments = () => {
-    advanceTab(6); // Step 5 không bắt buộc nhập
+    advanceTab(6);
   };
 
-  // Helper tạo Criteria trong lúc Launch
   const syncSetOrchestrator = async (
     rubricList: CriterionRow[],
     setName: string,
@@ -753,56 +1034,195 @@ export function CreateEvents() {
     return setId;
   };
 
+  /**
+   * Lấy eventId của sự kiện VỪA tạo xong.
+   *
+   * ⚠️ POST /api/Event không trả ID theo một dạng cố định: có khi là object
+   * chứa eventId, có khi bọc thêm một lớp { data: ... }, có khi chỉ là một câu
+   * thông báo kiểu "Event created successfully". Vì vậy:
+   *   1. Dò ID trong body — nhưng CHỈ chấp nhận giá trị đúng dạng GUID.
+   *   2. Nếu không ra, dò lại trong danh sách event theo tên + mùa + năm.
+   *
+   * ⚠️ Bước kiểm tra GUID ở (1) là bắt buộc: nếu chỉ kiểm tra "khác rỗng" thì
+   * câu thông báo của backend sẽ được dùng làm eventId, và bước tạo Track kế
+   * tiếp chết với lỗi 400 "Event does not exist or is inactive."
+   *
+   * ⚠️ Bước (2) phải dùng getAllEventsRaw() chứ KHÔNG dùng getAllEvents():
+   * event vừa tạo có thể chưa isActive nên sẽ bị getAllEvents() lọc mất.
+   */
+  const resolveNewEventId = async (res: any): Promise<string> => {
+    let raw = res?.data !== undefined ? res.data : res;
+
+    // Backend đôi khi nhả JSON dưới dạng chuỗi (stringified JSON)
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+      try {
+        raw = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    const candidates: unknown[] =
+      typeof raw === "object" && raw !== null
+        ? [
+            raw.eventId,
+            raw.eventID,
+            raw.id,
+            raw.data,
+            raw.result,
+            raw.payload,
+            extractId(raw),
+          ]
+        : [raw];
+
+    for (const c of candidates) {
+      const v = typeof c === "string" ? c.replace(/['"]/g, "").trim() : c;
+      if (looksLikeGuid(v)) return v;
+      // Vài endpoint bọc ID trong object con: { data: { eventId: ... } }
+      if (v && typeof v === "object") {
+        const nested = extractId(v);
+        if (looksLikeGuid(nested)) return nested;
+      }
+    }
+
+    // Body không chứa ID hợp lệ -> dò lại theo tên trong danh sách thô
+    try {
+      const wantedName = eventForm.eventName.trim().toLowerCase();
+      const matches = getList(await eventApi.getAllEventsRaw()).filter(
+        (e: any) =>
+          String(e.eventName ?? e.EventName ?? "")
+            .trim()
+            .toLowerCase() === wantedName,
+      );
+      const exact = matches.filter(
+        (e: any) =>
+          String(e.season ?? e.Season ?? "") === eventForm.season &&
+          Number(e.year ?? e.Year) === Number(eventForm.year),
+      );
+      const found = (exact.length ? exact : matches).pop();
+      const foundId = found?.eventId ?? found?.eventID ?? found?.id;
+      if (looksLikeGuid(foundId)) return foundId;
+    } catch (e) {
+      console.warn("Không dò lại được event vừa tạo:", e);
+    }
+
+    return "";
+  };
+
+  /**
+   * Lấy trackId của track VỪA tạo — cùng vấn đề như resolveNewEventId().
+   *
+   * ⚠️ POST /api/Track có khi trả về 2xx (track ĐÃ nằm trong DB) nhưng body lại
+   * không kèm ID. Khi đó pickTrackId() trả null, vòng lặp ném lỗi và DỪNG NGAY
+   * ở track đầu tiên — nên các track phía sau không bao giờ được tạo. Đó là lý
+   * do tạo 2 track mà chỉ thấy 1 track nằm trong database.
+   *
+   * Vì vậy nếu body không có ID hợp lệ thì dò lại theo tên trong danh sách
+   * track của chính event này trước khi chịu thua.
+   */
+  const resolveNewTrackId = async (
+    res: any,
+    eventId: string,
+    trackName: string,
+  ): Promise<string> => {
+    const direct = pickTrackId(res);
+    if (looksLikeGuid(direct)) return direct;
+
+    try {
+      const wanted = trackName.trim().toLowerCase();
+      const matches = getList(await trackTopicApi.getAllTracks()).filter(
+        (t: any) =>
+          String(t.trackName ?? t.TrackName ?? "")
+            .trim()
+            .toLowerCase() === wanted &&
+          String(t.eventId ?? t.eventID ?? "") === String(eventId),
+      );
+      const foundId = pickTrackId(matches.pop());
+      if (looksLikeGuid(foundId)) return foundId;
+    } catch (e) {
+      console.warn("Không dò lại được track vừa tạo:", e);
+    }
+
+    return "";
+  };
+
   // ==========================================
-  // BƯỚC 6: NHẠC TRƯỞNG (GỌI API LIÊN HOÀN)
+  // BƯỚC 6: NHẠC TRƯỞNG (GỌI API LIÊN HOÀN VỚI LIVE LOGGING)
   // ==========================================
   const handleLaunchEvent = async () => {
     setIsLaunching(true);
     let errorStep = "Event Creation";
     try {
       Swal.fire({
-        title: "Deploying Event...",
-        html: "Configuring Event details...",
+        title: "Deploying System...",
+        html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #f26f21'>Step 1/5:</span> Generating Event Profile & Prizes...</div>",
         didOpen: () => Swal.showLoading(),
         allowOutsideClick: false,
       });
 
-      // 1. TẠO EVENT
       const eventPayload = {
         eventName: eventForm.eventName.trim(),
         season: eventForm.season,
         year: Number(eventForm.year),
+        registrationStartDate: new Date(
+          eventForm.registrationStartDate,
+        ).toISOString(),
+        registrationEndDate: new Date(
+          eventForm.registrationEndDate,
+        ).toISOString(),
+        minTeamMember: Number(eventForm.minTeamMember),
+        maxTeamMember: Number(eventForm.maxTeamMember),
+        prizes: eventPrizes
+          .filter((p) => p.prizeName.trim())
+          .map((p, idx) => ({
+            prizeName: p.prizeName.trim(),
+            description: p.description.trim(),
+            rankIndex: Number(p.rankIndex) || idx + 1,
+          })),
       };
+
+      // 1. TẠO SỰ KIỆN
       const evRes: any = await eventApi.createEvent(eventPayload as any);
-      let eventId = extractId(evRes);
 
-      // Nếu API lỗi không trả về ID do trùng tên, Backend quăng Error, nhảy xuống Catch báo lỗi liền, DB không dính rác!
-      if (!eventId)
-        throw new Error(
-          "Could not create Event. Ensure the Event name is unique.",
-        );
+      const eventId = await resolveNewEventId(evRes);
 
-      // 2. TẠO TRACKS & TOPICS
+      // Không có ID hợp lệ thì DỪNG NGAY — nếu đi tiếp, mọi bước sau đều chết
+      // với lỗi 400 "Event does not exist or is inactive."
+      if (!eventId) {
+        console.error("POST /api/Event trả về:", evRes);
+        return Swal.fire({
+          icon: "error",
+          title: "Không lấy được Event ID",
+          html: `Sự kiện có thể đã được tạo, nhưng backend không trả về ID hợp lệ (dạng GUID) và cũng không dò lại được theo tên.<br/><br/><b>Body mà backend trả về:</b><br/><code style="color:red; background:#fee2e2; padding: 10px; display:block; text-align:left; border-radius:8px; word-break:break-all;">${JSON.stringify(evRes)}</code><br/>Gửi ảnh này cho bên Backend để họ trả về eventId trong response của POST /api/Event.`,
+          confirmButtonColor: BRAND,
+        });
+      }
+
       errorStep = "Tracks Configuration";
-      Swal.fire({
-        title: "Deploying Event...",
-        html: "Configuring Tracks and Topics...",
-        didOpen: () => Swal.showLoading(),
-        allowOutsideClick: false,
+      Swal.update({
+        html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #10b981'>Step 1/5: ✔️ Done.</span><br/><br/><span style='color: #f26f21'>Step 2/5:</span> Assembling Tracks and Topics...</div>",
       });
 
-      // Map lưu trữ ánh xạ: Local_Track_ID -> Server_Track_ID (Dùng để gán Giám khảo ở bước sau)
       const trackIdMap: Record<number, string> = {};
 
       for (const t of tracks) {
         if (!t.name.trim()) continue;
+
         const trRes: any = await trackTopicApi.createTrack({
-          eventId,
+          eventId: eventId, // ID gọt sạch sẽ truyền vào đây
           trackName: t.name.trim(),
+          maxTeam: Number(t.maxTeam),
         } as any);
-        const serverTrackId = pickTrackId(trRes);
-        if (!serverTrackId)
-          throw new Error(`Could not create track: ${t.name}`);
+
+        const serverTrackId = await resolveNewTrackId(
+          trRes,
+          eventId,
+          t.name.trim(),
+        );
+        if (!serverTrackId) {
+          console.error(`POST /api/Track ("${t.name}") trả về:`, trRes);
+          throw new Error(
+            `Could not create track: ${t.name}. Backend không trả về trackId và cũng không dò lại được theo tên (xem Console để biết backend trả về gì).`,
+          );
+        }
 
         trackIdMap[t.id] = serverTrackId;
 
@@ -815,13 +1235,9 @@ export function CreateEvents() {
         }
       }
 
-      // 3. TẠO RUBRICS VÀ ROUNDS
       errorStep = "Rounds & Rubrics Configuration";
-      Swal.fire({
-        title: "Deploying Event...",
-        html: "Configuring Rounds and Rubrics...",
-        didOpen: () => Swal.showLoading(),
-        allowOutsideClick: false,
+      Swal.update({
+        html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #10b981'>Step 2/5: ✔️ Done.</span><br/><br/><span style='color: #f26f21'>Step 3/5:</span> Building Rounds and Grading Rubrics...</div>",
       });
 
       for (let i = 0; i < rounds.length; i++) {
@@ -836,29 +1252,52 @@ export function CreateEvents() {
             rub.setName.trim() || defaultSetNameFor(r, i),
           );
 
-        if (!setId)
-          throw new Error(`Could not configure rubric for ${r.roundName}`);
+        // ⚠️ Phải kiểm tra ĐÚNG DẠNG GUID, không chỉ "khác rỗng": nếu setId là
+        // rác thì backend nhận vào rồi mới chết ở tầng khoá ngoại và chỉ trả về
+        // câu chung chung "Error while creating round" — rất khó lần ra.
+        if (!looksLikeGuid(setId)) {
+          console.error(`Rubric set ID không hợp lệ cho "${r.roundName}":`, setId);
+          throw new Error(
+            `Could not configure rubric for "${r.roundName}": không lấy được ID hợp lệ của bộ tiêu chí (nhận được: ${JSON.stringify(setId)}).`,
+          );
+        }
 
         const toIso = (dateStr: string) => new Date(dateStr).toISOString();
-        await roundApi.createRound({
+        const roundPayload = {
           eventID: eventId,
           roundName: r.roundName.trim(),
           startDate: toIso(r.startDate),
           endDate: toIso(r.endDate),
           topNPromotion: Number(r.topNPromotion),
           maxTeam: Number(r.maxTeam),
-          roundIndex: i,
+          // ⚠️ roundIndex đánh số TỪ 1, không phải từ 0. Phần còn lại của app
+          // quy ước như vậy: EventDetailsPage quy đổi currentRound sang vị trí
+          // trong mảng bằng (currentRound - 1). Nếu vòng đầu mang index 0 thì
+          // việc dò "vòng hiện tại" sẽ lệch một nhịp.
+          roundIndex: i + 1,
           criteriaSetID: setId,
-        } as any);
+          // ⚠️ 3 field dưới đây là BẮT BUỘC trong CreateRoundAPIViewModel.
+          // Thiếu bất kỳ cái nào, backend trả 400 "Error while creating round"
+          // mà không chỉ ra field nào sai — đừng bỏ đi.
+          minTeam: Number(r.minTeam),
+          scoringStartDate: toIso(r.scoringStartDate),
+          scoringEndDate: toIso(r.scoringEndDate),
+        };
+
+        try {
+          await roundApi.createRound(roundPayload as any);
+        } catch (e: any) {
+          // Backend chỉ trả câu chung chung "Error while creating round", nên in
+          // nguyên payload ra Console để còn dán lại vào Swagger mà khoanh vùng.
+          console.error("POST /api/Round THẤT BẠI. Payload đã gửi:", roundPayload);
+          console.error("Body lỗi backend trả về:", e?.response?.data);
+          throw e;
+        }
       }
 
-      // 4. GÁN MENTORS & JUDGES
       errorStep = "Personnel Assignment";
-      Swal.fire({
-        title: "Deploying Event...",
-        html: "Assigning Mentors and Judges...",
-        didOpen: () => Swal.showLoading(),
-        allowOutsideClick: false,
+      Swal.update({
+        html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #10b981'>Step 3/5: ✔️ Done.</span><br/><br/><span style='color: #f26f21'>Step 4/5:</span> Assigning Judges and Mentors...</div>",
       });
 
       for (const pa of pendingAssignments) {
@@ -874,37 +1313,25 @@ export function CreateEvents() {
         }
       }
 
-      // 5. TẠO PRIZES
-      errorStep = "Prizes Configuration";
-      Swal.fire({
-        title: "Deploying Event...",
-        html: "Setting up Prizes...",
-        didOpen: () => Swal.showLoading(),
-        allowOutsideClick: false,
+      Swal.update({
+        html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #10b981'>Step 4/5: ✔️ Done.</span><br/><br/><span style='color: #10b981'>Step 5/5: All configurations saved!</span></div>",
       });
 
-      for (const p of eventPrizes) {
-        if (!p.name.trim()) continue;
-        try {
-          await prizeApi.createPrize({
-            prizeName: p.name.trim(),
-            description: p.description.trim(),
-            eventId: eventId,
-          });
-        } catch (e) {}
-      }
-
-      Swal.fire({
-        icon: "success",
-        title: "Event Launched!",
-        text: "Everything is setup and live.",
-        confirmButtonColor: BRAND,
-      }).then(() => navigate("/admin/events"));
+      setTimeout(() => {
+        Swal.fire({
+          icon: "success",
+          title: "Draft Created!",
+          text: "Your event is successfully configured and saved in Draft mode.",
+          confirmButtonColor: BRAND,
+        }).then(() => navigate("/admin/events"));
+      }, 500);
     } catch (error: any) {
+      console.error(`Deployment failed at ${errorStep}:`, error);
       Swal.fire({
         icon: "error",
         title: `Deployment Failed at ${errorStep}`,
-        text: getServerMsg(error),
+        html: `<pre style="text-align:left; white-space:pre-wrap; word-break:break-word; background:#fef2f2; color:#b91c1c; padding:12px; border-radius:8px; font-size:12px; line-height:1.5; max-height:340px; overflow:auto;">${escapeHtml(describeApiError(error))}</pre>`,
+        width: 680,
         confirmButtonColor: BRAND,
       });
     } finally {
@@ -916,7 +1343,7 @@ export function CreateEvents() {
   // RENDER UI
   // ==========================================
   const tabs = [
-    { id: 1, name: "1. Event" },
+    { id: 1, name: "1. Event & Reg" },
     { id: 2, name: "2. Tracks & Topics" },
     { id: 3, name: "3. Rounds" },
     { id: 4, name: "4. Grading Rubrics" },
@@ -944,13 +1371,13 @@ export function CreateEvents() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-6 min-h-[500px] flex flex-col">
-        <div className="flex border-b border-slate-100 px-2 bg-slate-50/50">
+        <div className="flex border-b border-slate-100 px-2 bg-slate-50/50 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               disabled={tab.id > furthestTab}
-              className={`flex-1 px-3 py-4 text-[13px] font-bold border-b-2 transition-colors flex items-center justify-center gap-1.5 ${activeTab === tab.id ? "border-fpt-orange text-fpt-orange bg-white" : tab.id <= furthestTab ? "border-transparent text-emerald-600 hover:text-emerald-700 hover:bg-white" : "border-transparent text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white"}`}
+              className={`flex-1 min-w-[150px] px-3 py-4 text-[13px] font-bold border-b-2 transition-colors flex items-center justify-center gap-1.5 ${activeTab === tab.id ? "border-fpt-orange text-fpt-orange bg-white" : tab.id <= furthestTab ? "border-transparent text-emerald-600 hover:text-emerald-700 hover:bg-white" : "border-transparent text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white"}`}
             >
               {tab.id < furthestTab && activeTab !== tab.id && (
                 <CheckCircle2 size={16} />
@@ -961,12 +1388,12 @@ export function CreateEvents() {
         </div>
 
         <div className="p-8 flex-1">
-          {/* STEP 1 */}
+          {/* STEP 1: EVENT INFO & REGISTRATION TIMELINE */}
           {activeTab === 1 && (
             <div className="space-y-6 max-w-2xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">
-                  BASIC INFORMATION
+                  BASIC INFORMATION & TIMELINE
                 </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -986,6 +1413,7 @@ export function CreateEvents() {
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm"
                     />
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase">
@@ -1021,6 +1449,78 @@ export function CreateEvents() {
                       />
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 mt-2">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-emerald-600 uppercase">
+                        Reg Opens At
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={eventForm.registrationStartDate}
+                        onChange={(e) =>
+                          setEventForm({
+                            ...eventForm,
+                            registrationStartDate: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-emerald-500 shadow-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-red-500 uppercase">
+                        Reg Closes At
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={eventForm.registrationEndDate}
+                        onChange={(e) =>
+                          setEventForm({
+                            ...eventForm,
+                            registrationEndDate: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-red-500 shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-200 pt-4 mt-2">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase">
+                        Min Team Member
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={eventForm.minTeamMember}
+                        onChange={(e) =>
+                          setEventForm({
+                            ...eventForm,
+                            minTeamMember: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm text-center"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase">
+                        Max Team Member
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={eventForm.maxTeamMember}
+                        onChange={(e) =>
+                          setEventForm({
+                            ...eventForm,
+                            maxTeamMember: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm text-center"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end border-t border-slate-200 pt-6 mt-6">
                   <button
@@ -1045,7 +1545,7 @@ export function CreateEvents() {
                   onClick={() =>
                     setTracks([
                       ...tracks,
-                      { id: nextId(), name: "", topics: [] },
+                      { id: nextId(), name: "", topics: [], maxTeam: 20 },
                     ])
                   }
                   className="px-4 py-2 bg-fpt-orange-soft text-fpt-orange text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-orange-100 transition-colors"
@@ -1069,26 +1569,51 @@ export function CreateEvents() {
                         <Trash2 size={18} />
                       </button>
                     )}
-                    <div className="mb-4 w-2/3">
-                      <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
-                        Track {idx + 1} name
-                      </label>
-                      <input
-                        type="text"
-                        value={t.name}
-                        onChange={(e) =>
-                          setTracks(
-                            tracks.map((tr) =>
-                              tr.id === t.id
-                                ? { ...tr, name: e.target.value }
-                                : tr,
-                            ),
-                          )
-                        }
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm"
-                        placeholder="e.g. Web App, Data Science..."
-                      />
+
+                    <div className="flex gap-4 mb-4">
+                      <div className="w-2/3">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                          Track {idx + 1} name
+                        </label>
+                        <input
+                          type="text"
+                          value={t.name}
+                          onChange={(e) =>
+                            setTracks(
+                              tracks.map((tr) =>
+                                tr.id === t.id
+                                  ? { ...tr, name: e.target.value }
+                                  : tr,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm"
+                          placeholder="e.g. Web App, Data Science..."
+                        />
+                      </div>
+                      <div className="w-1/3">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                          Max Teams
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={t.maxTeam}
+                          onChange={(e) =>
+                            setTracks(
+                              tracks.map((tr) =>
+                                tr.id === t.id
+                                  ? { ...tr, maxTeam: Number(e.target.value) }
+                                  : tr,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-fpt-orange shadow-sm"
+                          placeholder="e.g. 20"
+                        />
+                      </div>
                     </div>
+
                     <div>
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-2">
                         Topics
@@ -1210,7 +1735,12 @@ export function CreateEvents() {
                     index={idx}
                     total={rounds.length}
                     round={r}
-                    prevEnd={idx > 0 ? rounds[idx - 1].endDate : ""}
+                    prevEnd={
+                      idx > 0
+                        ? rounds[idx - 1].scoringEndDate ||
+                          rounds[idx - 1].endDate
+                        : ""
+                    }
                     onChange={(patch: any) => patchRound(r.id, patch)}
                     onRemove={() =>
                       setRounds((prev) => prev.filter((x) => x.id !== r.id))
@@ -1371,7 +1901,6 @@ export function CreateEvents() {
                       );
                     }
 
-                    // 1. Lấy đúng tên nhân sự và tên Track
                     const selectedTeacher = rawTeachers.find(
                       (t) =>
                         String(t.teacherId || t.id) ===
@@ -1386,7 +1915,6 @@ export function CreateEvents() {
                       (t) => String(t.id) === String(assignForm.trackLocalId),
                     )?.name;
 
-                    // 2. Tìm xem giáo viên này đã được phân công vào CÙNG 1 TRACK này chưa
                     const assignmentInSameTrack = pendingAssignments.find(
                       (pa) =>
                         String(pa.teacherId) === String(assignForm.teacherId) &&
@@ -1395,11 +1923,9 @@ export function CreateEvents() {
                     );
 
                     if (assignmentInSameTrack) {
-                      // Nếu đã có mặt trong Track này rồi -> Bắt đầu check lỗi
                       if (
                         assignmentInSameTrack.isMentor !== assignForm.isMentor
                       ) {
-                        // Lỗi xung đột: Vừa làm Mentor vừa làm Judge cho CÙNG 1 Track
                         return Swal.fire({
                           icon: "error",
                           title: "Role Conflict",
@@ -1407,7 +1933,6 @@ export function CreateEvents() {
                           confirmButtonColor: "#f26f21",
                         });
                       } else {
-                        // Lỗi trùng lặp: Thêm 2 lần y hệt nhau
                         return Swal.fire({
                           icon: "warning",
                           title: "Duplicate",
@@ -1417,7 +1942,6 @@ export function CreateEvents() {
                       }
                     }
 
-                    // Vượt qua kiểm tra (Hoặc là Track mới, hoặc là Nhân sự mới) -> Thêm vào danh sách
                     setPendingAssignments([
                       ...pendingAssignments,
                       {
@@ -1427,7 +1951,7 @@ export function CreateEvents() {
                         id: nextId(),
                       },
                     ]);
-                    setAssignForm({ ...assignForm, teacherId: "" }); // reset dropdown
+                    setAssignForm({ ...assignForm, teacherId: "" });
                   }}
                   className="w-full py-2 bg-slate-800 text-white text-sm font-bold rounded-lg hover:bg-slate-900 transition-colors shadow-sm flex items-center justify-center gap-2"
                 >
@@ -1503,7 +2027,7 @@ export function CreateEvents() {
             </div>
           )}
 
-          {/* STEP 6 */}
+          {/* STEP 6: DYNAMIC PRIZES */}
           {activeTab === 6 && (
             <div className="space-y-6 max-w-4xl mx-auto animate-in slide-in-from-left-4 duration-300">
               <div className="flex justify-between items-center">
@@ -1512,15 +2036,20 @@ export function CreateEvents() {
                     Prizes & Awards
                   </h3>
                   <p className="text-slate-500 text-xs mt-1">
-                    Configure default prizes. You can assign them to teams
-                    later.
+                    Configure default prizes. These will be granted
+                    automatically to the top teams at the end of the event.
                   </p>
                 </div>
                 <button
                   onClick={() =>
                     setEventPrizes([
                       ...eventPrizes,
-                      { id: nextId(), name: "", description: "" },
+                      {
+                        id: nextId(),
+                        prizeName: "",
+                        description: "",
+                        rankIndex: eventPrizes.length + 1,
+                      },
                     ])
                   }
                   className="px-4 py-2 bg-fpt-orange-soft text-fpt-orange text-xs font-bold rounded-lg flex items-center gap-2 hover:bg-orange-100 transition-colors"
@@ -1533,7 +2062,7 @@ export function CreateEvents() {
                 {eventPrizes.map((p) => (
                   <div
                     key={p.id}
-                    className="p-5 bg-white border border-slate-200 rounded-xl relative flex flex-col md:flex-row gap-4 shadow-sm group"
+                    className="p-5 bg-white border border-slate-200 rounded-xl relative flex flex-col md:flex-row gap-4 shadow-sm group items-end"
                   >
                     <button
                       onClick={() =>
@@ -1543,18 +2072,41 @@ export function CreateEvents() {
                     >
                       <Trash2 size={18} />
                     </button>
+
+                    <div className="w-full md:w-24">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
+                        Rank
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={p.rankIndex}
+                        onChange={(e) =>
+                          setEventPrizes(
+                            eventPrizes.map((x) =>
+                              x.id === p.id
+                                ? { ...x, rankIndex: Number(e.target.value) }
+                                : x,
+                            ),
+                          )
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-center outline-none focus:border-fpt-orange"
+                        placeholder="1"
+                      />
+                    </div>
+
                     <div className="w-full md:w-1/3">
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
                         Prize Name
                       </label>
                       <input
                         type="text"
-                        value={p.name}
+                        value={p.prizeName}
                         onChange={(e) =>
                           setEventPrizes(
                             eventPrizes.map((x) =>
                               x.id === p.id
-                                ? { ...x, name: e.target.value }
+                                ? { ...x, prizeName: e.target.value }
                                 : x,
                             ),
                           )
@@ -1563,6 +2115,7 @@ export function CreateEvents() {
                         placeholder="e.g. First Prize"
                       />
                     </div>
+
                     <div className="flex-1 pr-8">
                       <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">
                         Description / Reward
@@ -1587,8 +2140,8 @@ export function CreateEvents() {
                 ))}
                 {eventPrizes.length === 0 && (
                   <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                    No prizes configured. You can skip this step and add them
-                    later in Prize Management.
+                    No prizes configured. You can skip this step, but it's
+                    recommended to add them now.
                   </div>
                 )}
               </div>
@@ -1603,14 +2156,14 @@ export function CreateEvents() {
                 <button
                   onClick={handleLaunchEvent}
                   disabled={isLaunching}
-                  className="px-8 py-3 bg-emerald-600 text-white text-sm font-black rounded-xl shadow-md hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-60 transition-colors"
+                  className="px-8 py-3 bg-slate-800 text-white text-sm font-black rounded-xl shadow-md hover:bg-slate-900 flex items-center gap-2 disabled:opacity-60 transition-colors"
                 >
                   {isLaunching ? (
                     <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    <CheckCircle2 size={18} />
+                    <Save size={18} />
                   )}
-                  {isLaunching ? "Deploying..." : "Finish & Launch Event"}
+                  {isLaunching ? "Saving Draft..." : "Save to Drafts"}
                 </button>
               </div>
             </div>

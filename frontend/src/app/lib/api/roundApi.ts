@@ -7,9 +7,14 @@ export interface RoundData {
   startDate: string;
   endDate: string;
   topNPromotion: number;
+  minTeam: number;
   maxTeam: number;
   roundIndex: number;
   criteriaSetID: string;
+  // Cửa sổ chấm điểm, tách khỏi cửa sổ nộp bài (startDate/endDate).
+  // Backend bắt buộc cả hai khi tạo/sửa vòng.
+  scoringStartDate: string;
+  scoringEndDate: string;
 }
 
 export const roundApi = {

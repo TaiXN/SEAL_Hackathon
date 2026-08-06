@@ -165,6 +165,9 @@ export function AdminPrizesPage() {
             <option value="" disabled selected>-- Select an Event --</option>
             ${eventOptions}
           </select>
+
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mt-5 mb-2">Awarded to rank</label>
+          <input id="sw-rank" type="number" min="1" value="1" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none">
         </div>
       `,
       focusConfirm: false,
@@ -185,13 +188,21 @@ export function AdminPrizesPage() {
         const eventId = (
           document.getElementById("sw-event") as HTMLSelectElement
         ).value;
+        const rankIndex = Number(
+          (document.getElementById("sw-rank") as HTMLInputElement).value,
+        );
         if (!name || !eventId) {
           Swal.showValidationMessage(
             "Please provide a Prize Name and select an Event!",
           );
           return false;
         }
-        return { prizeName: name, description: desc, eventId };
+        // rankIndex là field bắt buộc của CreatePrizeAPIViewModel.
+        if (!rankIndex || rankIndex < 1) {
+          Swal.showValidationMessage("Rank must be at least 1!");
+          return false;
+        }
+        return { prizeName: name, description: desc, eventId, rankIndex };
       },
     });
 
@@ -227,7 +238,10 @@ export function AdminPrizesPage() {
           <input id="sw-name" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Prize Name" value="${prize.prizeName || ""}">
           
           <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-2" placeholder="Description" value="${prize.description || ""}">
+          <input id="sw-desc" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-5" placeholder="Description" value="${prize.description || ""}">
+
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Awarded to rank</label>
+          <input id="sw-rank" type="number" min="1" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-[#f26f21] focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all outline-none mb-2" value="${Number((prize as any).rankIndex ?? 1)}">
         </div>
       `,
       focusConfirm: false,
@@ -245,11 +259,18 @@ export function AdminPrizesPage() {
           .value;
         const desc = (document.getElementById("sw-desc") as HTMLInputElement)
           .value;
+        const rankIndex = Number(
+          (document.getElementById("sw-rank") as HTMLInputElement).value,
+        );
         if (!name) {
           Swal.showValidationMessage("Prize name cannot be empty!");
           return false;
         }
-        return { prizeName: name, description: desc };
+        if (!rankIndex || rankIndex < 1) {
+          Swal.showValidationMessage("Rank must be at least 1!");
+          return false;
+        }
+        return { prizeName: name, description: desc, rankIndex };
       },
     });
 
@@ -440,7 +461,9 @@ export function AdminPrizesPage() {
       });
 
       if (selectedTeamId) {
-        await prizeApi.manualAssign({ prizeId: pId, teamId: selectedTeamId });
+        // Truyền nguyên prize: endpoint manual-assign nhận cả model, gửi thiếu
+        // field là ghi đè rỗng lên tên/mô tả/hạng của giải.
+        await prizeApi.manualAssign({ ...prize, prizeId: pId }, selectedTeamId);
         Swal.fire({
           icon: "success",
           title: "Successfully Awarded!",

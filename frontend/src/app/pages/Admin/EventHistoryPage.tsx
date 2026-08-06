@@ -4,6 +4,15 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
+import {
+  getEventPhase,
+  PHASE_LABEL,
+  type EventPhase,
+} from "../../lib/utils/eventLifecycle";
+
+// Trạng thái sự kiện dùng chung với trang chi tiết — xem eventLifecycle.ts.
+// ⚠️ Trước đây file này tự cài lại một bản riêng và coi mọi currentRound >= -1
+// là "đang diễn ra", nên sự kiện vừa tạo xong đã bị gắn nhãn Ongoing.
 
 export function EventHistoryPage() {
   const navigate = useNavigate();
@@ -43,27 +52,20 @@ export function EventHistoryPage() {
     }
   };
 
-  // --- LOGIC LỌC VÀ SẮP XẾP SỰ KIỆN THEO BẢNG CHỮ CÁI ---
   const filteredEvents = events
     .filter((ev) => {
-      // Lọc theo tên
       const matchSearch = (ev.name || ev.eventName || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
-      // Lọc theo trạng thái
-      const evStatus =
-        ev.currentRound >= (ev.maxRounds || 2) ? "Ended" : "Ongoing";
-      const matchStatus = statusFilter === "All" || evStatus === statusFilter;
-
-      // Lọc theo Season
+      const evPhase = getEventPhase(ev, ev.maxRounds);
+      const matchStatus = statusFilter === "All" || evPhase === statusFilter;
       const matchSeason =
         seasonFilter === "All" || ev.semester === seasonFilter;
 
       return matchSearch && matchStatus && matchSeason;
     })
     .sort((a, b) => {
-      // Sắp xếp A-Z theo tên sự kiện
       const nameA = a.name || a.eventName || "";
       const nameB = b.name || b.eventName || "";
       return nameA.localeCompare(nameB);
@@ -113,11 +115,14 @@ export function EventHistoryPage() {
   return (
     <main className="w-full bg-[#f4f6f8] min-h-screen p-10 animate-in fade-in duration-500 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* HEADER */}
         <div className="flex justify-between items-end">
           <div>
             <h2 className="text-4xl font-black text-[#f26f21] tracking-tight flex items-center gap-3">
-              <Calendar size={36} className="text-orange-600" strokeWidth={2.5} />
+              <Calendar
+                size={36}
+                className="text-orange-600"
+                strokeWidth={2.5}
+              />
               Event Archive
             </h2>
             <p className="text-slate-500 text-base font-medium mt-2">
@@ -133,17 +138,19 @@ export function EventHistoryPage() {
           </button>
         </div>
 
-        {/* THANH CÔNG CỤ SEARCH & FILTER (MỚI THÊM) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex items-center gap-4 w-full sm:w-auto">
+            {/* value phải trùng id của EventPhase để lọc đúng */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 cursor-pointer transition-all appearance-none"
             >
               <option value="All">All Statuses</option>
-              <option value="Ongoing">Ongoing</option>
-              <option value="Ended">Ended</option>
+              <option value="draft">{PHASE_LABEL.draft}</option>
+              <option value="registration">{PHASE_LABEL.registration}</option>
+              <option value="running">{PHASE_LABEL.running}</option>
+              <option value="ended">{PHASE_LABEL.ended}</option>
             </select>
 
             <select
@@ -170,7 +177,6 @@ export function EventHistoryPage() {
           </div>
         </div>
 
-        {/* TABLE CONTAINER */}
         <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden p-3">
           <div className="border border-slate-100 rounded-2xl overflow-hidden">
             <table className="w-full text-left">
@@ -201,62 +207,79 @@ export function EventHistoryPage() {
                       colSpan={5}
                       className="px-6 py-16 text-center text-slate-500 font-medium text-base"
                     >
-                      No events found in the database.
+                      No events found matching your criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredEvents.map((event, index) => (
-                    <tr
-                      key={event.id ?? index}
-                      className="hover:bg-slate-50 transition-colors group"
-                    >
-                      <td className="px-8 py-5">
-                        <span className="font-black text-[#f26f21] text-lg group-hover:text-fpt-orange transition-colors">
-                          {event.name || event.eventName}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-slate-500 font-bold text-sm uppercase tracking-wider">
-                        {event.semester || "-"}
-                      </td>
-                      <td className="px-6 py-5 text-slate-500 font-bold text-sm text-center">
-                        {event.year}
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        {event.currentRound >= 0 &&
-                          event.currentRound < (event.maxRounds || 2) && (
-                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 text-orange-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-200">
-                              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>
-                              Ongoing
+                  filteredEvents.map((event, index) => {
+                    const phase: EventPhase = getEventPhase(
+                      event,
+                      event.maxRounds,
+                    );
+                    return (
+                      <tr
+                        key={event.id ?? index}
+                        className="hover:bg-slate-50 transition-colors group"
+                      >
+                        <td className="px-8 py-5">
+                          <span className="font-black text-[#f26f21] text-lg group-hover:text-fpt-orange transition-colors">
+                            {event.name || event.eventName}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-slate-500 font-bold text-sm uppercase tracking-wider">
+                          {event.semester || "-"}
+                        </td>
+                        <td className="px-6 py-5 text-slate-500 font-bold text-sm text-center">
+                          {event.year}
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          {phase === "draft" && (
+                            <span className="inline-flex items-center px-3.5 py-1.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200">
+                              {PHASE_LABEL.draft}
                             </span>
                           )}
-                        {event.currentRound >= (event.maxRounds || 2) && (
-                          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                            Ended
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-8 py-5 flex justify-end gap-2">
-                        <button
-                          onClick={() => navigate(`/admin/events/${event.id}`)}
-                          className="flex items-center gap-1.5 px-4 py-2 text-[#f26f21] bg-slate-100 border border-slate-200 hover:bg-fpt-orange hover:text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
-                        >
-                          <Eye size={16} strokeWidth={2.5} /> Manage
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleDeleteEvent(
-                              event.id,
-                              event.name || event.eventName,
-                            )
-                          }
-                          className="text-slate-400 hover:text-red-500 border border-transparent hover:border-red-100 transition-colors p-2 rounded-xl hover:bg-red-50"
-                        >
-                          <Trash2 size={18} strokeWidth={2.5} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                          {phase === "registration" && (
+                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-200">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                              {PHASE_LABEL.registration}
+                            </span>
+                          )}
+                          {phase === "running" && (
+                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 text-orange-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-200">
+                              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>
+                              {PHASE_LABEL.running}
+                            </span>
+                          )}
+                          {phase === "ended" && (
+                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 text-slate-200 rounded-full text-[10px] font-black uppercase tracking-widest">
+                              {PHASE_LABEL.ended}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-8 py-5 flex justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              navigate(`/admin/events/${event.id}`)
+                            }
+                            className="flex items-center gap-1.5 px-4 py-2 text-[#f26f21] bg-slate-100 border border-slate-200 hover:bg-fpt-orange hover:text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                          >
+                            <Eye size={16} strokeWidth={2.5} /> Manage
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleDeleteEvent(
+                                event.id,
+                                event.name || event.eventName,
+                              )
+                            }
+                            className="text-slate-400 hover:text-red-500 border border-transparent hover:border-red-100 transition-colors p-2 rounded-xl hover:bg-red-50"
+                          >
+                            <Trash2 size={18} strokeWidth={2.5} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

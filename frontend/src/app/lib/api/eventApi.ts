@@ -45,17 +45,38 @@ export function pickId(obj: any): string {
     ""
   );
 }
+/**
+ * Chuẩn hóa 1 event từ backend sang shape UI đang dùng (.name/.semester) NHƯNG
+ * GIỮ NGUYÊN toàn bộ field gốc.
+ *
+ * ⚠️ Trước đây hàm map chỉ giữ lại 5 field và vứt hết phần còn lại — trong đó có
+ * `status`, `registrationStartDate/EndDate`, `minTeamMember/maxTeamMember`.
+ * Hậu quả: mọi chỗ suy ra trạng thái sự kiện đều mù thông tin và phải đoán mò
+ * theo currentRound, nên sự kiện vừa tạo bị hiểu nhầm thành "đang mở đăng ký".
+ * Đừng rút gọn lại thành object literal nữa.
+ */
+export function normalizeEvent(item: any): any {
+  if (!item) return item;
+  const raw = item?.data !== undefined && item?.data !== null ? item.data : item;
+  return {
+    ...raw,
+    id: raw.eventId ?? raw.eventID ?? raw.id,
+    name: raw.eventName ?? raw.name,
+    semester: raw.season ?? raw.semester,
+    year: raw.year,
+    currentRound: raw.currentRound ?? 0,
+  };
+}
+
 export const eventApi = {
   async getAllEvents(): Promise<EventItem[]> {
     const res = await apiClient.get("/api/Event");
-    const activeEvents = res.data.filter((item: any) => item.isActive === true);
-    return activeEvents.map((item: any) => ({
-      id: item.eventId,
-      name: item.eventName, // Map eventName của Backend -> name của UI
-      semester: item.season, // Map season của Backend -> semester của UI
-      year: item.year,
-      currentRound: item.currentRound || 0,
-    }));
+    // Chỉ loại những bản ghi bị đánh dấu ngừng hoạt động rõ ràng. Lọc theo
+    // `=== true` sẽ nuốt mất sự kiện nào backend không trả field isActive.
+    const activeEvents = (res.data || []).filter(
+      (item: any) => item.isActive !== false,
+    );
+    return activeEvents.map(normalizeEvent);
   },
 
   // Danh sách RAW (không lọc isActive, không đổi tên field).
@@ -66,16 +87,9 @@ export const eventApi = {
     return res.data;
   },
 
-  async getEventById(id: string): Promise<EventItem> {
+  async getEventById(id: string): Promise<any> {
     const res = await apiClient.get(`/api/Event/${id}`);
-    const item = res.data;
-    return {
-      id: item.id,
-      name: item.eventName,
-      semester: item.season,
-      year: item.year,
-      currentRound: item.currentRound,
-    };
+    return normalizeEvent(res.data);
   },
 
   async createEvent(data: Partial<EventItem>): Promise<EventItem> {
@@ -93,6 +107,18 @@ export const eventApi = {
   },
   nextRound: async (eventId: string): Promise<EventItem> => {
     const res = await apiClient.put(`/api/Event/${eventId}/nextround`);
+    return res.data;
+  },
+
+  // Công khai sự kiện & mở form đăng ký (draft -> registration).
+  publish: async (eventId: string) => {
+    const res = await apiClient.put(`/api/Event/${eventId}/publish`);
+    return res.data;
+  },
+
+  // Đóng form đăng ký & khởi động vòng 1 (registration -> running).
+  startRound1: async (eventId: string) => {
+    const res = await apiClient.put(`/api/Event/${eventId}/start-round-1`);
     return res.data;
   },
 };
