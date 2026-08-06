@@ -280,24 +280,11 @@ namespace Services.PlayerService
                 accountDb.BanReason = request.Reason;
                 _uow.Account.Update(accountDb);
 
-                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == request.StudentId);
-                if (playerTeams != null && playerTeams.Count > 0)
-                {
-                    List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
-                    List<TeamInRound> submittedTeams = await _uow.TeamInRound.GetAllAsync(tr => teamIds.Contains(tr.TeamId));
-
-                    foreach (TeamInRound teamRound in submittedTeams)
-                    {
-                        teamRound.IsBanned = true;
-                        _uow.TeamInRound.Update(teamRound);
-                    }
-                }
 
                 await _uow.SaveAsync();
-
                 SendBanEmail(accountDb.Email, request.Reason);
 
-                return (true, "Player has been banned and their associated teams have been disqualified.");
+                return (true, "Player has been banned successfully. Their account is locked.");
             }
             catch (Exception ex)
             {
@@ -348,24 +335,11 @@ namespace Services.PlayerService
                 accountDb.BanReason = null;
                 _uow.Account.Update(accountDb);
 
-                List<TeamMember> playerTeams = await _uow.TeamMember.GetAllAsync(tm => tm.StudentId == studentId);
-                if (playerTeams != null && playerTeams.Count > 0)
-                {
-                    List<string> teamIds = playerTeams.Select(tm => tm.TeamId).ToList();
-                    List<TeamInRound> submittedTeams = await _uow.TeamInRound.GetAllAsync(tr => teamIds.Contains(tr.TeamId));
-
-                    foreach (TeamInRound teamRound in submittedTeams)
-                    {
-                        teamRound.IsBanned = false;
-                        _uow.TeamInRound.Update(teamRound);
-                    }
-                }
 
                 await _uow.SaveAsync();
-
                 SendUnbanEmail(accountDb.Email);
 
-                return (true, "Player has been unbanned and their associated teams have been restored.");
+                return (true, "Player has been unbanned successfully.");
             }
             catch (Exception ex)
             {

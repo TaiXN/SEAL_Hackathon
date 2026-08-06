@@ -228,6 +228,14 @@ namespace Services.TeamService
                 }
             }
 
+            int competitorsCount = 0;
+            if (submittedProject != null)
+            {
+                var allTeamsInCurrentRound = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == submittedProject.RoundId);
+                competitorsCount = allTeamsInCurrentRound.Count();
+            }
+            // 
+
             List<TeamMember> allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
 
@@ -240,7 +248,8 @@ namespace Services.TeamService
                 CurrentRoundName = currentRoundName,
                 CurrentRoundIndex = currentRoundIndex,
                 IsEliminated = isEliminated,
-                StatusMessage = statusMessage
+                StatusMessage = statusMessage,
+                TotalCompetitors = competitorsCount
             };
         }
 
@@ -267,10 +276,16 @@ namespace Services.TeamService
 
         public async Task<bool> KickMemberAsync(string teamId, string memberToKickPlayerId, string requesterAccountId)
         {
-            TeamInRound bannedCheck = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId && tr.IsBanned);
-            if (bannedCheck != null)
+            List<TeamMember> currentMembers = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamId);
+            if (currentMembers.Count > 0)
             {
-                throw new Exception("Your team has been disqualified. All team actions are permanently locked.");
+                List<string> memberIds = currentMembers.Select(m => m.StudentId).ToList();
+                List<Account> memberAccounts = await _uow.Account.GetAllAsync(a => memberIds.Contains(a.AccountId));
+
+                if (memberAccounts.Any(a => a.IsActive == false))
+                {
+                    throw new Exception("This team is paralyzed because one of its members has been banned. No team actions are allowed.");
+                }
             }
 
             Student requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
@@ -294,10 +309,16 @@ namespace Services.TeamService
 
         public async Task<bool> LeaveTeamAsync(string teamId, string requesterAccountId)
         {
-            TeamInRound bannedCheck = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId && tr.IsBanned);
-            if (bannedCheck != null)
+            List<TeamMember> currentMembers = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamId);
+            if (currentMembers.Count > 0)
             {
-                throw new Exception("Your team has been disqualified. All team actions are permanently locked.");
+                List<string> memberIds = currentMembers.Select(m => m.StudentId).ToList();
+                List<Account> memberAccounts = await _uow.Account.GetAllAsync(a => memberIds.Contains(a.AccountId));
+
+                if (memberAccounts.Any(a => a.IsActive == false))
+                {
+                    throw new Exception("This team is paralyzed because one of its members has been banned. No team actions are allowed.");
+                }
             }
 
             Student requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
@@ -339,10 +360,16 @@ namespace Services.TeamService
 
         public async Task<bool> TransferLeaderRoleAsync(string teamId, string newLeaderPlayerId, string requesterAccountId)
         {
-            TeamInRound bannedCheck = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId && tr.IsBanned);
-            if (bannedCheck != null)
+            List<TeamMember> currentMembers = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamId);
+            if (currentMembers.Count > 0)
             {
-                throw new Exception("Your team has been disqualified. All team actions are permanently locked.");
+                List<string> memberIds = currentMembers.Select(m => m.StudentId).ToList();
+                List<Account> memberAccounts = await _uow.Account.GetAllAsync(a => memberIds.Contains(a.AccountId));
+
+                if (memberAccounts.Any(a => a.IsActive == false))
+                {
+                    throw new Exception("This team is paralyzed because one of its members has been banned. No team actions are allowed.");
+                }
             }
 
             Student requester = await _uow.Student.GetFirstOrDefaultAsync(p => p.StudentId == requesterAccountId);
@@ -406,10 +433,16 @@ namespace Services.TeamService
 
         public async Task<bool> UpdateTeamInfoAsync(string accountId, string teamId, UpdateTeamAPIViewModel request)
         {
-            TeamInRound bannedCheck = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId && tr.IsBanned);
-            if (bannedCheck != null)
+            List<TeamMember> currentMembers = await _uow.TeamMember.GetAllAsync(tm => tm.TeamId == teamId);
+            if (currentMembers.Count > 0)
             {
-                throw new Exception("Your team has been disqualified. All team actions are permanently locked.");
+                List<string> memberIds = currentMembers.Select(m => m.StudentId).ToList();
+                List<Account> memberAccounts = await _uow.Account.GetAllAsync(a => memberIds.Contains(a.AccountId));
+
+                if (memberAccounts.Any(a => a.IsActive == false))
+                {
+                    throw new Exception("This team is paralyzed because one of its members has been banned. No team actions are allowed.");
+                }
             }
 
             TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);

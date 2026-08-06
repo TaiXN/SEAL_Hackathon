@@ -20,21 +20,50 @@ namespace Services.DropdownService
         public async Task<List<EventDropdownAPIViewModel>> GetActiveEventsAsync()
         {
             List<Event> events = await _uow.Event.GetAllAsync(e => e.IsActive == true);
-            return events.Select(e => new EventDropdownAPIViewModel
+            List<EventDropdownAPIViewModel> result = new List<EventDropdownAPIViewModel>();
+
+            foreach (Event e in events)
             {
-                EventId = e.EventId,
-                EventName = e.EventName
-            }).ToList();
+                Round round1 = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == e.EventId && r.RoundIndex == 1);
+                int maxTeam = round1 != null ? round1.MaxTeam : 0;
+
+                int currentCount = 0;
+                if (round1 != null)
+                {
+                    var teamsInEvent = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == round1.RoundId);
+                    currentCount = teamsInEvent.Count();
+                }
+
+                result.Add(new EventDropdownAPIViewModel
+                {
+                    EventId = e.EventId,
+                    EventName = e.EventName,
+                    CurrentTeamCount = currentCount,
+                    MaxTeamCapacity = maxTeam
+                });
+            }
+            return result;
         }
 
         public async Task<List<TrackDropdownAPIViewModel>> GetTracksByEventAsync(string eventId)
         {
             List<Track> tracks = await _uow.Track.GetAllAsync(t => t.EventId == eventId && t.IsActive == true);
-            return tracks.Select(t => new TrackDropdownAPIViewModel
+            List<TrackDropdownAPIViewModel> result = new List<TrackDropdownAPIViewModel>();
+
+            foreach (Track t in tracks)
             {
-                TrackId = t.TrackId,
-                TrackName = t.TrackName
-            }).ToList();
+                var teamsInTrack = await _uow.TeamInRound.GetAllAsync(tr => tr.TrackId == t.TrackId);
+                int currentCount = teamsInTrack.Count();
+
+                result.Add(new TrackDropdownAPIViewModel
+                {
+                    TrackId = t.TrackId,
+                    TrackName = t.TrackName,
+                    CurrentTeamCount = currentCount,
+                    MaxTeamCapacity = t.MaxTeam 
+                });
+            }
+            return result;
         }
 
         public async Task<List<TopicDropdownAPIViewModel>> GetTopicsByTrackAsync(string trackId)

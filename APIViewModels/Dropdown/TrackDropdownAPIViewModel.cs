@@ -4,5 +4,8 @@
     {
         public string TrackId { get; set; }
         public string TrackName { get; set; }
+
+        public int CurrentTeamCount { get; set; }
+        public int MaxTeamCapacity { get; set; }
     }
 }
