@@ -241,11 +241,24 @@ namespace Services.EventService
         {
             try
             {
-                Event result = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId.Equals(eventId));
-                if (result == null) return false;
+                Event eventDb =
+                    await _uow.Event.GetFirstOrDefaultAsync(
+                        e => e.EventId == eventId &&
+                             e.IsActive);
 
-                result.IsActive = false;
-                _uow.Event.Update(result);
+                if (eventDb == null)
+                {
+                    return false;
+                }
+
+                if (eventDb.CurrentRound > 0)
+                {
+                    return false;
+                }
+
+                eventDb.IsActive = false;
+
+                _uow.Event.Update(eventDb);
                 await _uow.SaveAsync();
 
                 return true;
@@ -301,24 +314,43 @@ namespace Services.EventService
         {
             try
             {
-                Event ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
-                if (ev == null) return (false, "Event does not exist.");
+                Event ev = await _uow.Event
+                    .GetFirstOrDefaultAsync(e => e.EventId == eventId);
 
-                Round round1 = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventId && r.RoundIndex == 1);
-                if (round1 == null) return (false, "Round 1 does not exist.");
+                if (ev == null)
+                    return (false, "Event does not exist.");
 
-                int teamCount = await _uow.TeamInRound.GetAllQueryable()
-                                .Where(t =>
-                                      t.RoundId == round1.RoundId &&
-                                      t.IsCheck &&
-                                      !t.IsBanned)
-                                     .Select(t => t.TeamId)
-                                     .Distinct()
-                                     .CountAsync();
+                if (ev.CurrentRound != 0)
+                {
+                    return (false, "Event is not currently in registration phase.");
+                }
+
+                Round round1 = await _uow.Round
+                    .GetFirstOrDefaultAsync(r =>
+                        r.EventId == eventId &&
+                        r.RoundIndex == 1);
+
+                if (round1 == null)
+                    return (false, "Round 1 does not exist.");
+
+                int teamCount = await _uow.TeamInRound
+                    .GetAllQueryable()
+                    .Where(t =>
+                        t.RoundId == round1.RoundId &&
+                        t.IsCheck &&
+                        !t.IsBanned)
+                    .Select(t => t.TeamId)
+                    .Distinct()
+                    .CountAsync();
 
                 if (teamCount < round1.MinTeam)
                 {
-                    return (false, $"Not enough teams to start Round 1. Minimum required: {round1.MinTeam} teams, currently registered: {teamCount} teams.");
+                    return (
+                        false,
+                        $"Not enough teams to start Round 1. " +
+                        $"Minimum required: {round1.MinTeam}, " +
+                        $"currently approved: {teamCount}."
+                    );
                 }
 
                 ev.CurrentRound = 1;
@@ -326,7 +358,10 @@ namespace Services.EventService
                 _uow.Event.Update(ev);
                 await _uow.SaveAsync();
 
-                return (true, "Registration closed. Round 1 has officially started!");
+                return (
+                    true,
+                    "Registration closed. Round 1 has officially started!"
+                );
             }
             catch (Exception ex)
             {
