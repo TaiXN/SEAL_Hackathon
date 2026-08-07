@@ -20,6 +20,8 @@ namespace Services.CriteriaService
         {
             try
             {
+
+
                 Criterion criterion = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaName.ToLower() == info.CriteriaName.ToLower());
 
                 if (criterion != null)
@@ -86,33 +88,64 @@ namespace Services.CriteriaService
             }
         }
 
-        public async Task<bool> UpdatCriterionAsync(string id, UpdateCriterionAPIViewModel info)
+        public async Task<(bool IsSuccess, string NewSetId)> UpdateSetAsync(string setID, UpdateSetAPIViewModel info)
         {
             try
             {
-                Criterion criterionDb = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaId == id && e.IsActive);
-                if (criterionDb == null) return false;
-
-                Criterion duplicateCheck = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaName.ToLower() == info.CriteriaName.ToLower() && e.CriteriaId != id && e.IsActive);
-
-                if (duplicateCheck != null)
+                double totalScore = info.CriteriaList.Sum(c => c.Score);
+                if (totalScore != 100)
                 {
-                    return false;
+                    return (false,null);
                 }
 
-                criterionDb.CriteriaName = info.CriteriaName;
-                criterionDb.Description = info.Description;
+                CriteriaSet oldSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
+                if (oldSet == null) return (false, null);
 
-                _uow.Criteria.Update(criterionDb);
+                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.CriteriaSetId != setID && e.IsActive);
+                if (duplicateSet != null) return (false, null);
+
+     
+                foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
+                {
+                    Criterion checkCriterion = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaId == item.CriteriaId && e.IsActive);
+                    if (checkCriterion == null) return (false, null);
+                }
+
+                oldSet.IsActive = false;
+                _uow.CriteriaSet.Update(oldSet);
+
+                string newSetId = Guid.NewGuid().ToString();
+                CriteriaSet newSet = new CriteriaSet()
+                {
+                    CriteriaSetId = newSetId,
+                    SetName = info.SetName,
+                    IsDefault = info.IsDefault,
+                    IsActive = true
+                };
+                await _uow.CriteriaSet.AddAsync(newSet);
+
+                List<Mapping> newMappings = new List<Mapping>();
+                foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
+                {
+                    Mapping newMapping = new Mapping()
+                    {
+                        CriteriaSetId = newSetId,
+                        CriteriaId = item.CriteriaId,
+                        Score = item.Score
+                    };
+                    newMappings.Add(newMapping);
+                }
+                await _uow.Mapping.AddRangeAsync(newMappings);
+
                 await _uow.SaveAsync();
-                return true;
+
+                return (true, newSetId);
             }
             catch (Exception ex)
             {
-                return false;
+                return (false, null);
             }
         }
-
         public async Task<bool> DeleteCriterionAsync(string criterionID)
         {
             try
@@ -156,6 +189,12 @@ namespace Services.CriteriaService
         {
             try
             {
+                double totalScore = info.CriteriaList.Sum(c => c.Score);
+                if (totalScore != 100)
+                {
+                    return false;
+                }
+
                 CriteriaSet duplicateTemplate = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.IsActive);
                 if (duplicateTemplate != null) return false;
 
@@ -241,72 +280,6 @@ namespace Services.CriteriaService
             catch (Exception ex)
             {
                 return new List<MappingDetailAPIViewModel>();
-            }
-        }
-
-
-        public async Task<bool> UpdateSetAsync(string setID, UpdateSetAPIViewModel info)
-        {
-            try
-            {
-                List<Round> usedInRounds = await _uow.Round.GetAllAsync(r => r.CriteriaSetId == setID);
-
-                if (usedInRounds.Count > 0)
-                {
-                    return false;
-                }
-
-                CriteriaSet setDb = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
-                if (setDb == null) return false;
-
-                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.CriteriaSetId != setID && e.IsActive);
-                if (duplicateSet != null) return false;
-
-                foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
-                {
-                    Criterion checkCriterion = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaId == item.CriteriaId && e.IsActive);
-                    if (checkCriterion == null) return false;
-                }
-
-                if (duplicateSet != null) return false;
-
-                setDb.SetName = info.SetName;
-                setDb.IsDefault = info.IsDefault;
-                _uow.CriteriaSet.Update(setDb);
-
-
-                List<Mapping> oldMappings = await _uow.Mapping.GetAllAsync(e => e.CriteriaSetId == setID);
-
-
-                foreach (Mapping oldMapping in oldMappings)
-                {
-                    _uow.Mapping.Remove(oldMapping);
-                }
-
-
-                List<Mapping> newMappings = new List<Mapping>();
-                foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
-                {
-                    Mapping newMapping = new Mapping()
-                    {
-                        CriteriaSetId = setID,
-                        CriteriaId = item.CriteriaId,
-                        Score = item.Score
-                    };
-                    newMappings.Add(newMapping);
-                }
-
-
-                await _uow.Mapping.AddRangeAsync(newMappings);
-
-
-                await _uow.SaveAsync();
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                return false;
             }
         }
 

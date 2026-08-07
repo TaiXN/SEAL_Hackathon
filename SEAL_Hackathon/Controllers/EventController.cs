@@ -1,4 +1,5 @@
-﻿using APIViewModels.Event;
+﻿using APIViewModels.Admin;
+using APIViewModels.Event;
 using DataAccess.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -129,6 +130,32 @@ namespace SEAL_Hackathon.Controllers
             }
 
             return BadRequest(new { message = result.Message });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("{eventId}/teams")]
+        public async Task<IActionResult> GetTeamsJoinedEvent(string eventId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(eventId))
+                {
+                    return BadRequest("Invalid Event ID.");
+                }
+
+                List<AdminTeamJoinedAPIViewModel> result = await _event.GetTeamsJoinedEventAsync(eventId);
+
+                if (result == null || !result.Any())
+                {
+                    return NotFound("No teams have joined this event yet.");
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

@@ -14,26 +14,67 @@ namespace Services.PrizeService
             _uow = uow;
         }
 
-        public async Task<(bool IsSuccess, string Message)> CreatePrizeAsync(CreatePrizeAPIViewModel request)
+        public async Task<(bool IsSuccess, string Message)>CreatePrizeAsync(CreatePrizeAPIViewModel request)
         {
             try
             {
-                if (request == null || string.IsNullOrEmpty(request.PrizeName) || string.IsNullOrEmpty(request.EventId))
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.PrizeName) ||
+                    string.IsNullOrWhiteSpace(request.EventId))
                 {
-                    return (false, "Prize Name and EventId cannot be empty!");
+                    return (
+                        false,
+                        "Prize Name and EventId cannot be empty!"
+                    );
                 }
 
-                Event existingEvent = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == request.EventId);
+
+                if (request.RankIndex <= 0)
+                {
+                    return (
+                        false,
+                        "Prize RankIndex must be greater than 0."
+                    );
+                }
+
+
+                Event existingEvent =
+                    await _uow.Event.GetFirstOrDefaultAsync(
+                        e => e.EventId == request.EventId
+                    );
+
 
                 if (existingEvent == null)
                 {
-                    return (false, "Event does not exist in the system!");
+                    return (
+                        false,
+                        "Event does not exist in the system!"
+                    );
                 }
+
+
+                Prize duplicateRank =
+                    await _uow.Prize.GetFirstOrDefaultAsync(
+                        p =>
+                            p.EventId == request.EventId &&
+                            p.RankIndex == request.RankIndex &&
+                            p.IsActive
+                    );
+
+
+                if (duplicateRank != null)
+                {
+                    return (
+                        false,
+                        $"Rank #{request.RankIndex} already has a prize."
+                    );
+                }
+
 
                 Prize newPrize = new Prize
                 {
                     PrizeId = Guid.NewGuid().ToString(),
-                    PrizeName = request.PrizeName,
+                    PrizeName = request.PrizeName.Trim(),
                     Description = request.Description,
                     EventId = request.EventId,
                     IsActive = true,
@@ -41,14 +82,23 @@ namespace Services.PrizeService
                     RankIndex = request.RankIndex
                 };
 
+
                 await _uow.Prize.AddAsync(newPrize);
+
                 await _uow.SaveAsync();
 
-                return (true, "Prize created successfully!");
+
+                return (
+                    true,
+                    "Prize created successfully!"
+                );
             }
             catch (Exception ex)
             {
-                return (false, $"System error: {ex.Message}");
+                return (
+                    false,
+                    $"System error: {ex.Message}"
+                );
             }
         }
 
@@ -258,6 +308,45 @@ namespace Services.PrizeService
             }
         }
 
-       
+        public async Task<List<PrizeAPIViewModel>> GetTeamAwardsAsync(string eventId, string teamId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(eventId) ||
+                    string.IsNullOrWhiteSpace(teamId))
+                {
+                    return new List<PrizeAPIViewModel>();
+                }
+
+
+                List<Prize> prizes =
+                    await _uow.Prize.GetAllAsync(
+                        p =>
+                            p.EventId == eventId &&
+                            p.TeamId == teamId &&
+                            p.IsActive
+                    );
+
+
+                return prizes
+                    .OrderBy(p => p.RankIndex)
+                    .Select(p => new PrizeAPIViewModel
+                    {
+                        PrizeId = p.PrizeId,
+                        PrizeName = p.PrizeName,
+                        Description = p.Description,
+                        EventId = p.EventId,
+                        TeamId = p.TeamId,
+                        RankIndex = p.RankIndex,
+                        IsActive = p.IsActive
+                    })
+                    .ToList();
+            }
+            catch
+            {
+                return new List<PrizeAPIViewModel>();
+            }
+        }
+
     }
 }

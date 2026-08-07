@@ -117,5 +117,30 @@ namespace SEAL_Hackathon.Controllers
 
             return Ok(new { message = result.Message });
         }
+
+        [HttpGet("team-awards/{eventId}/{teamId}")]
+        public async Task<IActionResult> GetTeamAwards(string eventId, string teamId)
+        {
+            if (string.IsNullOrWhiteSpace(eventId) ||
+                string.IsNullOrWhiteSpace(teamId))
+            {
+                return BadRequest(new
+                {
+                    message = "EventId and TeamId are required."
+                });
+            }
+
+            List<PrizeAPIViewModel> result =
+                await _prize.GetTeamAwardsAsync(
+                    eventId,
+                    teamId
+                );
+
+            return Ok(new
+            {
+                hasAward = result.Any(),
+                awards = result
+            });
+        }
     }
 }

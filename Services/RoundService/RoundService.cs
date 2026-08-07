@@ -509,115 +509,417 @@ namespace Services.RoundService
         {
             try
             {
-                Round currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == currentRoundId);
-                if (currentRound == null) return (false, "Current round not found.");
+                Round currentRound = await _uow.Round.GetFirstOrDefaultAsync(
+                    r => r.RoundId == currentRoundId
+                );
 
-                Event eventInfo = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == currentRound.EventId);
-                if (eventInfo == null) return (false, "Related event not found.");
+                if (currentRound == null)
+                {
+                    return (false, "Current round not found.");
+                }
+
+                if (!currentRound.IsActive)
+                {
+                    return (false, "This round has already been finalized.");
+                }
+
+                Event eventInfo = await _uow.Event.GetFirstOrDefaultAsync(
+                    e => e.EventId == currentRound.EventId
+                );
+
+                if (eventInfo == null)
+                {
+                    return (false, "Related event not found.");
+                }
+
+
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+                if (!currentRound.ScoringEndDate.HasValue)
+                {
+                    return (
+                        false,
+                        "Scoring end date has not been configured."
+                    );
+                }
+
+                if (vnNow < currentRound.ScoringEndDate.Value)
+                {
+                    return (
+                        false,
+                        $"Scoring period has not ended yet. " +
+                        $"It ends at {currentRound.ScoringEndDate.Value:dd/MM/yyyy HH:mm}."
+                    );
+                }
+
 
                 int nextIndex = currentRound.RoundIndex + 1;
-                Round nextRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == currentRound.EventId && r.RoundIndex == nextIndex);
+
+                Round nextRound = await _uow.Round.GetFirstOrDefaultAsync(
+                    r =>
+                        r.EventId == currentRound.EventId &&
+                        r.RoundIndex == nextIndex
+                );
 
                 if (nextRound == null)
                 {
-                    List<Prize> eventPrizes = await _uow.Prize.GetAllQueryable()
-                                                    .Where(p => p.EventId == eventInfo.EventId && p.IsActive)
-                                                    .ToListAsync();
+                    List<Prize> eventPrizes = await _uow.Prize
+                        .GetAllQueryable()
+                        .Where(p =>
+                            p.EventId == eventInfo.EventId &&
+                            p.IsActive)
+                        .OrderBy(p => p.RankIndex)
+                        .ToListAsync();
 
-                    List<LeaderBoard> leaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
+                    if (!eventPrizes.Any())
+                    {
+                        return (
+                            false,
+                            "No prizes have been configured for this event."
+                        );
+                    }
+
+                    if (eventPrizes.Any(p =>
+                        !string.IsNullOrEmpty(p.TeamId)))
+                    {
+                        return (
+                            false,
+                            "Prizes for this event have already been assigned."
+                        );
+                    }
+
+                    List<LeaderBoard> leaderboards =
+                        await _uow.LeaderBoard.GetAllAsync(
+                            lb => lb.RoundId == currentRoundId
+                        );
+
+                    if (!leaderboards.Any())
+                    {
+                        return (
+                            false,
+                            "Final round leaderboard not found."
+                        );
+                    }
+
+                    List<(string TeamId, double Score)> rankedTeams =
+                        new List<(string TeamId, double Score)>();
+
 
                     foreach (LeaderBoard lb in leaderboards)
                     {
-                        List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllQueryable()
-                            .Where(d => d.LeaderBoardId == lb.Id)
-                            .OrderByDescending(d => d.Score)
-                            .ToListAsync();
+                        List<LeaderBoardDetail> details =
+                            await _uow.LeaderBoardDetail
+                                .GetAllQueryable()
+                                .Where(d =>
+                                    d.LeaderBoardId == lb.Id)
+                                .ToListAsync();
 
-                        for (int i = 0; i < details.Count; i++)
+
+                        foreach (LeaderBoardDetail detail in details)
                         {
-                            int currentRank = i + 1;
+                            TeamInRound teamInRound =
+                                await _uow.TeamInRound
+                                    .GetFirstOrDefaultAsync(
+                                        t =>
+                                            t.Id == detail.TeamInRoundId &&
+                                            t.RoundId == currentRoundId &&
+                                            !t.IsBanned
+                                    );
 
-                            Prize prizeForRank = eventPrizes.FirstOrDefault(p => p.RankIndex == currentRank);
 
-                            if (prizeForRank != null)
+                            if (teamInRound == null)
                             {
-                                TeamInRound tir = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == details[i].TeamInRoundId);
-                                if (tir != null)
-                                {
-                                    prizeForRank.TeamId = tir.TeamId;
-                                    _uow.Prize.Update(prizeForRank);
-                                }
+                                continue;
                             }
+
+
+                            rankedTeams.Add(
+                                (
+                                    teamInRound.TeamId,
+                                    detail.Score
+                                )
+                            );
                         }
+                    }
+
+
+                    if (!rankedTeams.Any())
+                    {
+                        return (
+                            false,
+                            "No eligible teams found in the final round."
+                        );
+                    }
+
+
+                    rankedTeams = rankedTeams
+                        .GroupBy(x => x.TeamId)
+                        .Select(g =>
+                            g.OrderByDescending(x => x.Score)
+                             .First())
+                        .OrderByDescending(x => x.Score)
+                        .ToList();
+
+
+                    int maxPrizeRank = eventPrizes
+                        .Where(p => p.RankIndex > 0)
+                        .Select(p => p.RankIndex)
+                        .DefaultIfEmpty(0)
+                        .Max();
+
+
+                    if (maxPrizeRank <= 0)
+                    {
+                        return (
+                            false,
+                            "Prize RankIndex configuration is invalid."
+                        );
+                    }
+
+
+                    int numberOfRanksToCheck =
+                        Math.Min(
+                            maxPrizeRank,
+                            rankedTeams.Count
+                        );
+
+
+                    for (int i = 0;
+                         i < numberOfRanksToCheck - 1;
+                         i++)
+                    {
+                        if (rankedTeams[i].Score ==
+                            rankedTeams[i + 1].Score)
+                        {
+                            return (
+                                false,
+                                $"Tie score detected between Rank #{i + 1} " +
+                                $"and Rank #{i + 2}. " +
+                                $"Please resolve the tie before finalizing prizes."
+                            );
+                        }
+                    }
+
+                    if (rankedTeams.Count > maxPrizeRank &&
+                        maxPrizeRank > 0)
+                    {
+                        double lastWinningScore =
+                            rankedTeams[maxPrizeRank - 1].Score;
+
+                        double firstNonWinningScore =
+                            rankedTeams[maxPrizeRank].Score;
+
+
+                        if (lastWinningScore ==
+                            firstNonWinningScore)
+                        {
+                            return (
+                                false,
+                                $"Tie score detected at the prize boundary Rank #{maxPrizeRank}. " +
+                                $"Please resolve the tie before finalizing prizes."
+                            );
+                        }
+                    }
+                    foreach (Prize prize in eventPrizes)
+                    {
+                        int rank = prize.RankIndex;
+
+                        if (rank <= 0)
+                        {
+                            continue;
+                        }
+
+
+                        int index = rank - 1;
+
+
+                        if (index >= rankedTeams.Count)
+                        {
+                            continue;
+                        }
+
+
+                        prize.TeamId =
+                            rankedTeams[index].TeamId;
+
+
+                        _uow.Prize.Update(prize);
                     }
 
                     currentRound.IsActive = false;
+
                     _uow.Round.Update(currentRound);
+
                     await _uow.SaveAsync();
 
-                    return (true, "Vòng chung kết đã kết thúc! Hệ thống đã chốt điểm và tự động trao giải thành công.");
+
+                    return (
+                        true,
+                        "Final round completed. Rankings were finalized and prizes were automatically assigned."
+                    );
                 }
 
-                int topN = currentRound.TopNpromotion;
-                if (topN <= 0) return (false, "TopNPromotion has not been set up for this round.");
 
-                List<LeaderBoard> currentLeaderboards = await _uow.LeaderBoard.GetAllAsync(lb => lb.RoundId == currentRoundId);
+                int topN = currentRound.TopNpromotion;
+
+                if (topN <= 0)
+                {
+                    return (
+                        false,
+                        "TopNPromotion has not been set up for this round."
+                    );
+                }
+
+
+                List<LeaderBoard> currentLeaderboards =
+                    await _uow.LeaderBoard.GetAllAsync(
+                        lb => lb.RoundId == currentRoundId
+                    );
+
+
+                if (!currentLeaderboards.Any())
+                {
+                    return (
+                        false,
+                        "Leaderboard for this round was not found."
+                    );
+                }
+
 
                 foreach (LeaderBoard lb in currentLeaderboards)
                 {
-                    List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllQueryable()
-                        .Where(d => d.LeaderBoardId == lb.Id)
-                        .OrderByDescending(d => d.Score)
-                        .ToListAsync();
+                    List<LeaderBoardDetail> details =
+                        await _uow.LeaderBoardDetail
+                            .GetAllQueryable()
+                            .Where(d =>
+                                d.LeaderBoardId == lb.Id)
+                            .OrderByDescending(d => d.Score)
+                            .ToListAsync();
+
+                    if (details.Count < topN)
+                    {
+                        return (
+                            false,
+                            $"Track {lb.TrackId} does not have enough ranked teams. " +
+                            $"Required Top {topN}, currently available: {details.Count}."
+                        );
+                    }
 
                     if (details.Count > topN)
                     {
-                        LeaderBoardDetail lastPromoted = details[topN - 1];
-                        LeaderBoardDetail firstEliminated = details[topN];
+                        LeaderBoardDetail lastPromoted =
+                            details[topN - 1];
 
-                        if (lastPromoted.Score == firstEliminated.Score)
+                        LeaderBoardDetail firstEliminated =
+                            details[topN];
+
+
+                        if (lastPromoted.Score ==
+                            firstEliminated.Score)
                         {
-                            return (false, $"Tie score detected at the Top {topN} boundary in Track {lb.TrackId}. Please resolve appeals before finalizing the leaderboard!");
+                            return (
+                                false,
+                                $"Tie score detected at the Top {topN} boundary " +
+                                $"in Track {lb.TrackId}. " +
+                                $"Please resolve appeals before finalizing the leaderboard!"
+                            );
                         }
                     }
 
-                    List<LeaderBoardDetail> winningDetails = details.Take(topN).ToList();
+                    List<LeaderBoardDetail> winningDetails =
+                        details
+                            .Take(topN)
+                            .ToList();
 
-                    foreach (LeaderBoardDetail detail in winningDetails)
+                    foreach (LeaderBoardDetail detail
+                             in winningDetails)
                     {
-                        TeamInRound oldTeamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(t => t.Id == detail.TeamInRoundId);
-                        if (oldTeamInRound != null)
+                        TeamInRound oldTeamInRound =
+                            await _uow.TeamInRound
+                                .GetFirstOrDefaultAsync(
+                                    t =>
+                                        t.Id ==
+                                        detail.TeamInRoundId
+                                );
+
+
+                        if (oldTeamInRound == null)
                         {
-                            TeamInRound newTeam = new TeamInRound
+                            continue;
+                        }
+
+                        TeamInRound existingNextRoundTeam =
+                            await _uow.TeamInRound
+                                .GetFirstOrDefaultAsync(
+                                    t =>
+                                        t.TeamId ==
+                                        oldTeamInRound.TeamId &&
+                                        t.RoundId ==
+                                        nextRound.RoundId
+                                );
+
+
+                        if (existingNextRoundTeam != null)
+                        {
+                            continue;
+                        }
+
+
+                        TeamInRound newTeam =
+                            new TeamInRound
                             {
                                 Id = Guid.NewGuid().ToString(),
-                                TeamId = oldTeamInRound.TeamId,
-                                TrackId = oldTeamInRound.TrackId,
-                                RoundId = nextRound.RoundId,
-                                TopicId = oldTeamInRound.TopicId,
+
+                                TeamId =
+                                    oldTeamInRound.TeamId,
+
+                                TrackId =
+                                    oldTeamInRound.TrackId,
+
+                                RoundId =
+                                    nextRound.RoundId,
+
+                                TopicId =
+                                    oldTeamInRound.TopicId,
+
                                 IsBanned = false,
+
                                 IsCheck = false
                             };
-                            await _uow.TeamInRound.AddAsync(newTeam);
-                        }
+
+
+                        await _uow.TeamInRound
+                            .AddAsync(newTeam);
                     }
                 }
 
                 currentRound.IsActive = false;
                 nextRound.IsActive = true;
-                eventInfo.CurrentRound = nextRound.RoundIndex;
+
+                eventInfo.CurrentRound =
+                    nextRound.RoundIndex;
+
 
                 _uow.Round.Update(currentRound);
                 _uow.Round.Update(nextRound);
                 _uow.Event.Update(eventInfo);
 
+
                 await _uow.SaveAsync();
 
-                return (true, $"Round transition successful! Finalized the list of the top {topN} teams advancing to {nextRound.RoundName}.");
+
+                return (
+                    true,
+                    $"Round transition successful! " +
+                    $"Finalized the list of the top {topN} teams advancing to {nextRound.RoundName}."
+                );
             }
             catch (Exception ex)
             {
-                return (false, $"System error: {ex.Message}");
+                return (
+                    false,
+                    $"System error: {ex.Message}"
+                );
             }
         }
 

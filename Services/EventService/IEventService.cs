@@ -1,5 +1,6 @@
-﻿using DataAccess.Entities;
+﻿using APIViewModels.Admin;
 using APIViewModels.Event;
+using DataAccess.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -16,5 +17,6 @@ namespace Services.EventService
         Task<bool> NextRound(string eventID);
         Task<(bool IsSuccess, string Message)> StartRound1Async(string eventId);
         Task<(bool IsSuccess, string Message)> PublishEventAsync(string eventId);
+        Task<List<AdminTeamJoinedAPIViewModel>> GetTeamsJoinedEventAsync(string eventId);
     }
 }

@@ -30,6 +30,9 @@ namespace APIViewModels.Teacher
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
 
+        public DateTime? ScoringStartDate { get; set; }
+        public DateTime? ScoringEndDate { get; set; }
+
         public List<TrackSimpleViewModel> JudgeTracks { get; set; } = new List<TrackSimpleViewModel>();
         public List<TrackSimpleViewModel> MentorTracks { get; set; } = new List<TrackSimpleViewModel>();
         public EventSummaryViewModel Summary { get; set; } = new EventSummaryViewModel();
@@ -65,6 +68,9 @@ namespace APIViewModels.Teacher
 
         public bool CanScore { get; set; }
         public bool CanMentorContact { get; set; }
+
+        public bool IsUrgentScoring { get; set; }
+        public string UrgentMessage { get; set; } = string.Empty;
     }
 
     public class PortalEventDetailViewModel
@@ -73,6 +79,9 @@ namespace APIViewModels.Teacher
         public string EventName { get; set; } = string.Empty;
         public int CurrentRound { get; set; }
         public string CurrentRoundName { get; set; } = string.Empty;
+
+        public DateTime? ScoringStartDate { get; set; }
+        public DateTime? ScoringEndDate { get; set; }
 
         public RoleFlagsViewModel Roles { get; set; } = new RoleFlagsViewModel();
         public List<TrackSimpleViewModel> JudgeTracks { get; set; } = new List<TrackSimpleViewModel>();

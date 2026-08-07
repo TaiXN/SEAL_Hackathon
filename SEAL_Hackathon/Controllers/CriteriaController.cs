@@ -51,18 +51,28 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
-        [HttpPut("criterion/{id}")]
-        public async Task<IActionResult> UpdateCriterion(string id, UpdateCriterionAPIViewModel info)
+        [HttpPut("{setId}")]
+        public async Task<IActionResult> UpdateCriteriaSet(string setId, [FromBody] UpdateSetAPIViewModel request)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            bool isSuccess = await _criteria.UpdatCriterionAsync(id, info);
-            if (isSuccess)
+            try
             {
-                return Ok("Criteria update successful!");
+                (bool IsSuccess, string NewSetId) result = await _criteria.UpdateSetAsync(setId, request);
+
+                if (result.IsSuccess)
+                {
+                    return Ok(new
+                    {
+                        message = "Successfully updated and cloned the criteria set!",
+                        newSetId = result.NewSetId
+                    });
+                }
+
+                return BadRequest("Update failed. Please ensure the provided data is valid.");
             }
-            return BadRequest("Error occurred during the criteria update process or criteria not found.");
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [Authorize(Roles = "Admin")]
@@ -122,18 +132,7 @@ namespace SEAL_Hackathon.Controllers
             }
             return Ok(result);
         }
-
-        [Authorize(Roles = "Admin")]
-        [HttpPut("set/{setID}")]
-        public async Task<IActionResult> UpdateSet(string setID, UpdateSetAPIViewModel info)
-        {
-            bool isSuccess = await _criteria.UpdateSetAsync(setID, info);
-            if (isSuccess)
-            {
-                return Ok("Set update successful!");
-            }
-            return BadRequest("Error occurred during the set update process or event not found.");
-        }
+    
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("set/{id}")]
