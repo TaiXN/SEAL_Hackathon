@@ -128,11 +128,11 @@ namespace Services.SubmissionService
             return true;
         }
 
-        public async Task<List<SubmissionAuditLogAPIViewModel>> GetAuditLogsByTeamAsync(string teamId)
+        public async Task<List<SubmissionAuditLogAPIViewModel>> GetAuditLogsByTeamAsync(string teamId, string eventId)
         {
             try
             {
-                List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
+                List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId && x.EventId == eventId);
 
                 List<SubmissionAuditLogAPIViewModel> result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
                 {
@@ -188,7 +188,7 @@ namespace Services.SubmissionService
             }
         }
 
-        public async Task<SubmissionAPIViewModel> GetMyTeamSubmissionAsync(string accountId, string teamId)
+        public async Task<SubmissionAPIViewModel> GetMyTeamSubmissionAsync(string accountId, string teamId, string eventId)
         {
             TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
@@ -197,13 +197,19 @@ namespace Services.SubmissionService
                 throw new Exception("You are not currently in this team, access denied.");
             }
 
-            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
+            List<Round> eventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
+            List<string> eventRoundIds = eventRounds.Select(r => r.RoundId).ToList();
+
+            if (!eventRoundIds.Any()) return null;
+
+            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId && eventRoundIds.Contains(tr.RoundId));
+
             TeamInRound teamInRound = null;
             Round currentRound = null;
 
             foreach (TeamInRound tr in allTeamRounds)
             {
-                Round r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                Round r = eventRounds.FirstOrDefault(x => x.RoundId == tr.RoundId);
                 if (r != null)
                 {
                     if (currentRound == null || r.RoundIndex > currentRound.RoundIndex)
@@ -216,7 +222,7 @@ namespace Services.SubmissionService
 
             if (teamInRound == null)
             {
-                throw new Exception("Your team must register for a Track and Topic before viewing submissions.");
+                throw new Exception("Your team must register for a Track and Topic in this event before viewing submissions.");
             }
 
             Submission existingSubmission = await _uow.Submission.GetFirstOrDefaultAsync(s => s.TeamInRoundId == teamInRound.Id);
@@ -237,7 +243,7 @@ namespace Services.SubmissionService
             };
         }
 
-        public async Task<List<SubmissionAuditLogAPIViewModel>> GetMyTeamSubmissionAuditLogsAsync(string accountId, string teamId)
+        public async Task<List<SubmissionAuditLogAPIViewModel>> GetMyTeamSubmissionAuditLogsAsync(string accountId, string teamId, string eventId)
         {
             TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
@@ -246,7 +252,7 @@ namespace Services.SubmissionService
                 throw new Exception("You are not currently in this team, access denied.");
             }
 
-            List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId);
+            List<SubmissionAuditLog> logs = await _uow.SubmissionAuditLog.GetAllAsync(x => x.TeamId == teamId && x.EventId == eventId);
 
             List<SubmissionAuditLogAPIViewModel> result = logs.OrderByDescending(x => x.CreatedAt).Select(log => new SubmissionAuditLogAPIViewModel
             {
@@ -267,4 +273,3 @@ namespace Services.SubmissionService
             return result;
         }
     }
-}

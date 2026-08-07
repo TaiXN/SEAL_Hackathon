@@ -50,28 +50,28 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        [HttpGet("audit-logs/{teamId}")]
-        [Authorize] 
-        public async Task<IActionResult> GetAuditLogsByTeam(string teamId)
+        [HttpGet("audit-logs/{teamId}/event/{eventId}")]
+        [Authorize(Roles = "Admin, Judge, Teacher")] 
+        public async Task<IActionResult> GetAuditLogsByTeam(string teamId, string eventId)
         {
-            if (string.IsNullOrEmpty(teamId))
+            if (string.IsNullOrEmpty(teamId) || string.IsNullOrEmpty(eventId))
             {
-                return BadRequest(new { message = "Team ID is required." });
+                return BadRequest(new { message = "Team ID and Event ID are required." });
             }
 
-            List<SubmissionAuditLogAPIViewModel> result = await _submission.GetAuditLogsByTeamAsync(teamId);
+            List<SubmissionAuditLogAPIViewModel> result = await _submission.GetAuditLogsByTeamAsync(teamId, eventId);
 
             if (result == null || !result.Any())
             {
-                return NotFound(new { message = "No audit logs found for this team." });
+                return NotFound(new { message = "No audit logs found for this team in this event." });
             }
 
             return Ok(result);
         }
 
-        [HttpGet("my-team/{teamId}/submission")]
+        [HttpGet("my-team/{teamId}/event/{eventId}/submission")]
         [Authorize(Roles = "Player")]
-        public async Task<IActionResult> GetMySubmission(string teamId)
+        public async Task<IActionResult> GetMySubmission(string teamId, string eventId)
         {
             try
             {
@@ -82,11 +82,11 @@ namespace SEAL_Hackathon.Controllers
                     return Unauthorized("Cannot identify the current account.");
                 }
 
-                SubmissionAPIViewModel result = await _submission.GetMyTeamSubmissionAsync(accountId, teamId);
+                SubmissionAPIViewModel result = await _submission.GetMyTeamSubmissionAsync(accountId, teamId, eventId);
 
                 if (result == null)
                 {
-                    return Ok(new { message = "Your team hasn't submitted anything yet." });
+                    return Ok(new { message = "Your team hasn't submitted anything for this event yet." });
                 }
 
                 return Ok(result);
@@ -97,9 +97,9 @@ namespace SEAL_Hackathon.Controllers
             }
         }
 
-        [HttpGet("my-team/{teamId}/audit-logs")]
+        [HttpGet("my-team/{teamId}/event/{eventId}/audit-logs")]
         [Authorize(Roles = "Player")]
-        public async Task<IActionResult> GetMyTeamAuditLogs(string teamId)
+        public async Task<IActionResult> GetMyTeamAuditLogs(string teamId, string eventId)
         {
             try
             {
@@ -110,7 +110,7 @@ namespace SEAL_Hackathon.Controllers
                     return Unauthorized("Cannot identify the current account.");
                 }
 
-                List<SubmissionAuditLogAPIViewModel> result = await _submission.GetMyTeamSubmissionAuditLogsAsync(accountId, teamId);
+                List<SubmissionAuditLogAPIViewModel> result = await _submission.GetMyTeamSubmissionAuditLogsAsync(accountId, teamId, eventId);
 
                 return Ok(result);
             }
