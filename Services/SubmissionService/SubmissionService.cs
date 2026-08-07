@@ -19,20 +19,29 @@ namespace Services.SubmissionService
             _uow = uow;
         }
 
-        public async Task<bool> SubmitUrlAsync(string accountId, string teamId, SubmitGithubAPIViewModel request)
+        public async Task<bool> SubmitUrlAsync(string accountId, string teamId, string eventId, SubmitGithubAPIViewModel request)
         {
             TeamMember myTeamInfo = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
 
             if (myTeamInfo == null) throw new Exception("You are not currently in this team.");
             if (!myTeamInfo.IsLeader) throw new Exception("Only the Team Leader can submit the project URLs.");
 
-            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId);
+            // 1. Lấy tất cả vòng thi của sự kiện cụ thể này
+            List<Round> eventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
+            List<string> eventRoundIds = eventRounds.Select(r => r.RoundId).ToList();
+
+            if (!eventRoundIds.Any()) throw new Exception("Event not found or has no rounds.");
+
+            // 2. Chỉ lọc ra các bài nộp của team MÀ THUỘC VỀ SỰ KIỆN NÀY
+            List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId && eventRoundIds.Contains(tr.RoundId));
+
             TeamInRound teamInRound = null;
             Round currentRound = null;
 
+            // 3. Tìm vòng thi hiện tại (cao nhất) trong sự kiện này
             foreach (TeamInRound tr in allTeamRounds)
             {
-                Round r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
+                Round r = eventRounds.FirstOrDefault(x => x.RoundId == tr.RoundId);
                 if (r != null)
                 {
                     if (currentRound == null || r.RoundIndex > currentRound.RoundIndex)
@@ -43,7 +52,7 @@ namespace Services.SubmissionService
                 }
             }
 
-            if (teamInRound == null) throw new Exception("Your team must register for a Track and Topic before submitting URLs.");
+            if (teamInRound == null) throw new Exception("Your team must register for a Track and Topic in this event before submitting URLs.");
 
             if (!teamInRound.IsCheck && currentRound.RoundIndex == 1)
                 throw new Exception("Your team has not been approved by the Admin yet. Please wait for approval before submitting.");

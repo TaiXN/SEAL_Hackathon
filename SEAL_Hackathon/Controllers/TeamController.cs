@@ -71,8 +71,8 @@ namespace SEAL_Hackathon.Controllers
 
                 var teamInfo = await _team.GetMyTeamDashboardAsync(accountId, teamId);
 
-                if (teamInfo == null)
-                    return NotFound(new { message = "Team not found or you are not authorized to view it." });
+                if (teamInfo == null || !teamInfo.Any())
+                    return NotFound(new { message = "Team not found or hasn't joined any events." });
 
                 return Ok(teamInfo);
             }
@@ -82,12 +82,12 @@ namespace SEAL_Hackathon.Controllers
             }
         }
 
-        [HttpGet("{teamId}/countdown")]
-        public async Task<IActionResult> GetCountdown(string teamId)
+        [HttpGet("{teamId}/event/{eventId}/countdown")]
+        public async Task<IActionResult> GetCountdown(string teamId, string eventId)
         {
             try
             {
-                var deadline = await _team.GetCountdownDeadlineAsync(teamId);
+                var deadline = await _team.GetCountdownDeadlineAsync(teamId, eventId);
 
                 if (deadline == null)
                     return Ok(new { message = "No active rounds at the moment.", deadline = (DateTime?)null });
