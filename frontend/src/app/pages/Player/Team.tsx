@@ -8,6 +8,7 @@ import {
   normalizeList,
   unwrapData,
   getCurrentTeamFromHistory,
+  getUniqueTeamsFromHistory,
   getTeamId,
   isLeaderTeam,
   isBannedAccount,
@@ -81,7 +82,7 @@ export function Team() {
 
       const historyResponse = await teamApi.getMyTeamsHistory();
       const teamHistory = normalizeList(historyResponse);
-      setTeamHistory(teamHistory);
+      setTeamHistory(getUniqueTeamsFromHistory(teamHistory));
       const currentTeam = getCurrentTeamFromHistory(teamHistory);
       setAccountBanInfo({
         isBanned: isBannedAccount(historyResponse, unwrapData(historyResponse), currentTeam),

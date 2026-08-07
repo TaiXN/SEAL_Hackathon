@@ -170,14 +170,34 @@ const isFilledField = (value: string, emptyValues: string[]) => {
 };
 
 const hasRegisteredEvent = (obj: any, eventName: string) =>
-  Boolean(extractEventId(obj)) ||
-  isFilledField(eventName, [
-    "not registered",
-    "no event",
-    "you not in an event",
-    "you are not in an event",
-    "not in an event",
-  ]);
+  (Boolean(extractEventId(obj)) ||
+    isFilledField(eventName, [
+      "not registered",
+      "no event",
+      "you not in an event",
+      "you are not in an event",
+      "not in an event",
+    ])) &&
+  (Boolean(
+    obj?.teamInRound ||
+      obj?.TeamInRound ||
+      obj?.teamInRoundId ||
+      obj?.teamInRoundID ||
+      extractTrackId(obj) ||
+      extractTopicId(obj),
+  ) ||
+    isFilledField(extractTrackName(obj), [
+      "no track",
+      "not registered",
+      "select track",
+      "-",
+    ]) ||
+    isFilledField(extractTopicName(obj), [
+      "no topic",
+      "not registered",
+      "select topic",
+      "-",
+    ]));
 
 const extractCurrentRoundIndex = (obj: any): number | null =>
   readNumber(
@@ -468,6 +488,23 @@ export function Dashboard() {
         console.warn("KhÃ´ng táº£i Ä‘Æ°á»£c /api/Team/{teamId}/info:", err);
       }
 
+      const activeTeamEventRecords = teamHistory.filter(
+        (record) => getTeamId(record) === activeTeamId,
+      );
+      const infoParticipations = [
+        ...normalizeList(dashData.participations),
+        ...normalizeList(dashData.Participations),
+        ...normalizeList(dashData.registeredEvents),
+        ...normalizeList(dashData.RegisteredEvents),
+        ...normalizeList(dashData.teamEvents),
+        ...normalizeList(dashData.TeamEvents),
+      ];
+
+      dashData = {
+        ...dashData,
+        participations: [...infoParticipations, ...activeTeamEventRecords],
+      };
+
       let foundRoundId = extractRoundId(dashData);
       let foundTrackId = extractTrackId(dashData);
       let foundEventId = extractEventId(dashData);
@@ -535,6 +572,39 @@ export function Dashboard() {
           await teamApi.getTracksByTeam(activeTeamId),
         );
         setLbTracks(teamTracks);
+
+        const trackParticipationRecords = teamTracks
+          .map((track: any) => ({
+            ...track,
+            teamId: activeTeamId,
+            teamName: extractTeamName(dashData),
+          }))
+          .filter((track: any) =>
+            hasRegisteredEvent(track, extractEventName(track)),
+          );
+
+        if (trackParticipationRecords.length > 0) {
+          dashData = {
+            ...dashData,
+            participations: [
+              ...normalizeList(dashData.participations),
+              ...trackParticipationRecords,
+            ],
+          };
+          setDashboardData(dashData);
+
+          const nextParticipationRecords = extractEventParticipations(dashData);
+          setSelectedParticipationKey((prev) => {
+            if (nextParticipationRecords.length === 0) return "";
+            const stillExists = nextParticipationRecords.some(
+              (record) => getParticipationKey(record) === prev,
+            );
+            return stillExists
+              ? prev
+              : getParticipationKey(nextParticipationRecords[0]);
+          });
+          setShowRegistrationForm(nextParticipationRecords.length === 0);
+        }
 
         const defaultTrack =
           teamTracks.find(
@@ -1299,40 +1369,67 @@ export function Dashboard() {
                     </p>
                   </div>
 
-                  {participationRecords.length > 1 ? (
-                    <div className="space-y-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
                       <label className="text-sm font-bold text-slate-700">
-                        Viewing event
+                        Registered events
                       </label>
-                      <select
-                        className="w-full p-3 bg-white border border-slate-200 rounded-radius-md text-sm outline-none focus:border-[#f26f21] font-bold text-slate-800"
-                        value={
-                          selectedParticipation
-                            ? getParticipationKey(selectedParticipation)
-                            : ""
-                        }
-                        onChange={(e) => handleParticipationChange(e.target.value)}
-                      >
-                        {participationRecords.map((record) => {
-                          const key = getParticipationKey(record);
-                          return (
-                            <option key={key} value={key}>
-                              {extractEventName(record)}
-                            </option>
-                          );
-                        })}
-                      </select>
+                      <span className="text-xs font-bold text-slate-400">
+                        {participationRecords.length} event
+                        {participationRecords.length > 1 ? "s" : ""}
+                      </span>
                     </div>
-                  ) : (
-                    <div className="rounded-radius-md border border-orange-100 bg-orange-50 px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-wider text-[#c2410c]">
-                        Viewing
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-slate-900">
-                        {eventName}
-                      </p>
+
+                    <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                      {participationRecords.map((record) => {
+                        const key = getParticipationKey(record);
+                        const active =
+                          selectedParticipation &&
+                          getParticipationKey(selectedParticipation) === key;
+                        const recordTrack = extractTrackName(record);
+                        const recordTopic = extractTopicName(record);
+                        const recordRound = getRoundLabel(
+                          extractCurrentRoundIndex(record),
+                          extractRoundName(record),
+                        );
+
+                        return (
+                          <button
+                            type="button"
+                            key={key}
+                            onClick={() => handleParticipationChange(key)}
+                            className={`w-full rounded-radius-md border px-4 py-3 text-left transition-colors ${
+                              active
+                                ? "border-orange-200 bg-orange-50"
+                                : "border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/60"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-extrabold text-slate-950">
+                                  {extractEventName(record)}
+                                </p>
+                                <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                  {recordTrack}
+                                  {recordTopic !== "No topic"
+                                    ? ` - ${recordTopic}`
+                                    : ""}
+                                </p>
+                              </div>
+                              {active && (
+                                <span className="shrink-0 rounded-full bg-[#f26f21] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                                  Viewing
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-xs font-bold text-slate-400">
+                              {recordRound}
+                            </p>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
 
                   <InfoRow label="Event" value={eventName} />
                   <InfoRow

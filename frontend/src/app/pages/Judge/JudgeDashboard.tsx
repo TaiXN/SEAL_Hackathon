@@ -116,6 +116,42 @@ const getTrackName = (item: any) =>
     "No track",
   );
 
+const getTrackId = (item: any) =>
+  readString(
+    item?.trackId ||
+      item?.trackID ||
+      item?.TrackID ||
+      item?.track?.trackId ||
+      item?.track?.trackID ||
+      item?.track?.id,
+  );
+
+const normalizeCompareKey = (value?: string) =>
+  readString(value).toLowerCase().trim();
+
+const teamMatchesAssignedTracks = (
+  team: any,
+  tracks: TeacherPortalTrack[],
+) => {
+  if (!tracks.length) return false;
+
+  const assignedTrackIds = new Set(
+    tracks.map((track) => normalizeCompareKey(track.trackId)).filter(Boolean),
+  );
+  const assignedTrackNames = new Set(
+    tracks
+      .map((track) => normalizeCompareKey(track.trackName))
+      .filter(Boolean),
+  );
+  const teamTrackId = normalizeCompareKey(getTrackId(team));
+  const teamTrackName = normalizeCompareKey(getTrackName(team));
+
+  return Boolean(
+    (teamTrackId && assignedTrackIds.has(teamTrackId)) ||
+      (teamTrackName && assignedTrackNames.has(teamTrackName)),
+  );
+};
+
 const getRoundName = (item: any) =>
   readString(
     item?.roundName ||
@@ -222,21 +258,17 @@ const portalEventToGroup = (
 ): TeacherEventGroup => {
   const teams =
     "teams" in event && Array.isArray(event.teams) ? event.teams : [];
-  const judgeTrackNames = new Set(
-    (event.judgeTracks || []).map((track) => track.trackName.toLowerCase()),
-  );
-  const mentorTrackNames = new Set(
-    (event.mentorTracks || []).map((track) => track.trackName.toLowerCase()),
-  );
+  const judgeTracks = event.judgeTracks || [];
+  const mentorTracks = event.mentorTracks || [];
   const judgeTeams = teams.filter(
     (team) =>
-      team.canScore ||
-      judgeTrackNames.has(getTrackName(team).toLowerCase()),
+      teamMatchesAssignedTracks(team, judgeTracks) ||
+      (judgeTracks.length === 0 && team.canScore),
   );
   const mentorTeams = teams.filter(
     (team) =>
-      team.canMentorContact ||
-      mentorTrackNames.has(getTrackName(team).toLowerCase()),
+      teamMatchesAssignedTracks(team, mentorTracks) ||
+      (mentorTracks.length === 0 && team.canMentorContact),
   );
 
   return {
@@ -246,19 +278,16 @@ const portalEventToGroup = (
     currentRoundName: event.currentRoundName,
     startDate: event.startDate,
     endDate: event.endDate,
-    judgeTracks: event.judgeTracks || [],
-    mentorTracks: event.mentorTracks || [],
+    judgeTracks,
+    mentorTracks,
     summary: event.summary,
     judgeTeams,
     mentorTeams,
     allTeams: teams,
-    roles:
-      "roles" in event
-        ? event.roles
-        : {
-            isJudge: (event.judgeTracks || []).length > 0,
-            isMentor: (event.mentorTracks || []).length > 0,
-          },
+    roles: event.roles || {
+      isJudge: (event.judgeTracks || []).length > 0,
+      isMentor: (event.mentorTracks || []).length > 0,
+    },
   };
 };
 
@@ -445,8 +474,6 @@ export function JudgeDashboard() {
     }
   }, [eventGroups, isEventsLoading, selectedEventKey]);
 
-  const selectedJudgeTeamId = getJudgeAssignmentId(selectedJudgeTeam);
-  const selectedJudgeSubmissionId = getJudgeSubmissionId(selectedJudgeTeam);
   const selectedJudgeSubmitted = isJudgeSubmissionAvailable(selectedJudgeTeam);
   const selectedJudgeEvaluated = isJudgeEvaluated(selectedJudgeTeam);
   const displayedMentorDetail = mentorTeamDetail || selectedMentorTeam;
@@ -581,8 +608,6 @@ export function JudgeDashboard() {
       {selectedJudgeTeam && (
         <JudgeDetailModal
           team={selectedJudgeTeam}
-          teamId={selectedJudgeTeamId}
-          submissionId={selectedJudgeSubmissionId}
           isSubmitted={selectedJudgeSubmitted}
           isEvaluated={selectedJudgeEvaluated}
           onClose={() => setSelectedJudgeTeam(null)}
@@ -803,8 +828,8 @@ function EventDetailView({
   onScoreTeam: (team: any) => void;
   isDetailLoading: boolean;
 }) {
-  const canJudge = group.judgeTeams.length > 0;
-  const canMentor = group.mentorTeams.length > 0;
+  const canJudge = group.roles.isJudge || group.judgeTeams.length > 0;
+  const canMentor = group.roles.isMentor || group.mentorTeams.length > 0;
   const submittedCount =
     group.summary.submittedTeams ||
     group.judgeTeams.filter(isJudgeSubmissionAvailable).length;
@@ -1059,12 +1084,11 @@ function SubmissionsPanel({
 
   return (
     <DataTable
-      headers={["Team", "Track", "Round", "Submission", "Status", "Action"]}
+      headers={["Team", "Track", "Round", "Status", "Action"]}
       rows={teams.map((team) => [
         <TeamCell key="team" team={team} />,
         getTrackName(team),
         getRoundName(team),
-        getJudgeSubmissionId(team) || "-",
         <JudgeStatusBadge key="status" team={team} />,
         <div key="action" className="flex justify-end gap-2">
           <button
@@ -1171,16 +1195,12 @@ function MentorSupportPanel({
 
 function JudgeDetailModal({
   team,
-  teamId,
-  submissionId,
   isSubmitted,
   isEvaluated,
   onClose,
   onScore,
 }: {
   team: any;
-  teamId: string;
-  submissionId: string;
   isSubmitted: boolean;
   isEvaluated: boolean;
   onClose: () => void;
@@ -1192,7 +1212,6 @@ function JudgeDetailModal({
         <ModalHeader
           eyebrow="Scoring Detail"
           title={getTeamName(team)}
-          subtitle={teamId || "N/A"}
           onClose={onClose}
         />
         <div className="space-y-6 p-6">
@@ -1248,8 +1267,7 @@ function JudgeDetailModal({
             </button>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <InfoBlock label="Submission ID" value={submissionId || "-"} mono />
+          <div className="grid gap-3">
             <InfoBlock label="Score" value={isEvaluated ? String(team.score ?? "0") : "-"} />
           </div>
         </div>
@@ -1281,7 +1299,6 @@ function MentorDetailModal({
         <ModalHeader
           eyebrow="Mentor Detail"
           title={displayedDetail?.teamName || "Unnamed Team"}
-          subtitle={displayedDetail?.teamId || selectedTeam.teamId}
           onClose={onClose}
         />
 
@@ -1438,15 +1455,9 @@ function DataTable({
 }
 
 function TeamCell({ team }: { team: any }) {
-  const id = getTeamId(team) || getJudgeAssignmentId(team);
   return (
     <div>
       <p className="font-extrabold text-slate-900">{getTeamName(team)}</p>
-      {id && (
-        <p className="mt-0.5 font-mono text-[11px] uppercase text-slate-400">
-          ID: {id.substring(0, 8)}
-        </p>
-      )}
     </div>
   );
 }

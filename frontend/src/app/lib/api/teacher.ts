@@ -13,6 +13,11 @@ export type TeacherPortalSummary = {
   mentorTeams: number;
 };
 
+export type TeacherPortalRoles = {
+  isJudge: boolean;
+  isMentor: boolean;
+};
+
 export type TeacherPortalTeam = {
   teamId: string;
   teamName: string;
@@ -48,13 +53,12 @@ export type TeacherPortalEvent = {
   judgeTracks: TeacherPortalTrack[];
   mentorTracks: TeacherPortalTrack[];
   summary: TeacherPortalSummary;
+  roles?: TeacherPortalRoles;
+  teams?: TeacherPortalTeam[];
 };
 
 export type TeacherPortalEventDetail = TeacherPortalEvent & {
-  roles: {
-    isJudge: boolean;
-    isMentor: boolean;
-  };
+  roles: TeacherPortalRoles;
   teams: TeacherPortalTeam[];
 };
 
@@ -136,6 +140,13 @@ const normalizeSummary = (item: any): TeacherPortalSummary => {
   };
 };
 
+const normalizeEventList = (value: any): any[] => {
+  const data = unwrapData(value);
+  const list = normalizeList(data);
+  if (list.length > 0) return list;
+  return data && typeof data === "object" ? [data] : [];
+};
+
 const normalizeTeam = (item: any): TeacherPortalTeam => {
   const submissionStatus = readString(
     item?.submissionStatus || item?.SubmissionStatus,
@@ -182,9 +193,31 @@ const normalizeTeam = (item: any): TeacherPortalTeam => {
       item?.evaluationId || item?.evaluationID || item?.EvaluationID,
     ),
     canScore: readBool(item?.canScore ?? item?.CanScore),
-    canMentorContact:
-      readBool(item?.canMentorContact ?? item?.CanMentorContact) ||
-      Boolean(leaderEmail),
+    canMentorContact: readBool(
+      item?.canMentorContact ?? item?.CanMentorContact,
+    ),
+  };
+};
+
+const normalizeRoles = (
+  item: any,
+  judgeTracks: TeacherPortalTrack[],
+  mentorTracks: TeacherPortalTrack[],
+  teams: TeacherPortalTeam[],
+): TeacherPortalRoles => {
+  const roles = item?.roles || item?.Roles || {};
+
+  return {
+    isJudge:
+      readBool(roles.isJudge ?? roles.IsJudge ?? item?.isJudge ?? item?.IsJudge) ||
+      judgeTracks.length > 0 ||
+      teams.some((team) => team.canScore),
+    isMentor:
+      readBool(
+        roles.isMentor ?? roles.IsMentor ?? item?.isMentor ?? item?.IsMentor,
+      ) ||
+      mentorTracks.length > 0 ||
+      teams.some((team) => team.canMentorContact),
   };
 };
 
@@ -192,6 +225,9 @@ const normalizeEvent = (value: any): TeacherPortalEvent => {
   const item = unwrapData(value) || {};
   const yearValue = item.year ?? item.Year;
   const currentRoundValue = item.currentRound ?? item.CurrentRound;
+  const judgeTracks = normalizeTracks(item.judgeTracks || item.JudgeTracks);
+  const mentorTracks = normalizeTracks(item.mentorTracks || item.MentorTracks);
+  const teams = normalizeList(item.teams || item.Teams).map(normalizeTeam);
 
   return {
     eventId: readString(item.eventId || item.eventID || item.EventID || item.id),
@@ -213,30 +249,22 @@ const normalizeEvent = (value: any): TeacherPortalEvent => {
     ),
     startDate: readString(item.startDate || item.StartDate),
     endDate: readString(item.endDate || item.EndDate),
-    judgeTracks: normalizeTracks(item.judgeTracks || item.JudgeTracks),
-    mentorTracks: normalizeTracks(item.mentorTracks || item.MentorTracks),
+    judgeTracks,
+    mentorTracks,
     summary: normalizeSummary(item),
+    roles: normalizeRoles(item, judgeTracks, mentorTracks, teams),
+    teams,
   };
 };
 
 const normalizeEventDetail = (value: any): TeacherPortalEventDetail => {
   const item = unwrapData(value) || {};
   const event = normalizeEvent(item);
-  const roles = item.roles || item.Roles || {};
-  const teams = normalizeList(item.teams || item.Teams).map(normalizeTeam);
+  const teams = event.teams || [];
 
   return {
     ...event,
-    roles: {
-      isJudge:
-        readBool(roles.isJudge ?? roles.IsJudge ?? item.isJudge ?? item.IsJudge) ||
-        event.judgeTracks.length > 0 ||
-        teams.some((team) => team.canScore),
-      isMentor:
-        readBool(roles.isMentor ?? roles.IsMentor ?? item.isMentor ?? item.IsMentor) ||
-        event.mentorTracks.length > 0 ||
-        teams.some((team) => team.canMentorContact),
-    },
+    roles: normalizeRoles(item, event.judgeTracks, event.mentorTracks, teams),
     teams,
   };
 };
@@ -244,7 +272,7 @@ const normalizeEventDetail = (value: any): TeacherPortalEventDetail => {
 export const teacherApi = {
   async getPortalEvents(teacherId: string): Promise<TeacherPortalEvent[]> {
     const res = await apiClient.get(`/api/Teacher/${teacherId}/portal-events`);
-    return normalizeList(res).map(normalizeEvent);
+    return normalizeEventList(res).map(normalizeEvent);
   },
 
   async getPortalEventDetail(

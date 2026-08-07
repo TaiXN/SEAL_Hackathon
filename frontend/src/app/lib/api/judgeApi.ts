@@ -1,6 +1,16 @@
 import apiClient from "./apiClient";
 
 export const judgeApi = {
+  async getAllJudges() {
+    const res = await apiClient.get("/api/Judge");
+    const data = res?.data ?? res;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.result)) return data.result;
+    return [];
+  },
+
   // 1. API: Load the teams assigned to a judge for scoring.
   async getAssignedTeams(teacherId: string) {
     const res = await apiClient.get(
@@ -36,7 +46,10 @@ export const judgeApi = {
     teacherId: string,
     payload: { evaluationID: string; score: number; reason: string },
   ) {
-    const res = await apiClient.put(`/api/Evaluation/${teacherId}`, payload);
+    const res = await apiClient.put(
+      `/api/Evaluation/update-score/${teacherId}`,
+      payload,
+    );
     return res.data;
   },
 
@@ -55,6 +68,13 @@ export const judgeApi = {
   // 7. Delete an evaluation.
   async deleteEvaluation(evaluationId: string) {
     const res = await apiClient.delete(`/api/Evaluation/${evaluationId}`);
+    return res.data;
+  },
+
+  async getEvaluationAuditLogs(evaluationId: string) {
+    const res = await apiClient.get(
+      `/api/Evaluation/${evaluationId}/audit-logs`,
+    );
     return res.data;
   },
 

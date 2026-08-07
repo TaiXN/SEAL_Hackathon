@@ -61,6 +61,36 @@ export const getCurrentTeamFromHistory = (history: any[]) => {
   return defaultTeam;
 };
 
+export const getUniqueTeamsFromHistory = (history: any[]): any[] => {
+  const uniqueTeams = new Map<string, any>();
+
+  history.forEach((team, index) => {
+    const teamId = getTeamId(team);
+    const teamName = String(
+      team?.teamName || team?.TeamName || team?.name || "",
+    )
+      .toLowerCase()
+      .trim();
+    const key = teamId || (teamName ? `name:${teamName}` : `row:${index}`);
+    const existing = uniqueTeams.get(key);
+
+    if (!existing) {
+      uniqueTeams.set(key, team);
+      return;
+    }
+
+    const shouldReplace =
+      (team?.isActive === true && existing?.isActive !== true) ||
+      (!isLeaderTeam(existing) && isLeaderTeam(team));
+
+    if (shouldReplace) {
+      uniqueTeams.set(key, team);
+    }
+  });
+
+  return Array.from(uniqueTeams.values());
+};
+
 export const isLeaderTeam = (team: any): boolean => {
   const rawRole = String(
     team?.role || team?.teamRole || team?.memberRole || team?.position || "",
