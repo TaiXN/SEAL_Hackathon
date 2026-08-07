@@ -13,8 +13,11 @@ import { teamApi } from "../../lib/api/teamApi";
 import {
   normalizeList,
   getCurrentTeamFromHistory,
+  getUniqueTeamsFromHistory,
   getTeamId,
   isLeaderTeam,
+  isBannedAccount,
+  isEliminatedTeam,
 } from "../../lib/utils/teamHelpers";
 
 export function Sidebar() {
@@ -22,6 +25,7 @@ export function Sidebar() {
   const clearTokens = useAuthStore((state) => state.clearTokens);
 
   const [canSubmitProject, setCanSubmitProject] = useState(false);
+  const [hasActiveTeam, setHasActiveTeam] = useState(false);
   const [teamHistory, setTeamHistory] = useState<any[]>([]);
   const [activeTeamId, setActiveTeamId] = useState("");
   const [teamsOpen, setTeamsOpen] = useState(true);
@@ -30,16 +34,27 @@ export function Sidebar() {
     try {
       const response = await teamApi.getMyTeamsHistory();
       const history = normalizeList(response);
-      setTeamHistory(history);
+      const uniqueTeams = getUniqueTeamsFromHistory(history);
+      setTeamHistory(uniqueTeams);
 
       const currentTeam = getCurrentTeamFromHistory(history);
-      setActiveTeamId(getTeamId(currentTeam));
+      const currentTeamId = getTeamId(currentTeam);
+      setActiveTeamId(currentTeamId);
+      setHasActiveTeam(Boolean(currentTeamId));
 
-      setCanSubmitProject(Boolean(currentTeam && isLeaderTeam(currentTeam)));
+      setCanSubmitProject(
+        Boolean(
+          currentTeam &&
+            isLeaderTeam(currentTeam) &&
+            !isBannedAccount(response, currentTeam) &&
+            !isEliminatedTeam(currentTeam),
+        ),
+      );
     } catch (error) {
       console.warn("Không lấy được quyền team của player:", error);
       setTeamHistory([]);
       setActiveTeamId("");
+      setHasActiveTeam(false);
       setCanSubmitProject(false);
     }
   };
@@ -69,7 +84,10 @@ export function Sidebar() {
 
     localStorage.setItem("activeTeamId", nextTeamId);
     setActiveTeamId(nextTeamId);
-    setCanSubmitProject(isLeaderTeam(team));
+    setHasActiveTeam(true);
+    setCanSubmitProject(
+      isLeaderTeam(team) && !isBannedAccount(team) && !isEliminatedTeam(team),
+    );
     window.dispatchEvent(new Event("player-team-updated"));
   };
 
@@ -176,7 +194,7 @@ export function Sidebar() {
           )}
         </div>
 
-        {canSubmitProject && (
+        {hasActiveTeam && (
           <NavLink
             to="/player/submit"
             className={({ isActive }) =>

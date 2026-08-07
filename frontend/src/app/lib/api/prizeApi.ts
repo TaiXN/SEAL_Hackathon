@@ -32,8 +32,7 @@ export const prizeApi = {
     const res = await apiClient.get("/api/Prize");
     const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
     return list.filter(
-      (p: any) =>
-        String(p.eventId ?? p.eventID ?? "") === String(eventId),
+      (p: any) => String(p.eventId ?? p.eventID ?? "") === String(eventId),
     );
   },
 

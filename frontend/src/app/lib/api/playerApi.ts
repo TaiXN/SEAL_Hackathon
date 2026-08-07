@@ -7,6 +7,19 @@ export interface RegisterPlayerPayload {
   address: string;
   phone: string;
   universityId: string;
+  idCardImage?: File | null;
+  studentCardImage?: File | null;
+  cccdNumber?: string;
+}
+
+export interface VerifyOtpPayload {
+  email: string;
+  otpCode: string;
+}
+
+export interface BanPlayerPayload {
+  studentId: string;
+  reason?: string;
 }
 
 export interface University {
@@ -32,6 +45,21 @@ export const playerApi = {
 
   verifyOtp: (payload: { email: string; otpCode: string }) =>
     apiClient.post("/api/Player/verify-otp", payload),
+
+  async getPendingPlayers() {
+    const res = await apiClient.get("/api/Player/pending");
+    return res.data;
+  },
+
+  async approvePlayer(studentId: string) {
+    const res = await apiClient.put(`/api/Player/${studentId}/approve`);
+    return res.data;
+  },
+
+  async rejectPlayer(studentId: string) {
+    const res = await apiClient.delete(`/api/Player/${studentId}/reject`);
+    return res.data;
+  },
 
   async getUniversities() {
     const res = await apiClient.get("/api/University");

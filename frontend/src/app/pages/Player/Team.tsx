@@ -8,8 +8,14 @@ import {
   normalizeList,
   unwrapData,
   getCurrentTeamFromHistory,
+  getUniqueTeamsFromHistory,
   getTeamId,
   isLeaderTeam,
+  isBannedAccount,
+  isEliminatedTeam,
+  hasTeamEventRegistration,
+  teamHasBannedMember,
+  getBanReason,
 } from "../../lib/utils/teamHelpers";
 import {
   extractTeamIdFromJoinInput,
@@ -35,6 +41,10 @@ export function Team() {
 
   const [joinInput, setJoinInput] = useState("");
   const [isJoiningTeam, setIsJoiningTeam] = useState(false);
+  const [accountBanInfo, setAccountBanInfo] = useState({
+    isBanned: false,
+    reason: "",
+  });
 
   const accessToken = useAuthStore((state) => state.accessToken);
   const currentUserInfo = getCurrentUserFromToken(accessToken);
@@ -59,8 +69,20 @@ export function Team() {
 
       const historyResponse = await teamApi.getMyTeamsHistory();
       const teamHistory = normalizeList(historyResponse);
-      setTeamHistory(teamHistory);
+      setTeamHistory(getUniqueTeamsFromHistory(teamHistory));
       const currentTeam = getCurrentTeamFromHistory(teamHistory);
+      setAccountBanInfo({
+        isBanned: isBannedAccount(
+          historyResponse,
+          unwrapData(historyResponse),
+          currentTeam,
+        ),
+        reason: getBanReason(
+          historyResponse,
+          unwrapData(historyResponse),
+          currentTeam,
+        ),
+      });
 
       if (!currentTeam) {
         setTeam(null);
@@ -117,6 +139,21 @@ export function Team() {
   const maxMembers = Number(team?.maxMembers || team?.maxMember || 5);
   const emptySlots = Math.max(0, maxMembers - teamMembers.length);
   const currentUserIsLeader = isLeaderTeam(team);
+  const currentUserMember = teamMembers.find((member: any, index: number) =>
+    isSelfMember(member, index, currentUserInfo, currentUserIsLeader),
+  );
+  const currentAccountBanned =
+    accountBanInfo.isBanned || isBannedAccount(team, currentUserMember);
+  const teamRegisteredForEvent = hasTeamEventRegistration(team);
+  const teamPermanentlyLocked = isEliminatedTeam(team);
+  const hasBannedMember = teamHasBannedMember(team);
+  const teamManagementLocked = currentAccountBanned || teamPermanentlyLocked;
+  const disabledActionMessage = currentAccountBanned
+    ? accountBanInfo.reason ||
+      "This account is banned and cannot perform team actions."
+    : teamPermanentlyLocked
+      ? "This team has been eliminated and is permanently locked. Create a new team instead."
+      : "";
 
   const inviteLink =
     team?.inviteLink ||
@@ -141,6 +178,15 @@ export function Team() {
   };
 
   const handleCreateTeam = async () => {
+    if (currentAccountBanned) {
+      Swal.fire({
+        icon: "error",
+        title: "Account Banned",
+        text: disabledActionMessage,
+      });
+      return;
+    }
+
     if (!teamName.trim()) {
       Swal.fire({
         icon: "warning",
@@ -189,6 +235,15 @@ export function Team() {
   };
 
   const handleJoinTeam = async () => {
+    if (currentAccountBanned) {
+      Swal.fire({
+        icon: "error",
+        title: "Account Banned",
+        text: disabledActionMessage,
+      });
+      return;
+    }
+
     const teamIdToJoin = extractTeamIdFromJoinInput(joinInput);
 
     if (!teamIdToJoin) {
@@ -229,6 +284,15 @@ export function Team() {
   };
 
   const handleRenameTeam = async () => {
+    if (teamManagementLocked) {
+      Swal.fire({
+        icon: "error",
+        title: currentAccountBanned ? "Account Banned" : "Team Locked",
+        text: disabledActionMessage,
+      });
+      return;
+    }
+
     const currentName = team?.teamName || team?.name || "";
 
     const { value: newName } = await Swal.fire({
@@ -268,6 +332,15 @@ export function Team() {
 
   const confirmRemoveMember = async (memberPlayerId: string) => {
     try {
+      if (teamManagementLocked) {
+        Swal.fire({
+          icon: "error",
+          title: currentAccountBanned ? "Account Banned" : "Team Locked",
+          text: disabledActionMessage,
+        });
+        return;
+      }
+
       if (!teamId) {
         Swal.fire(
           "Missing teamId",
@@ -317,6 +390,15 @@ export function Team() {
 
   const confirmTransferLeader = async (newLeaderPlayerId: string) => {
     try {
+      if (teamManagementLocked) {
+        Swal.fire({
+          icon: "error",
+          title: currentAccountBanned ? "Account Banned" : "Team Locked",
+          text: disabledActionMessage,
+        });
+        return;
+      }
+
       if (!teamId) return;
       await teamApi.transferLeader(teamId, newLeaderPlayerId);
 
@@ -349,6 +431,15 @@ export function Team() {
 
   const confirmLeaveTeam = async () => {
     try {
+      if (teamManagementLocked) {
+        Swal.fire({
+          icon: "error",
+          title: currentAccountBanned ? "Account Banned" : "Team Locked",
+          text: disabledActionMessage,
+        });
+        return;
+      }
+
       if (!teamId) {
         Swal.fire(
           "Missing teamId",
@@ -421,6 +512,13 @@ export function Team() {
           </p>
         </header>
 
+        {currentAccountBanned && (
+          <section className="mb-6 rounded-radius-lg border border-red-200 bg-red-50 p-5 text-red-700">
+            <h2 className="text-lg font-bold">Account Banned</h2>
+            <p className="mt-1 text-sm font-medium">{disabledActionMessage}</p>
+          </section>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="bg-white border border-gray-200 rounded-radius-lg p-6 shadow-sm space-y-5">
             <div>
@@ -450,7 +548,7 @@ export function Team() {
             <button
               type="button"
               onClick={handleCreateTeam}
-              disabled={isCreatingTeam}
+              disabled={isCreatingTeam || currentAccountBanned}
               className="w-full px-6 py-3 bg-[#f26f21] text-white rounded-radius-md font-bold disabled:opacity-50 hover:bg-[#d85f16] transition-colors shadow-sm"
             >
               {isCreatingTeam ? "Creating team..." : "+ Create Team"}
@@ -489,7 +587,7 @@ export function Team() {
             <button
               type="button"
               onClick={handleJoinTeam}
-              disabled={isJoiningTeam}
+              disabled={isJoiningTeam || currentAccountBanned}
               className="w-full px-6 py-3 bg-white text-black border border-black rounded-radius-md font-bold disabled:opacity-50 hover:bg-gray-50"
             >
               {isJoiningTeam ? "Joining team..." : "Join Team"}
@@ -516,6 +614,31 @@ export function Team() {
           transfer leadership if you are the Team Leader.
         </p>
       </header>
+
+      {(currentAccountBanned || teamPermanentlyLocked || hasBannedMember) && (
+        <section
+          className={`mb-6 rounded-radius-lg border p-5 ${
+            currentAccountBanned || teamPermanentlyLocked
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          }`}
+        >
+          <h2 className="text-lg font-bold">
+            {currentAccountBanned
+              ? "Account Banned"
+              : teamPermanentlyLocked
+                ? "Team Eliminated"
+                : "Banned Member Detected"}
+          </h2>
+          <p className="mt-1 text-sm font-medium">
+            {currentAccountBanned || teamPermanentlyLocked
+              ? disabledActionMessage
+              : teamRegisteredForEvent
+                ? "This team has a banned member. Event actions may be restricted by the backend."
+                : "Kick the banned member before registering this team for an event."}
+          </p>
+        </section>
+      )}
 
       <div className="space-y-8">
         <section className="bg-card border border-border rounded-radius-lg p-6 shadow-sm flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
@@ -544,7 +667,8 @@ export function Team() {
 
               <button
                 onClick={handleCopy}
-                className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium rounded-r-radius-md hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap"
+                disabled={teamManagementLocked}
+                className="bg-primary text-primary-foreground px-4 py-3 text-sm font-medium rounded-r-radius-md hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCopied ? (
                   <CheckCircle2 className="w-4 h-4" />
@@ -574,7 +698,8 @@ export function Team() {
             <button
               type="button"
               onClick={handleLeaveTeam}
-              className="px-4 py-3 text-sm font-bold text-red-600 border border-red-200 rounded-radius-md hover:bg-red-50 transition-colors whitespace-nowrap"
+              disabled={teamManagementLocked}
+              className="px-4 py-3 text-sm font-bold text-red-600 border border-red-200 rounded-radius-md hover:bg-red-50 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Leave Team
             </button>
@@ -589,7 +714,7 @@ export function Team() {
                 <h2 className="text-xl font-bold text-foreground">
                   {team?.teamName || team?.name || "Current Team"}
                 </h2>
-                {currentUserIsLeader && (
+                {currentUserIsLeader && !teamManagementLocked && (
                   <button
                     onClick={handleRenameTeam}
                     className="p-1 text-muted-foreground hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring rounded-radius-sm"
@@ -668,6 +793,12 @@ export function Team() {
                               You
                             </span>
                           )}
+
+                          {isBannedAccount(member) && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                              Banned
+                            </span>
+                          )}
                         </div>
 
                         <span
@@ -695,7 +826,8 @@ export function Team() {
                             <button
                               type="button"
                               onClick={handleLeaveTeam}
-                              className="text-sm font-medium text-red-600 hover:bg-red-50 transition-colors px-3 py-2 rounded-radius-md"
+                              disabled={teamManagementLocked}
+                              className="text-sm font-medium text-red-600 hover:bg-red-50 transition-colors px-3 py-2 rounded-radius-md disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Leave Team
                             </button>
@@ -723,7 +855,8 @@ export function Team() {
                                     memberName,
                                   )
                                 }
-                                className="text-sm font-bold text-amber-600 hover:bg-amber-50 transition-colors px-3 py-2 rounded-radius-md border border-amber-200"
+                                disabled={teamManagementLocked}
+                                className="text-sm font-bold text-amber-600 hover:bg-amber-50 transition-colors px-3 py-2 rounded-radius-md border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Transfer Leader
                               </button>
@@ -732,7 +865,8 @@ export function Team() {
                                 onClick={() =>
                                   handleRemoveMember(memberPlayerId, memberName)
                                 }
-                                className="text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors px-3 py-2 rounded-radius-md"
+                                disabled={teamManagementLocked}
+                                className="text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors px-3 py-2 rounded-radius-md disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Kick
                               </button>
@@ -791,7 +925,8 @@ export function Team() {
                 {currentUserIsLeader ? (
                   <button
                     onClick={handleCopy}
-                    className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                    disabled={teamManagementLocked}
+                    className="text-sm font-medium text-primary hover:underline flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <UserPlus className="w-4 h-4" />
                     Invite
@@ -833,7 +968,7 @@ export function Team() {
             <button
               type="button"
               onClick={handleCreateTeam}
-              disabled={isCreatingTeam}
+              disabled={isCreatingTeam || currentAccountBanned}
               className="w-full px-6 py-3 bg-[#f26f21] text-white rounded-radius-md font-bold disabled:opacity-50 hover:bg-[#d85f16] transition-colors shadow-sm"
             >
               {isCreatingTeam ? "Creating team..." : "+ Create Team"}
@@ -866,7 +1001,7 @@ export function Team() {
             <button
               type="button"
               onClick={handleJoinTeam}
-              disabled={isJoiningTeam}
+              disabled={isJoiningTeam || currentAccountBanned}
               className="w-full px-6 py-3 bg-white text-black border border-black rounded-radius-md font-bold disabled:opacity-50 hover:bg-gray-50"
             >
               {isJoiningTeam ? "Joining team..." : "Join Team"}
