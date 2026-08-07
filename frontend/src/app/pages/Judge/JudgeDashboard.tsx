@@ -40,6 +40,8 @@ type TeacherEventGroup = {
   currentRoundName?: string;
   startDate?: string;
   endDate?: string;
+  scoringStartDate?: string;
+  scoringEndDate?: string;
   judgeTracks: TeacherPortalTrack[];
   mentorTracks: TeacherPortalTrack[];
   summary: {
@@ -200,6 +202,16 @@ const isJudgeEvaluated = (team: any) => {
   );
 };
 
+const isUrgentScoringTeam = (team: any) =>
+  team?.isUrgentScoring === true ||
+  team?.IsUrgentScoring === true ||
+  String(team?.isUrgentScoring || team?.IsUrgentScoring || "")
+    .toLowerCase()
+    .trim() === "true";
+
+const getUrgentMessage = (team: any) =>
+  readString(team?.urgentMessage || team?.UrgentMessage);
+
 const hasSubmissionLink = (detail: MentorTeamDetail | TeacherPortalTeam | null) =>
   Boolean(detail?.urlGithub || detail?.urlDemo || detail?.urlSlide);
 
@@ -278,6 +290,8 @@ const portalEventToGroup = (
     currentRoundName: event.currentRoundName,
     startDate: event.startDate,
     endDate: event.endDate,
+    scoringStartDate: event.scoringStartDate,
+    scoringEndDate: event.scoringEndDate,
     judgeTracks,
     mentorTracks,
     summary: event.summary,
@@ -779,8 +793,8 @@ function EventCard({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <DatePill label="Start" value={group.startDate} />
-          <DatePill label="End" value={group.endDate} />
+          <DatePill label="Scoring Start" value={group.scoringStartDate} />
+          <DatePill label="Scoring End" value={group.scoringEndDate} />
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
@@ -862,6 +876,12 @@ function EventDetailView({
   ].filter(({ team }) => filterTeam(team));
   const scoringTeams = group.judgeTeams.filter(filterTeam);
   const mentorRows = group.mentorTeams.filter(filterTeam);
+  const urgentScoringTeams = group.judgeTeams.filter(
+    (team) =>
+      isUrgentScoringTeam(team) &&
+      isJudgeSubmissionAvailable(team) &&
+      !isJudgeEvaluated(team),
+  );
 
   return (
     <section className="space-y-5">
@@ -891,8 +911,8 @@ function EventDetailView({
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <DatePill label="Start" value={group.startDate} />
-            <DatePill label="End" value={group.endDate} />
+            <DatePill label="Scoring Start" value={group.scoringStartDate} />
+            <DatePill label="Scoring End" value={group.scoringEndDate} />
           </div>
         </div>
 
@@ -903,6 +923,14 @@ function EventDetailView({
           <SummaryCard icon={<Mail />} label="Email Support" value={group.mentorTeams.length} />
         </div>
       </div>
+
+      {urgentScoringTeams.length > 0 && (
+        <UrgentScoringCard
+          teams={urgentScoringTeams}
+          onViewTeam={onViewJudgeTeam}
+          onScoreTeam={onScoreTeam}
+        />
+      )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
         <div className="flex flex-wrap gap-1">
@@ -1005,8 +1033,14 @@ function OverviewPanel({
           Assignment Summary
         </h2>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <InfoBlock label="Start Date" value={formatEventDate(group.startDate)} />
-          <InfoBlock label="End Date" value={formatEventDate(group.endDate)} />
+          <InfoBlock
+            label="Scoring Start"
+            value={formatEventDate(group.scoringStartDate)}
+          />
+          <InfoBlock
+            label="Scoring End"
+            value={formatEventDate(group.scoringEndDate)}
+          />
           <InfoBlock label="Judge Tracks" value={judgeTracks.join(", ") || "-"} />
           <InfoBlock label="Mentor Tracks" value={mentorTracks.join(", ") || "-"} />
           <InfoBlock label="Judge Teams" value={String(group.judgeTeams.length)} />
@@ -1190,6 +1224,90 @@ function MentorSupportPanel({
         </p>
       </section>
     </div>
+  );
+}
+
+function UrgentScoringCard({
+  teams,
+  onViewTeam,
+  onScoreTeam,
+}: {
+  teams: TeacherPortalTeam[];
+  onViewTeam: (team: TeacherPortalTeam) => void;
+  onScoreTeam: (team: TeacherPortalTeam) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-red-600 shadow-sm">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-extrabold text-red-700">
+              Urgent Scoring
+            </p>
+            <p className="mt-1 text-sm font-medium text-red-700/80">
+              {teams.length} submitted team{teams.length > 1 ? "s" : ""} need
+              scoring before the deadline.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {teams.slice(0, 4).map((team) => {
+          const message =
+            getUrgentMessage(team) ||
+            "This submission is close to the scoring deadline.";
+
+          return (
+            <div
+              key={getTeamId(team) || getTeamName(team)}
+              className="flex flex-col gap-3 rounded-lg border border-red-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-extrabold text-slate-950">
+                  {getTeamName(team)}
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  {getTrackName(team)} • {getRoundName(team)}
+                </p>
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {message}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onViewTeam(team)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                >
+                  <Eye className="h-4 w-4" />
+                  Detail
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onScoreTeam(team)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#f26f21] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#d85f16]"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Score Now
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {teams.length > 4 && (
+        <p className="mt-3 text-xs font-bold text-red-700/70">
+          +{teams.length - 4} more urgent submission
+          {teams.length - 4 > 1 ? "s" : ""} in the scoring tab.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -1455,14 +1573,42 @@ function DataTable({
 }
 
 function TeamCell({ team }: { team: any }) {
+  const urgentMessage = getUrgentMessage(team);
+
   return (
     <div>
-      <p className="font-extrabold text-slate-900">{getTeamName(team)}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-extrabold text-slate-900">{getTeamName(team)}</p>
+        {isUrgentScoringTeam(team) && (
+          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-red-600">
+            Urgent
+          </span>
+        )}
+      </div>
+      {urgentMessage && (
+        <p className="mt-1 max-w-sm text-xs font-medium text-red-600">
+          {urgentMessage}
+        </p>
+      )}
     </div>
   );
 }
 
 function JudgeStatusBadge({ team }: { team: any }) {
+  const urgentMessage = getUrgentMessage(team);
+
+  if (isUrgentScoringTeam(team) && !isJudgeEvaluated(team)) {
+    return (
+      <span
+        title={urgentMessage}
+        className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-bold text-red-600"
+      >
+        <AlertCircle className="h-3 w-3" />
+        Urgent Score
+      </span>
+    );
+  }
+
   if (!isJudgeSubmissionAvailable(team)) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">

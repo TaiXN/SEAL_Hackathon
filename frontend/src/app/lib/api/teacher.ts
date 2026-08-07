@@ -39,6 +39,8 @@ export type TeacherPortalTeam = {
   evaluationId?: string;
   canScore: boolean;
   canMentorContact: boolean;
+  isUrgentScoring: boolean;
+  urgentMessage?: string;
 };
 
 export type TeacherPortalEvent = {
@@ -50,6 +52,8 @@ export type TeacherPortalEvent = {
   currentRoundName?: string;
   startDate?: string;
   endDate?: string;
+  scoringStartDate?: string;
+  scoringEndDate?: string;
   judgeTracks: TeacherPortalTrack[];
   mentorTracks: TeacherPortalTrack[];
   summary: TeacherPortalSummary;
@@ -196,6 +200,10 @@ const normalizeTeam = (item: any): TeacherPortalTeam => {
     canMentorContact: readBool(
       item?.canMentorContact ?? item?.CanMentorContact,
     ),
+    isUrgentScoring: readBool(
+      item?.isUrgentScoring ?? item?.IsUrgentScoring,
+    ),
+    urgentMessage: readString(item?.urgentMessage || item?.UrgentMessage),
   };
 };
 
@@ -249,6 +257,10 @@ const normalizeEvent = (value: any): TeacherPortalEvent => {
     ),
     startDate: readString(item.startDate || item.StartDate),
     endDate: readString(item.endDate || item.EndDate),
+    scoringStartDate: readString(
+      item.scoringStartDate || item.ScoringStartDate,
+    ),
+    scoringEndDate: readString(item.scoringEndDate || item.ScoringEndDate),
     judgeTracks,
     mentorTracks,
     summary: normalizeSummary(item),

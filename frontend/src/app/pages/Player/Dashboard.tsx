@@ -98,17 +98,35 @@ const readNumber = (value: any): number | null => {
 
 const extractEventId = (obj: any): string =>
   readString(
-    obj?.eventId ?? obj?.eventID ?? obj?.EventID ?? obj?.event?.eventId,
+    obj?.eventId ??
+      obj?.eventID ??
+      obj?.EventID ??
+      obj?.event?.eventId ??
+      obj?.event?.eventID ??
+      obj?.Event?.eventId ??
+      obj?.Event?.EventID,
   );
 
 const extractTrackId = (obj: any): string =>
   readString(
-    obj?.trackId ?? obj?.trackID ?? obj?.TrackID ?? obj?.track?.trackId,
+    obj?.trackId ??
+      obj?.trackID ??
+      obj?.TrackID ??
+      obj?.track?.trackId ??
+      obj?.track?.trackID ??
+      obj?.Track?.trackId ??
+      obj?.Track?.TrackID,
   );
 
 const extractTopicId = (obj: any): string =>
   readString(
-    obj?.topicId ?? obj?.topicID ?? obj?.TopicID ?? obj?.topic?.topicId,
+    obj?.topicId ??
+      obj?.topicID ??
+      obj?.TopicID ??
+      obj?.topic?.topicId ??
+      obj?.topic?.topicID ??
+      obj?.Topic?.topicId ??
+      obj?.Topic?.TopicID,
   );
 
 const extractRoundId = (obj: any): string =>
@@ -119,7 +137,9 @@ const extractRoundId = (obj: any): string =>
       obj?.currentRoundId ||
       obj?.currentRoundID ||
       obj?.teamInRound?.roundId ||
-      obj?.teamInRound?.roundID,
+      obj?.teamInRound?.roundID ||
+      obj?.TeamInRound?.roundId ||
+      obj?.TeamInRound?.RoundID,
   );
 
 const extractEventName = (obj: any): string =>
@@ -127,7 +147,11 @@ const extractEventName = (obj: any): string =>
     obj?.eventName ||
       obj?.EventName ||
       obj?.event?.eventName ||
-      obj?.event?.name,
+      obj?.event?.EventName ||
+      obj?.event?.name ||
+      obj?.Event?.eventName ||
+      obj?.Event?.EventName ||
+      obj?.Event?.name,
     "Not registered",
   );
 
@@ -139,6 +163,9 @@ const extractTrackName = (obj: any): string =>
       obj?.CategoryName ||
       obj?.track?.trackName ||
       obj?.track?.name ||
+      obj?.Track?.trackName ||
+      obj?.Track?.TrackName ||
+      obj?.Track?.name ||
       obj?.teamInRound?.trackName ||
       obj?.teamInRound?.TrackName ||
       obj?.teamInRound?.track?.trackName ||
@@ -154,6 +181,9 @@ const extractTopicName = (obj: any): string =>
       obj?.TopicDetail ||
       obj?.topic?.topicDetail ||
       obj?.topic?.name ||
+      obj?.Topic?.topicDetail ||
+      obj?.Topic?.TopicDetail ||
+      obj?.Topic?.name ||
       obj?.teamInRound?.topicName ||
       obj?.teamInRound?.TopicName ||
       obj?.teamInRound?.topicDetail ||
@@ -300,13 +330,92 @@ const getTeamNotice = (obj: any) => {
 };
 
 const getParticipationKey = (record: any) => {
+  const eventId = extractEventId(record);
+  if (eventId) return eventId;
+
   const parts = [
-    extractEventId(record) || extractEventName(record),
+    extractEventName(record),
     extractTrackId(record) || extractTrackName(record),
     extractTopicId(record) || extractTopicName(record),
     extractRoundId(record) || extractRoundName(record),
   ].filter(Boolean);
   return parts.join("|") || "current";
+};
+
+const extractTeamHistoryEventRecords = (team: any): any[] => {
+  const events = [
+    ...normalizeList(team?.events),
+    ...normalizeList(team?.Events),
+    ...normalizeList(team?.registeredEvents),
+    ...normalizeList(team?.RegisteredEvents),
+  ];
+
+  return events
+    .map((event) => ({
+      ...event,
+      teamId: getTeamId(team),
+      teamName: extractTeamName(team),
+      isLeader: isLeaderTeam(team),
+      isRegisteredEvent: true,
+      source: "team-history",
+      eventId: extractEventId(event),
+      eventName: extractEventName(event),
+    }))
+    .filter((event) => extractEventId(event) || extractEventName(event) !== "Not registered");
+};
+
+const mergeTeamInfoIntoHistoryEvents = (
+  historyEvents: any[],
+  teamInfo: any,
+): any[] => {
+  if (!teamInfo) return historyEvents;
+
+  const infoEventId = extractEventId(teamInfo);
+  const infoEventName = extractEventName(teamInfo).toLowerCase();
+  const hasInfoEvent =
+    Boolean(infoEventId) ||
+    (infoEventName && infoEventName !== "not registered");
+
+  if (!hasInfoEvent) return historyEvents;
+
+  let merged = false;
+  const records = historyEvents.map((event) => {
+    const sameEvent =
+      (infoEventId && extractEventId(event) === infoEventId) ||
+      extractEventName(event).toLowerCase() === infoEventName;
+
+    if (!sameEvent) return event;
+    merged = true;
+    return {
+      ...event,
+      ...teamInfo,
+      eventId: extractEventId(event) || infoEventId,
+      eventName: extractEventName(teamInfo),
+      isRegisteredEvent: true,
+      source: "team-history",
+    };
+  });
+
+  if (merged) return records;
+
+  return [
+    ...records,
+    {
+      ...teamInfo,
+      isRegisteredEvent: true,
+      source: "team-info",
+    },
+  ];
+};
+
+const getParticipationRoundLabel = (record: any): string => {
+  const roundLabel = getRoundLabel(
+    extractCurrentRoundIndex(record),
+    extractRoundName(record),
+  );
+
+  if (roundLabel !== "Not Registered") return roundLabel;
+  return record?.isRegisteredEvent ? "Registered" : roundLabel;
 };
 
 const extractEventParticipations = (obj: any): any[] => {
@@ -323,26 +432,103 @@ const extractEventParticipations = (obj: any): any[] => {
     obj.Events,
     obj.eventRegistrations,
     obj.EventRegistrations,
+    obj.eventParticipations,
+    obj.EventParticipations,
+    obj.participatedEvents,
+    obj.ParticipatedEvents,
+    obj.joinedEvents,
+    obj.JoinedEvents,
+    obj.enrolledEvents,
+    obj.EnrolledEvents,
     obj.teamInRounds,
     obj.TeamInRounds,
+    obj.teamInRoundDetails,
+    obj.TeamInRoundDetails,
     obj.roundParticipations,
     obj.RoundParticipations,
   ];
 
-  const records = possibleLists.flatMap((value) => normalizeList(value));
+  const objectArrayRecords =
+    obj && typeof obj === "object"
+      ? Object.values(obj).flatMap((value) =>
+          Array.isArray(value) ? normalizeList(value) : [],
+        )
+      : [];
+  const records = [
+    ...possibleLists.flatMap((value) => normalizeList(value)),
+    ...objectArrayRecords,
+  ];
   const topLevelEventName = extractEventName(obj);
-  if (hasRegisteredEvent(obj, topLevelEventName)) records.unshift(obj);
+  if (
+    normalizeList(obj.participations).length === 0 &&
+    hasRegisteredEvent(obj, topLevelEventName)
+  ) {
+    records.unshift(obj);
+  }
 
   const unique = new Map<string, any>();
   records.forEach((record) => {
     const eventName = extractEventName(record);
-    if (!hasRegisteredEvent(record, eventName)) return;
+    if (
+      !record?.isRegisteredEvent &&
+      !hasRegisteredEvent(record, eventName) &&
+      !isUsableTrackRecord(record)
+    ) {
+      return;
+    }
     const key = getParticipationKey(record);
     if (!unique.has(key)) unique.set(key, record);
   });
 
   return Array.from(unique.values());
 };
+
+const isUsableTrackRecord = (record: any) =>
+  Boolean(
+    extractTrackId(record) ||
+      isFilledField(extractTrackName(record), ["no track", "-", "select track"]),
+  );
+
+const buildTrackParticipationRecord = ({
+  track,
+  round,
+  activeTeamId,
+  teamName,
+}: {
+  track: any;
+  round?: any;
+  activeTeamId: string;
+  teamName: string;
+}) => ({
+  ...track,
+  ...(round || {}),
+  teamId: activeTeamId,
+  teamName,
+  eventId: extractEventId(track) || extractEventId(round),
+  eventName:
+    extractEventName(track) !== "Not registered"
+      ? extractEventName(track)
+      : extractEventName(round),
+  trackId: extractTrackId(track) || extractTrackId(round),
+  trackName:
+    extractTrackName(track) !== "No track"
+      ? extractTrackName(track)
+      : extractTrackName(round),
+  topicId: extractTopicId(track) || extractTopicId(round),
+  topicName:
+    extractTopicName(track) !== "No topic"
+      ? extractTopicName(track)
+      : extractTopicName(round),
+  roundId: extractRoundId(round) || extractRoundId(track),
+  roundName:
+    extractRoundName(round) !== "Current Round"
+      ? extractRoundName(round)
+      : extractRoundName(track),
+  currentRoundName:
+    extractRoundName(round) !== "Current Round"
+      ? extractRoundName(round)
+      : extractRoundName(track),
+});
 
 // COUNTDOWN TIMER
 function calculateTimeLeft(targetDate: Date) {
@@ -469,6 +655,7 @@ export function Dashboard() {
 
       const activeTeamId = getTeamId(currentTeam);
       let dashData = { ...currentTeam };
+      let teamInfoData: any = null;
 
       try {
         const membersRes = await teamApi.getTeamMembers(activeTeamId);
@@ -479,7 +666,8 @@ export function Dashboard() {
 
       try {
         const infoRes = await teamApi.getTeamDashboard(activeTeamId);
-        dashData = { ...dashData, ...unwrapData(infoRes) };
+        teamInfoData = unwrapData(infoRes);
+        dashData = { ...dashData, ...teamInfoData };
         setAccountBanInfo((prev) => ({
           isBanned: prev.isBanned || isBannedAccount(infoRes, unwrapData(infoRes)),
           reason: prev.reason || getBanReason(infoRes, unwrapData(infoRes)),
@@ -488,8 +676,9 @@ export function Dashboard() {
         console.warn("KhÃ´ng táº£i Ä‘Æ°á»£c /api/Team/{teamId}/info:", err);
       }
 
-      const activeTeamEventRecords = teamHistory.filter(
-        (record) => getTeamId(record) === activeTeamId,
+      const historyEventRecords = mergeTeamInfoIntoHistoryEvents(
+        extractTeamHistoryEventRecords(currentTeam),
+        teamInfoData,
       );
       const infoParticipations = [
         ...normalizeList(dashData.participations),
@@ -502,7 +691,10 @@ export function Dashboard() {
 
       dashData = {
         ...dashData,
-        participations: [...infoParticipations, ...activeTeamEventRecords],
+        participations:
+          historyEventRecords.length > 0
+            ? [...historyEventRecords, ...infoParticipations]
+            : infoParticipations,
       };
 
       let foundRoundId = extractRoundId(dashData);
@@ -573,17 +765,47 @@ export function Dashboard() {
         );
         setLbTracks(teamTracks);
 
-        const trackParticipationRecords = teamTracks
-          .map((track: any) => ({
-            ...track,
-            teamId: activeTeamId,
-            teamName: extractTeamName(dashData),
-          }))
-          .filter((track: any) =>
-            hasRegisteredEvent(track, extractEventName(track)),
-          );
+        const roundsByTrackId = new Map<string, any[]>();
+        await Promise.all(
+          teamTracks.map(async (track: any) => {
+            const trackId = readString(track.trackID || track.trackId || track.id);
+            if (!trackId) return;
 
-        if (trackParticipationRecords.length > 0) {
+            try {
+              const rounds = normalizeList(
+                await teamApi.getRoundsByTeamAndTrack(activeTeamId, trackId),
+              );
+              roundsByTrackId.set(trackId, rounds);
+            } catch {
+              roundsByTrackId.set(trackId, []);
+            }
+          }),
+        );
+
+        const trackParticipationRecords = teamTracks
+          .map((track: any) => {
+            const trackId = readString(track.trackID || track.trackId || track.id);
+            const rounds = roundsByTrackId.get(trackId) || [];
+            const currentRound =
+              rounds.find(
+                (round: any) =>
+                  normalizeId(round.roundID || round.roundId || round.id) ===
+                  normalizeId(foundRoundId),
+              ) || rounds[0];
+
+            return buildTrackParticipationRecord({
+              track,
+              round: currentRound,
+              activeTeamId,
+              teamName: extractTeamName(dashData),
+            });
+          })
+          .filter((record: any) => isUsableTrackRecord(record));
+
+        if (
+          trackParticipationRecords.length > 0 &&
+          historyEventRecords.length === 0
+        ) {
           dashData = {
             ...dashData,
             participations: [
@@ -625,9 +847,14 @@ export function Dashboard() {
         setLbSelectedTrack(defaultTrackId);
 
         if (defaultTrackId) {
-          const teamRounds = normalizeList(
-            await teamApi.getRoundsByTeamAndTrack(activeTeamId, defaultTrackId),
-          );
+          const teamRounds =
+            roundsByTrackId.get(defaultTrackId) ||
+            normalizeList(
+              await teamApi.getRoundsByTeamAndTrack(
+                activeTeamId,
+                defaultTrackId,
+              ),
+            );
           setLbRounds(teamRounds);
 
           const defaultRound =
@@ -899,6 +1126,8 @@ export function Dashboard() {
   const displayRoundName =
     currentRoundLabel !== "Not Registered"
       ? currentRoundLabel
+      : activeEventContext?.isRegisteredEvent
+        ? "Registered"
       : currentRoundName || "Pending...";
   const registeredRoundName = isApprovedIntoRound ? displayRoundName : "Pending...";
   const isRoundLive =
@@ -1388,10 +1617,7 @@ export function Dashboard() {
                           getParticipationKey(selectedParticipation) === key;
                         const recordTrack = extractTrackName(record);
                         const recordTopic = extractTopicName(record);
-                        const recordRound = getRoundLabel(
-                          extractCurrentRoundIndex(record),
-                          extractRoundName(record),
-                        );
+                        const recordRound = getParticipationRoundLabel(record);
 
                         return (
                           <button

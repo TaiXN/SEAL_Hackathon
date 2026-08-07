@@ -40,7 +40,12 @@ type SubmissionSnapshot = {
 
 type SubmissionAuditLog = {
   title: string;
-  detail: string;
+  oldGithubUrl: string;
+  oldDemoUrl: string;
+  oldSlideUrl: string;
+  newGithubUrl: string;
+  newDemoUrl: string;
+  newSlideUrl: string;
   actor: string;
   createdAt: string;
 };
@@ -102,6 +107,45 @@ const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
 
   return logs
     .map((item: any) => {
+      const oldGithubUrl = readString(
+        item?.oldUrlGithub,
+        item?.OldUrlGithub,
+        item?.oldGithubUrl,
+        item?.OldGithubUrl,
+      );
+      const oldDemoUrl = readString(
+        item?.oldUrlDemo,
+        item?.OldUrlDemo,
+        item?.oldDemoUrl,
+        item?.OldDemoUrl,
+      );
+      const oldSlideUrl = readString(
+        item?.oldUrlSlide,
+        item?.OldUrlSlide,
+        item?.oldSlideUrl,
+        item?.OldSlideUrl,
+      );
+      const newGithubUrl = readString(
+        item?.newUrlGithub,
+        item?.NewUrlGithub,
+        item?.newGithubUrl,
+        item?.NewGithubUrl,
+      );
+      const newDemoUrl = readString(
+        item?.newUrlDemo,
+        item?.NewUrlDemo,
+        item?.newDemoUrl,
+        item?.NewDemoUrl,
+      );
+      const newSlideUrl = readString(
+        item?.newUrlSlide,
+        item?.NewUrlSlide,
+        item?.newSlideUrl,
+        item?.NewSlideUrl,
+      );
+      const firstSubmission = [oldGithubUrl, oldDemoUrl, oldSlideUrl].some(
+        (entry) => entry.toLowerCase().includes("first submission"),
+      );
       const title = stripTechnicalIds(
         readString(
           item?.action,
@@ -110,36 +154,18 @@ const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
           item?.Activity,
           item?.event,
           item?.Event,
-          "Submission updated",
+          firstSubmission ? "First submission" : "Submission updated",
         ),
       );
-      const oldValue = stripTechnicalIds(
-        readString(item?.oldValue, item?.OldValue, item?.before, item?.Before),
-      );
-      const newValue = stripTechnicalIds(
-        readString(item?.newValue, item?.NewValue, item?.after, item?.After),
-      );
-      const explicitDetail = stripTechnicalIds(
-        readString(
-          item?.description,
-          item?.Description,
-          item?.message,
-          item?.Message,
-          item?.detail,
-          item?.Detail,
-        ),
-      );
-      const detail =
-        explicitDetail ||
-        (oldValue || newValue
-          ? [oldValue && `From: ${oldValue}`, newValue && `To: ${newValue}`]
-              .filter(Boolean)
-              .join(" · ")
-          : "");
 
       return {
         title: title || "Submission updated",
-        detail,
+        oldGithubUrl,
+        oldDemoUrl,
+        oldSlideUrl,
+        newGithubUrl,
+        newDemoUrl,
+        newSlideUrl,
         actor: stripTechnicalIds(
           readString(
             item?.actorName,
@@ -164,7 +190,7 @@ const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
         ),
       };
     })
-    .filter((log) => log.title || log.detail || log.createdAt);
+    .filter((log) => log.title || log.createdAt);
 };
 
 const pickSubmissionSource = (value: any) => {
@@ -805,11 +831,23 @@ function AuditLogModal({
                       </p>
                     )}
                   </div>
-                  {log.detail && (
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {log.detail}
-                    </p>
-                  )}
+                  <div className="mt-4 space-y-3">
+                    <AuditLinkChange
+                      label="GitHub"
+                      before={log.oldGithubUrl}
+                      after={log.newGithubUrl}
+                    />
+                    <AuditLinkChange
+                      label="Demo"
+                      before={log.oldDemoUrl}
+                      after={log.newDemoUrl}
+                    />
+                    <AuditLinkChange
+                      label="Slide"
+                      before={log.oldSlideUrl}
+                      after={log.newSlideUrl}
+                    />
+                  </div>
                   {log.actor && (
                     <p className="mt-2 text-xs font-bold text-primary">
                       By {log.actor}
@@ -821,6 +859,84 @@ function AuditLogModal({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function AuditLinkChange({
+  label,
+  before,
+  after,
+}: {
+  label: string;
+  before: string;
+  after: string;
+}) {
+  const cleanBefore = stripTechnicalIds(before) || "-";
+  const cleanAfter = stripTechnicalIds(after) || "-";
+  const changed = cleanBefore !== cleanAfter;
+
+  return (
+    <div className="rounded-radius-md border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+            changed
+              ? "bg-orange-100 text-[#c2410c]"
+              : "bg-slate-200 text-slate-500"
+          }`}
+        >
+          {changed ? "Changed" : "Same"}
+        </span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        <AuditValue label="Before" value={cleanBefore} />
+        <AuditValue label="After" value={cleanAfter} isCurrent />
+      </div>
+    </div>
+  );
+}
+
+function AuditValue({
+  label,
+  value,
+  isCurrent,
+}: {
+  label: string;
+  value: string;
+  isCurrent?: boolean;
+}) {
+  const isUrl = value.startsWith("http://") || value.startsWith("https://");
+
+  return (
+    <div className="min-w-0 rounded-radius-md bg-white p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      {isUrl ? (
+        <a
+          href={value}
+          target="_blank"
+          rel="noreferrer"
+          className={`mt-1 inline-flex max-w-full items-center gap-2 text-xs font-bold hover:underline ${
+            isCurrent ? "text-primary" : "text-slate-600"
+          }`}
+        >
+          <span className="truncate">{value}</span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <p
+          className={`mt-1 break-words text-xs font-bold ${
+            isCurrent ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          {value}
+        </p>
+      )}
     </div>
   );
 }
