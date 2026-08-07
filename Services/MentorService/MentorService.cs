@@ -1,6 +1,7 @@
 ﻿using APIViewModels.Mentor;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -150,13 +151,19 @@ namespace Services.MentorService
                 return null;
             }
         }
-        public async Task<List<TeamMentorContactAPIViewModel>> GetMentorContactByTeamAsync(string teamId)
+        public async Task<List<TeamMentorContactAPIViewModel>> GetMentorContactByTeamAsync(string teamId, string eventId)
         {
             try
             {
+
                 TeamInRound teamInRound =
-                    await _uow.TeamInRound.GetFirstOrDefaultAsync(
-                        tr => tr.TeamId == teamId);
+                    await _uow.TeamInRound
+                        .GetAllQueryable()
+                        .Include(tr => tr.Track)
+                        .FirstOrDefaultAsync(tr =>
+                            tr.TeamId == teamId &&
+                            tr.Track != null &&
+                            tr.Track.EventId == eventId);
 
                 if (teamInRound == null)
                 {

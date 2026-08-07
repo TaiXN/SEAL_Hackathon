@@ -110,21 +110,25 @@ namespace SEAL_Hackathon.Controllers
             return Ok(result);
         }
 
-        [HttpGet("contact/{teamId}")]
-        public async Task<IActionResult> GetMentorContact(string teamId)
+        [HttpGet("contact/event/{eventId}/team/{teamId}")]
+        public async Task<IActionResult> GetMentorContact(string eventId, string teamId)
         {
-            if (string.IsNullOrEmpty(teamId))
+            if (string.IsNullOrWhiteSpace(eventId) ||
+                string.IsNullOrWhiteSpace(teamId))
             {
-                return BadRequest("Invalid Team ID.");
+                return BadRequest(
+                    "Invalid Event ID or Team ID.");
             }
 
             List<TeamMentorContactAPIViewModel> result =
-                await _mentor.GetMentorContactByTeamAsync(teamId);
+                await _mentor.GetMentorContactByTeamAsync(
+                    teamId,
+                    eventId);
 
             if (result == null || result.Count == 0)
             {
                 return NotFound(
-                    "No mentor has been assigned to this team's track yet.");
+                    "No mentor has been assigned to this team's track.");
             }
 
             return Ok(result);
