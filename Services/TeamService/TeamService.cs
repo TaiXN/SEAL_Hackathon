@@ -21,10 +21,19 @@ namespace Services.TeamService
             foreach (TeamMember mem in myMemberships)
             {
                 List<TeamInRound> teamSubmissions = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == mem.TeamId);
-                HashSet<string> uniqueEventIdsForTeam = new HashSet<string>();
+
+                // Khởi tạo Team với danh sách Events rỗng
+                var teamHistory = new TeamHistoryAPIViewModel
+                {
+                    TeamId = mem.TeamId,
+                    TeamName = mem.Team?.TeamName,
+                    IsLeader = mem.IsLeader,
+                    Events = new List<JoinedEventInfo>()
+                };
 
                 if (teamSubmissions.Any())
                 {
+                    HashSet<string> uniqueEventIdsForTeam = new HashSet<string>();
                     foreach (TeamInRound sub in teamSubmissions)
                     {
                         Round round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == sub.RoundId);
@@ -33,28 +42,17 @@ namespace Services.TeamService
                             uniqueEventIdsForTeam.Add(round.EventId);
                             Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
 
-                            result.Add(new TeamHistoryAPIViewModel
+                            // Add Event vào mảng thay vì tạo bản ghi Team mới
+                            teamHistory.Events.Add(new JoinedEventInfo
                             {
-                                TeamId = mem.TeamId,
-                                TeamName = mem.Team?.TeamName,
-                                IsLeader = mem.IsLeader,
                                 EventId = eventDb?.EventId,
                                 EventName = eventDb?.EventName ?? "Unspecified"
                             });
                         }
                     }
                 }
-                else
-                {
-                    result.Add(new TeamHistoryAPIViewModel
-                    {
-                        TeamId = mem.TeamId,
-                        TeamName = mem.Team?.TeamName,
-                        IsLeader = mem.IsLeader,
-                        EventId = null,
-                        EventName = "Unspecified"
-                    });
-                }
+
+                result.Add(teamHistory);
             }
             return result;
         }
@@ -90,66 +88,85 @@ namespace Services.TeamService
         }
 
         //dashboard
-        public async Task<TeamDashboardAPIViewModel> GetMyTeamDashboardAsync(string accountId, string teamId)
+        public async Task<List<TeamDashboardAPIViewModel>> GetMyTeamDashboardAsync(string accountId, string teamId)
         {
             TeamMember isMember = await _uow.TeamMember.GetFirstOrDefaultAsync(tm => tm.StudentId == accountId && tm.TeamId == teamId);
             if (isMember == null) throw new Exception("You are not a member of this team.");
 
             Team team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
-            if (team == null) return null;
+            if (team == null) return new List<TeamDashboardAPIViewModel>();
 
-            string eventName = "You are not in an Event";
-            string categoryName = "You haven't picked a topic";
-            string currentRoundName = "Round hasn't started";
-            int currentRoundIndex = -1;
-            bool isEliminated = false;
-            string statusMessage = "The event hasn't started yet.";
-
+            // Lấy tất cả các vòng thi mà team này đã nộp bài/tham gia
             List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(st => st.TeamId == teamId);
-            TeamInRound submittedProject = null;
-            Round highestTeamRound = null;
+            if (!allTeamRounds.Any()) return new List<TeamDashboardAPIViewModel>();
 
-            foreach (TeamInRound tr in allTeamRounds)
+            // Tìm ra danh sách các EventId độc nhất từ các vòng thi đó
+            HashSet<string> uniqueEventIds = new HashSet<string>();
+            foreach (var tr in allTeamRounds)
             {
                 Round r = await _uow.Round.GetFirstOrDefaultAsync(x => x.RoundId == tr.RoundId);
-                if (r != null)
-                {
-                    if (highestTeamRound == null || r.EndDate > highestTeamRound.EndDate)
-                    {
-                        highestTeamRound = r;
-                        submittedProject = tr;
-                    }
-                }
+                if (r != null) uniqueEventIds.Add(r.EventId);
             }
 
-            if (submittedProject != null && highestTeamRound != null)
+            List<TeamDashboardAPIViewModel> result = new List<TeamDashboardAPIViewModel>();
+            DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
+            // Tính tổng số thành viên của team (Dùng chung cho mọi event)
+            List<TeamMember> allMembers = await _uow.TeamMember.GetAllAsync();
+            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
+
+            // Xử lý từng Event riêng biệt
+            foreach (string eventId in uniqueEventIds)
             {
-                if (!string.IsNullOrEmpty(submittedProject.TrackId))
+                Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
+                if (eventDb == null) continue;
+
+                string eventName = eventDb.EventName;
+                string categoryName = "You haven't picked a topic";
+                string currentRoundName = "Round hasn't started";
+                int currentRoundIndex = eventDb.CurrentRound;
+                bool isEliminated = false;
+                string statusMessage = "The event hasn't started yet.";
+
+                List<Round> eventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
+                List<string> eventRoundIds = eventRounds.Select(r => r.RoundId).ToList();
+
+                // Lọc bài nộp của team CHỈ TRONG Event này
+                List<TeamInRound> teamSubmissionsInEvent = allTeamRounds.Where(st => eventRoundIds.Contains(st.RoundId)).ToList();
+
+                TeamInRound submittedProject = null;
+                Round highestTeamRound = null;
+
+                foreach (TeamInRound tr in teamSubmissionsInEvent)
                 {
-                    Track track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
-                    if (track != null)
+                    Round r = eventRounds.FirstOrDefault(x => x.RoundId == tr.RoundId);
+                    if (r != null)
                     {
-                        categoryName = track.TrackName;
-                        if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                        if (highestTeamRound == null || r.RoundIndex > highestTeamRound.RoundIndex)
                         {
-                            Topic topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
-                            if (topic != null) categoryName += " - " + topic.TopicDetail;
+                            highestTeamRound = r;
+                            submittedProject = tr;
                         }
                     }
                 }
 
-                Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == highestTeamRound.EventId);
-                if (eventDb != null)
+                if (submittedProject != null && highestTeamRound != null)
                 {
-                    eventName = eventDb.EventName;
-                    currentRoundIndex = eventDb.CurrentRound;
+                    if (!string.IsNullOrEmpty(submittedProject.TrackId))
+                    {
+                        Track track = await _uow.Track.GetFirstOrDefaultAsync(c => c.TrackId == submittedProject.TrackId);
+                        if (track != null)
+                        {
+                            categoryName = track.TrackName;
+                            if (!string.IsNullOrEmpty(submittedProject.TopicId))
+                            {
+                                Topic topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == submittedProject.TopicId);
+                                if (topic != null) categoryName += " - " + topic.TopicDetail;
+                            }
+                        }
+                    }
 
-                    DateTime vnNow = DateTime.UtcNow.AddHours(7);
-
-                    Round activeRoundByTime = await _uow.Round.GetFirstOrDefaultAsync(r =>
-                        r.EventId == eventDb.EventId &&
-                        r.StartDate <= vnNow &&
-                        r.EndDate >= vnNow);
+                    Round activeRoundByTime = eventRounds.FirstOrDefault(r => r.StartDate <= vnNow && r.EndDate >= vnNow);
 
                     if (activeRoundByTime != null)
                     {
@@ -167,17 +184,12 @@ namespace Services.TeamService
                     {
                         if (currentRoundIndex > 0)
                         {
-                            Round activeEventRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventDb.EventId && r.RoundIndex == currentRoundIndex);
-                            if (activeEventRound != null)
-                            {
-                                currentRoundName = activeEventRound.RoundName;
-                            }
+                            Round activeEventRound = eventRounds.FirstOrDefault(r => r.RoundIndex == currentRoundIndex);
+                            if (activeEventRound != null) currentRoundName = activeEventRound.RoundName;
                         }
                     }
 
-                    List<Round> allEventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventDb.EventId);
-                    Round finalRound = allEventRounds.OrderByDescending(r => r.RoundIndex).FirstOrDefault();
-
+                    Round finalRound = eventRounds.OrderByDescending(r => r.RoundIndex).FirstOrDefault();
                     bool isEventTotallyOver = finalRound != null && vnNow > finalRound.EndDate;
 
                     if (isEventTotallyOver)
@@ -208,63 +220,56 @@ namespace Services.TeamService
                         else
                         {
                             isEliminated = false;
-
                             if (currentRoundIndex == 1)
-                            {
                                 statusMessage = $"Welcome! You are actively competing in {currentRoundName}.";
-                            }
                             else
-                            {
                                 statusMessage = $"Congratulations! You have been promoted and are competing in {currentRoundName}!";
-                            }
                         }
                     }
                 }
 
-                if (submittedProject.IsBanned)
+                if (submittedProject != null && submittedProject.IsBanned)
                 {
                     isEliminated = true;
                     statusMessage = "Your team has been disqualified because a member's account was suspended for violating event rules.";
                 }
+
+                int competitorsCount = 0;
+                if (submittedProject != null)
+                {
+                    var allTeamsInCurrentRound = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == submittedProject.RoundId);
+                    competitorsCount = allTeamsInCurrentRound.Count();
+                }
+
+                result.Add(new TeamDashboardAPIViewModel
+                {
+                    TeamName = team.TeamName,
+                    EventName = eventName,
+                    CategoryName = categoryName,
+                    TotalMembers = memberCount,
+                    CurrentRoundName = currentRoundName,
+                    CurrentRoundIndex = currentRoundIndex,
+                    IsEliminated = isEliminated,
+                    StatusMessage = statusMessage,
+                    TotalCompetitors = competitorsCount
+                });
             }
 
-            int competitorsCount = 0;
-            if (submittedProject != null)
-            {
-                var allTeamsInCurrentRound = await _uow.TeamInRound.GetAllAsync(tr => tr.RoundId == submittedProject.RoundId);
-                competitorsCount = allTeamsInCurrentRound.Count();
-            }
-            // 
-
-            List<TeamMember> allMembers = await _uow.TeamMember.GetAllAsync();
-            int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
-
-            return new TeamDashboardAPIViewModel
-            {
-                TeamName = team.TeamName,
-                EventName = eventName,
-                CategoryName = categoryName,
-                TotalMembers = memberCount,
-                CurrentRoundName = currentRoundName,
-                CurrentRoundIndex = currentRoundIndex,
-                IsEliminated = isEliminated,
-                StatusMessage = statusMessage,
-                TotalCompetitors = competitorsCount
-            };
+            return result;
         }
 
-        public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId)
+        public async Task<DateTime?> GetCountdownDeadlineAsync(string teamId, string eventId)
         {
             Team team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return null;
 
-            TeamInRound submission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
+            List<Round> roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
+            if (!roundsInEvent.Any()) return null;
+
+            List<string> eventRoundIds = roundsInEvent.Select(r => r.RoundId).ToList();
+
+            TeamInRound submission = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId && eventRoundIds.Contains(tr.RoundId));
             if (submission == null) return null;
-
-            Round round = await _uow.Round.GetFirstOrDefaultAsync(r => r.RoundId == submission.RoundId);
-            if (round == null) return null;
-
-            List<Round> roundsInEvent = await _uow.Round.GetAllAsync(r => r.EventId == round.EventId);
 
             Round activeRound = roundsInEvent
                 .Where(r => r.EndDate > DateTime.Now)
@@ -487,6 +492,8 @@ namespace Services.TeamService
 
             return result;
         }
+
+        
 
     }
 }

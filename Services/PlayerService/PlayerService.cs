@@ -24,54 +24,73 @@ namespace Services.PlayerService
             _uow = uow;
         }
 
+        private void ValidateImageFile(Microsoft.AspNetCore.Http.IFormFile file, string fieldName)
+        {
+            if (file == null || file.Length == 0)
+                throw new Exception($"Please upload your {fieldName}.");
+
+            long maxFileSize = 10 * 1024 * 1024; 
+            if (file.Length > maxFileSize)
+                throw new Exception($"The {fieldName} exceeds the maximum allowed size of 10MB.");
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            var extension = System.IO.Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+                throw new Exception($"Invalid file format for {fieldName}. Only JPG, JPEG, and PNG are allowed.");
+
+            var allowedMimeTypes = new[] { "image/jpeg", "image/png" };
+            if (!allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
+                throw new Exception($"Invalid content type for {fieldName}. Please upload a valid image file.");
+        }
+
+
         public async Task<bool> RegisterPlayerAsync(RegisterAPIViewModel info)
         {
-
             var isClone = await _uow.Student.GetFirstOrDefaultAsync(s => s.CccdNumber == info.CccdNumber);
             if (isClone != null)
             {
-                throw new Exception("This ID card has already been used.");
+                var clonedAccount = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == isClone.StudentId);
+
+                if (clonedAccount != null && clonedAccount.IsEmailConfirmed)
+                {
+                    throw new Exception("This ID card has already been used by a verified account.");
+                }
             }
 
+            ValidateImageFile(info.IdCardImage, "ID Card (CCCD)");
+            ValidateImageFile(info.StudentCardImage, "Student Card");
+
             CloudinaryDotNet.Account cloudAccount = new CloudinaryDotNet.Account(
-                "ndct1evc", 
-                "723631468677837", 
-                "O0--MXSw4fGhx-yZaIlK1d0O1dI" 
+                "ndct1evc",
+                "723631468677837",
+                "O0--MXSw4fGhx-yZaIlK1d0O1dI"
             );
             Cloudinary cloudinary = new Cloudinary(cloudAccount);
 
             string uploadedIdCardUrl = "";
             string uploadedStudentCardUrl = "";
 
-            if (info.IdCardImage != null && info.IdCardImage.Length > 0)
+            using (var stream = info.IdCardImage.OpenReadStream())
             {
-                using (var stream = info.IdCardImage.OpenReadStream())
+                var uploadParams = new ImageUploadParams()
                 {
-                    var uploadParams = new ImageUploadParams()
-                    {
-                        File = new FileDescription(info.IdCardImage.FileName, stream),
-                        PublicId = $"seal_hackathon/cccd_{info.Email.Replace("@", "_")}"
-                    };
-                    var uploadResult = await cloudinary.UploadAsync(uploadParams);
-                    uploadedIdCardUrl = uploadResult.SecureUrl.ToString();
-                }
+                    File = new FileDescription(info.IdCardImage.FileName, stream),
+                    PublicId = $"seal_hackathon/cccd_{info.Email.Replace("@", "_")}"
+                };
+                var uploadResult = await cloudinary.UploadAsync(uploadParams);
+                uploadedIdCardUrl = uploadResult.SecureUrl.ToString();
             }
-            else throw new Exception("please uploade your id card");
 
-            if (info.StudentCardImage != null && info.StudentCardImage.Length > 0)
+            using (var stream = info.StudentCardImage.OpenReadStream())
             {
-                using (var stream = info.StudentCardImage.OpenReadStream())
+                var uploadParams = new ImageUploadParams()
                 {
-                    var uploadParams = new ImageUploadParams()
-                    {
-                        File = new FileDescription(info.StudentCardImage.FileName, stream),
-                        PublicId = $"seal_hackathon/studentcard_{info.Email.Replace("@", "_")}"
-                    };
-                    var uploadResult = await cloudinary.UploadAsync(uploadParams);
-                    uploadedStudentCardUrl = uploadResult.SecureUrl.ToString();
-                }
+                    File = new FileDescription(info.StudentCardImage.FileName, stream),
+                    PublicId = $"seal_hackathon/studentcard_{info.Email.Replace("@", "_")}"
+                };
+                var uploadResult = await cloudinary.UploadAsync(uploadParams);
+                uploadedStudentCardUrl = uploadResult.SecureUrl.ToString();
             }
-            else throw new Exception("please upload your Student Card");
 
             Random rand = new Random();
             string generatedOtp = rand.Next(100000, 999999).ToString();
@@ -84,7 +103,7 @@ namespace Services.PlayerService
 
                 if (existingAcc.IsEmailConfirmed)
                 {
-                    return false; 
+                    return false;
                 }
 
                 existingAcc.Password = HashBuilder.ComputeSha256Hash(info.Password + PRIVATEKEY);
@@ -98,12 +117,13 @@ namespace Services.PlayerService
                 {
                     existingStudent.UniversityId = info.UniversityId;
                     existingStudent.IdCardImageUrl = uploadedIdCardUrl;
-                    existingStudent.StudentCardImageUrl = uploadedStudentCardUrl; 
+                    existingStudent.StudentCardImageUrl = uploadedStudentCardUrl;
                     existingStudent.CccdNumber = info.CccdNumber;
-                    _uow.Student.Update(existingStudent);
+
                 }
 
-                _uow.Account.Update(existingAcc);
+
+
                 SendEmailOTP(existingAcc.Email, generatedOtp);
                 await _uow.SaveAsync();
                 return true;
@@ -135,7 +155,7 @@ namespace Services.PlayerService
                 UniversityId = info.UniversityId,
                 IsApproved = false,
                 IdCardImageUrl = uploadedIdCardUrl,
-                StudentCardImageUrl = uploadedStudentCardUrl, 
+                StudentCardImageUrl = uploadedStudentCardUrl,
                 CccdNumber = info.CccdNumber
             };
             await _uow.Student.AddAsync(newStudent);
@@ -145,7 +165,6 @@ namespace Services.PlayerService
 
             return true;
         }
-
         public async Task<bool> VerifyEmailOtpAsync(VerifyOtpAPIViewModel request)
         {
             var account = await _uow.Account.GetFirstOrDefaultAsync(a => a.Email == request.Email);
@@ -224,7 +243,7 @@ namespace Services.PlayerService
                 Phone = s.StudentNavigation?.Phone,
                 UniversityName = s.University?.UniversityName,
                 IdCardImageUrl = s.IdCardImageUrl,
-                StudentCardImageUrl = s.StudentCardImageUrl, 
+                StudentCardImageUrl = s.StudentCardImageUrl,
                 CccdNumber = s.CccdNumber
             }).ToList();
         }
@@ -248,6 +267,7 @@ namespace Services.PlayerService
             await _uow.SaveAsync();
             return true;
         }
+
         public async Task<List<StudentAPIViewModel>> GetAllPlayersAsync()
         {
             List<Student> students = await _uow.Student.GetAllAsync(
@@ -279,7 +299,6 @@ namespace Services.PlayerService
                 accountDb.IsActive = false;
                 accountDb.BanReason = request.Reason;
                 _uow.Account.Update(accountDb);
-
 
                 await _uow.SaveAsync();
                 SendBanEmail(accountDb.Email, request.Reason);
@@ -335,7 +354,6 @@ namespace Services.PlayerService
                 accountDb.BanReason = null;
                 _uow.Account.Update(accountDb);
 
-
                 await _uow.SaveAsync();
                 SendUnbanEmail(accountDb.Email);
 
@@ -346,6 +364,7 @@ namespace Services.PlayerService
                 return (false, $"System error: {ex.Message}");
             }
         }
+
         private void SendUnbanEmail(string toEmail)
         {
             try
