@@ -224,9 +224,7 @@ namespace Services.TeacherService
             }
         }
 
-        // =========================================================================
-        // PHẦN API DÀNH CHO TEACHER PORTAL (JUDGE & MENTOR DASHBOARD)
-        // =========================================================================
+
 
         public async Task<List<PortalEventListViewModel>> GetPortalEventsAsync(string teacherId)
         {
@@ -326,6 +324,11 @@ namespace Services.TeacherService
                     EventName = ev.EventName,
                     CurrentRound = ev.CurrentRound,
                     CurrentRoundName = currentRound.RoundName,
+
+    
+                    ScoringStartDate = currentRound.ScoringStartDate,
+                    ScoringEndDate = currentRound.ScoringEndDate,
+
                     Roles = new RoleFlagsViewModel
                     {
                         IsJudge = judgeTracks.Count > 0,
@@ -352,6 +355,8 @@ namespace Services.TeacherService
                                                          .Where(e => submissions.Select(s => s.Id).Contains(e.SubmissionId) && e.TeacherId == teacherId)
                                                          .ToListAsync();
 
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
                 foreach (TeamInRound tir in teamsInRound)
                 {
                     Submission submission = submissions.FirstOrDefault(s => s.TeamInRoundId == tir.Id);
@@ -368,6 +373,29 @@ namespace Services.TeacherService
                     if (isTrackJudge == false && isTrackMentor == false)
                     {
                         continue;
+                    }
+
+                    bool canScoreStatus = isTrackJudge && submission != null && evaluation == null;
+
+                    bool isUrgent = false;
+                    string urgentMsg = string.Empty;
+
+                    if (canScoreStatus && currentRound.ScoringEndDate.HasValue)
+                    {
+                        TimeSpan timeLeft = currentRound.ScoringEndDate.Value - vnNow;
+
+                        if (timeLeft.TotalHours > 0 && timeLeft.TotalHours <= 48)
+                        {
+                            isUrgent = true;
+                            int hoursLeft = (int)Math.Floor(timeLeft.TotalHours);
+                            int minutesLeft = timeLeft.Minutes;
+                            urgentMsg = $"Gấp: Chỉ còn {hoursLeft} giờ {minutesLeft} phút để chấm!";
+                        }
+                        else if (timeLeft.TotalHours < 0)
+                        {
+                            isUrgent = true;
+                            urgentMsg = "Đã quá hạn chấm bài!";
+                        }
                     }
 
                     TeamInEventViewModel teamView = new TeamInEventViewModel
@@ -392,8 +420,11 @@ namespace Services.TeacherService
                         Score = evaluation != null ? evaluation.Score : null,
                         EvaluationId = evaluation != null ? evaluation.Id : null,
 
-                        CanScore = isTrackJudge && submission != null && evaluation == null,
-                        CanMentorContact = isTrackMentor
+                        CanScore = canScoreStatus,
+                        CanMentorContact = isTrackMentor,
+
+                        IsUrgentScoring = isUrgent,
+                        UrgentMessage = urgentMsg
                     };
 
                     detail.Teams.Add(teamView);

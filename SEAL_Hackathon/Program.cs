@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Services.AccessTokenService;
 using Services.AccountService;
+using Services.AdminService;
 using Services.CriteriaService;
 using Services.DropdownService;
 using Services.EvaluationService;
@@ -97,6 +98,7 @@ namespace SEAL_Hackathon
                 builder.RegisterType<SubmissionService>().As<ISubmissionService>();
                 builder.RegisterType<LeaderBoardService>().As<ILeaderBoardService>();
                 builder.RegisterType<PrizeService>().As<IPrizeService>();
+             
             });
 
             var app = builder.Build();

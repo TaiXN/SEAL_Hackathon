@@ -16,6 +16,8 @@ namespace Services.PrizeService
         Task<(bool IsSuccess, string Message)> DeletePrizeAsync(string prizeId);
         Task<(bool IsSuccess, string Message)> ReActivePrizeAsync(string prizeId);
         Task<(bool IsSuccess, string Message)> ManualAssignPrizeAsync(PrizeAPIViewModel request);
-        
+        Task<List<PrizeAPIViewModel>> GetTeamAwardsAsync(string eventId, string teamId);
+
+
     }
 }

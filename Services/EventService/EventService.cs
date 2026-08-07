@@ -1,12 +1,14 @@
-﻿using APIViewModels.Event;
+﻿using APIViewModels.Admin;
+using APIViewModels.Event;
+using APIViewModels.Team;
 using DataAccess.Entities;
 using DataAccess.Repositories.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using System.Text;
 
 namespace Services.EventService
 {
@@ -324,6 +326,76 @@ namespace Services.EventService
             {
                 return (false, $"System error: {ex.Message}");
             }
+        }
+
+        public async Task<List<AdminTeamJoinedAPIViewModel>> GetTeamsJoinedEventAsync(string eventId)
+        {
+            List<string> roundIds = await _uow.Round.GetAllQueryable()
+                                            .Where(r => r.EventId == eventId)
+                                            .Select(r => r.RoundId)
+                                            .ToListAsync();
+
+            if (!roundIds.Any())
+            {
+                return new List<AdminTeamJoinedAPIViewModel>();
+            }
+
+            List<TeamInRound> joinedTeams = await _uow.TeamInRound.GetAllQueryable()
+                                                .Include(t => t.Team)
+                                                .Include(t => t.Track)
+                                                .Where(t => roundIds.Contains(t.RoundId))
+                                                .ToListAsync();
+
+            List<TeamInRound> uniqueTeams = joinedTeams
+                                                .GroupBy(t => t.TeamId)
+                                                .Select(g => g.FirstOrDefault())
+                                                .ToList();
+
+            List<AdminTeamJoinedAPIViewModel> result = new List<AdminTeamJoinedAPIViewModel>();
+
+            foreach (TeamInRound tr in uniqueTeams)
+            {
+                string topicName = "Topic not selected";
+                if (!string.IsNullOrEmpty(tr.TopicId))
+                {
+                    Topic topic = await _uow.Topic.GetFirstOrDefaultAsync(t => t.TopicId == tr.TopicId);
+                    if (topic != null) topicName = topic.TopicDetail;
+                }
+
+                List<Student> teamStudents = await _uow.Student.GetAllQueryable()
+                    .Include(s => s.TeamMembers)
+                    .Include(s => s.StudentNavigation)
+                    .Where(s => s.TeamMembers.Any(tm => tm.TeamId == tr.TeamId))
+                    .ToListAsync();
+
+                List<TeamMemberAPIViewModel> membersList = new List<TeamMemberAPIViewModel>();
+
+                foreach (Student student in teamStudents)
+                {
+                    membersList.Add(new TeamMemberAPIViewModel
+                    {
+                        StudentId = student.StudentId,
+                        StudentName = student.StudentNavigation?.FullName ?? "Unknown",
+                        IsLeader = student.TeamMembers.FirstOrDefault(tm => tm.TeamId == tr.TeamId)?.IsLeader ?? false,
+                        IsActive = student.StudentNavigation?.IsActive ?? false
+                    });
+                }
+
+                membersList = membersList.OrderByDescending(m => m.IsLeader).ToList();
+
+                result.Add(new AdminTeamJoinedAPIViewModel
+                {
+                    TeamId = tr.TeamId,
+                    TeamName = tr.Team != null ? tr.Team.TeamName : "Unknown Team",
+                    TrackName = tr.Track != null ? tr.Track.TrackName : "Track not selected",
+                    TopicName = topicName,
+                    TotalMembers = membersList.Count, 
+                    IsBanned = tr.IsBanned,
+                    Members = membersList 
+                });
+            }
+
+            return result;
         }
 
     }
