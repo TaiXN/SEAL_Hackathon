@@ -252,7 +252,8 @@ export function AdminViolationsPage() {
       );
     }
     try {
-      await apiClient.put(`/api/TeamInRound/ban/${selectedTeam?.id}`, {
+      await apiClient.put(`/api/TeamInRound/ban`, {
+        teamInRoundId: selectedTeam?.id,
         reason: violationReason,
       });
       closeModal();

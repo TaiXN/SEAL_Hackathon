@@ -19,15 +19,7 @@ import { eventApi } from "../../lib/api/eventApi";
 import { prizeApi, type PrizeData } from "../../lib/api/prizeApi";
 import { roundApi } from "../../lib/api/roundApi";
 import apiClient from "../../lib/api/apiClient";
-
-const isInactiveRecord = (obj: any): boolean => {
-  if (!obj) return false;
-  if (obj.isDeleted === true || obj.IsDeleted === true) return true;
-  if (obj.isActive === false || obj.IsActive === false) return true;
-  const statusStr = String(obj.status ?? obj.Status ?? "").toLowerCase();
-  if (statusStr === "deleted" || statusStr === "inactive") return true;
-  return false;
-};
+import { isInactiveRecord } from "../../lib/utils/softDelete";
 
 export function AdminPrizesPage() {
   const [prizes, setPrizes] = useState<PrizeData[]>([]);

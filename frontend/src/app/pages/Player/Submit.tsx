@@ -114,16 +114,32 @@ export function Submit() {
 
     try {
       setIsAuditLoading(true);
-      const response = leader
-        ? await submittedTeamApi.getAuditLogsByTeam(
-            currentTeamId,
-            currentEventId,
-          )
-        : await submittedTeamApi.getMyTeamAuditLogs(
+      let response: any = null;
+
+      if (leader) {
+        try {
+          response = await submittedTeamApi.getAuditLogsByTeam(
             currentTeamId,
             currentEventId,
           );
-      setAuditLogs(normalizeAuditLogs(response));
+        } catch (error: any) {
+          if (error?.response?.status !== 404) {
+            console.warn("Cannot load leader audit logs:", error);
+          }
+        }
+      }
+
+      let logs = normalizeAuditLogs(response);
+
+      if (!leader || logs.length === 0) {
+        response = await submittedTeamApi.getMyTeamAuditLogs(
+          currentTeamId,
+          currentEventId,
+        );
+        logs = normalizeAuditLogs(response);
+      }
+
+      setAuditLogs(logs);
     } catch (error: any) {
       if (error?.response?.status !== 404) {
         console.warn("Cannot load submission audit logs:", error);
@@ -460,6 +476,10 @@ export function Submit() {
     eventContexts.find((event) => event.key === selectedEventKey) ||
     eventContexts[0] ||
     null;
+  const handleOpenAuditLogs = async () => {
+    setIsAuditOpen(true);
+    await loadAuditLogs(teamId, isLeader, selectedSubmitEvent?.eventId || "");
+  };
 
   return (
     <div className="animate-in fade-in duration-500 max-w-4xl">
@@ -581,7 +601,7 @@ export function Submit() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsAuditOpen(true)}
+                onClick={handleOpenAuditLogs}
                 className="inline-flex items-center gap-2 rounded-radius-md border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-orange-100"
               >
                 <History className="h-4 w-4" />

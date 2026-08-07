@@ -18,6 +18,7 @@ import {
   technicalDetails,
 } from "../../../lib/utils/apiError";
 import type { EventPhase } from "../../../lib/utils/eventLifecycle";
+import { keepActive } from "../../../lib/utils/softDelete";
 
 const BRAND = "#f26f21";
 
@@ -60,7 +61,10 @@ export function PrizesSection({
       setLoading(true);
       setError(null);
       const list = await prizeApi.getPrizesByEvent(eventId);
-      const sorted = [...list].sort(
+      // GET /api/Prize trả về cả giải đã xóa mềm (chúng chỉ mang isActive:false
+      // và khôi phục được qua /reactive), phải lọc bỏ nếu không giải vừa xóa sẽ
+      // hiện lại nguyên vẹn sau mỗi lần load.
+      const sorted = keepActive(list).sort(
         (a, b) => Number(a.rankIndex ?? 0) - Number(b.rankIndex ?? 0),
       );
       setPrizes(sorted);
@@ -170,6 +174,8 @@ export function PrizesSection({
     if (!ok.isConfirmed) return;
     try {
       await prizeApi.deletePrize(prizeIdOf(prize));
+      // Bỏ khỏi UI ngay, không đợi load() xong.
+      setPrizes((prev) => prev.filter((p) => prizeIdOf(p) !== prizeIdOf(prize)));
       await load();
       Swal.fire({
         icon: "success",

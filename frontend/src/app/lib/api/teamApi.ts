@@ -129,8 +129,13 @@ export const teamApi = {
     return res.data;
   },
 
-  async banTeamInRound(teamInRoundId: string) {
-    const res = await apiClient.put(`/api/TeamInRound/ban/${teamInRoundId}`);
+  // ⚠️ Khác approve/unban: ban KHÔNG nhận id trên path, id đi trong body cùng
+  // lý do vi phạm (BanTeamInRoundAPIViewModel: { teamInRoundId, reason }).
+  async banTeamInRound(teamInRoundId: string, reason: string) {
+    const res = await apiClient.put(`/api/TeamInRound/ban`, {
+      teamInRoundId,
+      reason,
+    });
     return res.data;
   },
 

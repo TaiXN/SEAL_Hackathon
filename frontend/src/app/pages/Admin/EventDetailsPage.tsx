@@ -58,30 +58,11 @@ import {
   type EventPhase,
 } from "../../lib/utils/eventLifecycle";
 import { showApiError } from "../../lib/utils/apiError";
+import { isInactiveRecord, sameRecordId } from "../../lib/utils/softDelete";
 import { PrizesSection } from "./eventDetails/PrizesSection";
 import { AuditLogsSection } from "./eventDetails/AuditLogsSection";
 import { TeamsSection } from "./eventDetails/TeamsSection";
-
-const isInactiveRecord = (obj: any): boolean => {
-  if (!obj) return false;
-  if (
-    obj.isDeleted === true ||
-    obj.IsDeleted === true ||
-    obj.deleted === true ||
-    obj.Deleted === true
-  )
-    return true;
-  if (
-    obj.isActive === false ||
-    obj.IsActive === false ||
-    obj.status === false ||
-    obj.Status === false
-  )
-    return true;
-  const statusStr = String(obj.status ?? obj.Status ?? "").toLowerCase();
-  if (statusStr === "deleted" || statusStr === "inactive") return true;
-  return false;
-};
+import { StaffSection } from "./eventDetails/StaffSection";
 
 const isNotFoundError = (e: any): boolean => {
   if (e?.response?.status === 404) return true;
@@ -114,6 +95,7 @@ type TabId =
   | "rounds"
   | "rubrics"
   | "teams"
+  | "staff"
   | "leaderboard"
   | "prizes"
   | "audit";
@@ -127,6 +109,36 @@ const nowForInput = () => toDatetimeLocalValue(new Date().toISOString());
 
 const isPastInput = (value: string) =>
   !!value && new Date(value).getTime() < Date.now();
+
+/**
+ * Đổi `event.currentRound` sang vị trí trong mảng `eventRounds`.
+ *
+ * ⚠️ currentRound VÀ roundIndex đều đánh số TỪ 1 (xem đầu file eventLifecycle.ts
+ * và CreateEvents.tsx:1684), nên KHÔNG được dùng thẳng currentRound làm index.
+ * loadTeamsAndScores trước đây làm đúng như vậy nên lệch một vòng: leaderboard
+ * liệt kê đội của vòng SAU vòng đang thi. Vòng đó chưa có đội nào (auto-transition
+ * mới là thứ tạo ra chúng) nên bảng rỗng, mà nút chuyển vòng lại tự tắt khi bảng
+ * rỗng — admin kẹt luôn, không qua vòng được.
+ *
+ * Cả ba chỗ cần quy đổi đều phải đi qua hàm này; tự tính lại là lệch tiếp.
+ * Trả -1 khi sự kiện chưa vào vòng nào (draft/đang mở đăng ký).
+ */
+const findCurrentRoundIndex = (rounds: any[], currentRound: any): number => {
+  if (rounds.length === 0) return -1;
+  const raw = Number(currentRound);
+  if (!Number.isFinite(raw)) return -1;
+
+  const matched = rounds.findIndex(
+    (r: any) => Number(r.roundIndex ?? r.RoundIndex) === raw,
+  );
+  if (matched !== -1) return matched;
+
+  // Không khớp roundIndex nào: lùi về quy ước, và kẹp lại cho sự kiện đã qua
+  // vòng cuối (currentRound lúc đó vượt tổng số vòng) để vẫn ra vòng chung kết.
+  const fallback = raw - 1;
+  if (fallback < 0) return -1;
+  return Math.min(fallback, rounds.length - 1);
+};
 
 export function EventDetailsPage() {
   const navigate = useNavigate();
@@ -221,13 +233,10 @@ export function EventDetailsPage() {
     const loadTeamsAndScores = async () => {
       if (!event || eventRounds.length === 0) return;
 
-      const curRoundIndex = Number(event.currentRound);
-      let targetRoundIndex = curRoundIndex;
-
-      if (curRoundIndex >= eventRounds.length) {
-        targetRoundIndex = eventRounds.length - 1;
-      }
-
+      const targetRoundIndex = findCurrentRoundIndex(
+        eventRounds,
+        event.currentRound,
+      );
       if (targetRoundIndex < 0) return;
 
       const currentRoundObj = eventRounds[targetRoundIndex];
@@ -914,6 +923,12 @@ export function EventDetailsPage() {
     if (ok.isConfirmed) {
       try {
         await apiClient.delete(`/api/Round/${roundId}`);
+        // Bỏ khỏi UI ngay, không đợi refetch — giống handleDeleteTrack.
+        setEventRounds((prev) =>
+          prev.filter(
+            (x: any) => !sameRecordId(x.roundID || x.roundId || x.id, roundId),
+          ),
+        );
         Swal.fire({
           icon: "success",
           title: "Deleted!",
@@ -1297,13 +1312,8 @@ export function EventDetailsPage() {
     if (!id || eventRounds.length === 0) return;
 
     const rawCurrentRound = Number(event?.currentRound);
-    let curRoundIndex = eventRounds.findIndex(
-      (r: any) => Number(r.roundIndex ?? r.RoundIndex) === rawCurrentRound,
-    );
-
-    if (curRoundIndex === -1) {
-      curRoundIndex = rawCurrentRound > 0 ? rawCurrentRound - 1 : 0;
-    }
+    const foundIndex = findCurrentRoundIndex(eventRounds, rawCurrentRound);
+    const curRoundIndex = foundIndex === -1 ? 0 : foundIndex;
 
     const currentRoundObj = eventRounds[curRoundIndex];
 
@@ -1422,13 +1432,11 @@ export function EventDetailsPage() {
 
       const allRounds = await roundApi.getAllRounds();
       setSystemRounds(allRounds || []);
-      // So khớp không phân biệt hoa/thường: GUID backend trả về lúc hoa lúc
-      // thường tùy endpoint, khớp nguyên văn thì mất sạch vòng của sự kiện.
-      const sameId = (a: any, b: any) =>
-        String(a ?? "").trim().toLowerCase() ===
-        String(b ?? "").trim().toLowerCase();
-      const matchedRounds = (allRounds || []).filter((r: any) =>
-        sameId(r.eventID || r.eventId, id),
+      // GET /api/Round trả về CẢ vòng đã xóa mềm, phải tự lọc theo cờ đã xóa —
+      // giống cách tracks/topics lọc ở fetchEventDetails.
+      const matchedRounds = (allRounds || []).filter(
+        (r: any) =>
+          sameRecordId(r.eventID || r.eventId, id) && !isInactiveRecord(r),
       );
       const sortedRounds = [...matchedRounds].sort((a: any, b: any) => {
         const ai = Number(a.roundIndex ?? a.RoundIndex ?? 0);
@@ -1458,13 +1466,20 @@ export function EventDetailsPage() {
       } catch (e) {}
 
       const setNameDictionary: Record<string, string> = {};
+      // GET /api/Criteria/set cũng trả về bộ tiêu chí đã xóa mềm. Chỉ dựa vào
+      // getSetById bên dưới là không đủ — endpoint chi tiết không phải lúc nào
+      // cũng kèm cờ đã xóa, nên chốt danh sách id đã xóa ngay từ danh sách này.
+      const inactiveSetIds = new Set<string>();
       allSetsRaw.forEach((st: any) => {
         const sId = String(grabSetId(st));
-        if (sId && sId !== "undefined" && sId !== "null") {
-          const validName = st.setName || st.SetName || st.name;
-          if (validName) {
-            setNameDictionary[sId] = validName;
-          }
+        if (!sId || sId === "undefined" || sId === "null") return;
+        if (isInactiveRecord(st)) {
+          inactiveSetIds.add(sId.toLowerCase());
+          return;
+        }
+        const validName = st.setName || st.SetName || st.name;
+        if (validName) {
+          setNameDictionary[sId] = validName;
         }
       });
 
@@ -1478,6 +1493,7 @@ export function EventDetailsPage() {
           (r as any).CriteriaSetId;
         if (!setId || seen.has(String(setId))) continue;
         if (deletedSetIdsRef.current.has(String(setId))) continue;
+        if (inactiveSetIds.has(String(setId).toLowerCase())) continue;
         seen.add(String(setId));
         try {
           const setRes: any = await criteriaApi.getSetById(setId);
@@ -1861,33 +1877,12 @@ export function EventDetailsPage() {
   const numRounds = eventRounds.length || 2;
   const rawCurrentRound = Number(event?.currentRound);
 
-  let curRound = 0;
-
-  if (eventRounds.length > 0) {
-    const foundIndex = eventRounds.findIndex(
-      (r: any) => Number(r.roundIndex ?? r.RoundIndex) === rawCurrentRound,
-    );
-
-    if (foundIndex !== -1) {
-      curRound = foundIndex;
-    } else {
-      const firstRoundIdx = Number(
-        eventRounds[0].roundIndex ?? eventRounds[0].RoundIndex,
-      );
-      const lastRoundIdx = Number(
-        eventRounds[eventRounds.length - 1].roundIndex ??
-          eventRounds[eventRounds.length - 1].RoundIndex,
-      );
-
-      if (rawCurrentRound < firstRoundIdx) {
-        curRound = 0;
-      } else if (rawCurrentRound > lastRoundIdx) {
-        curRound = numRounds;
-      } else {
-        curRound = 0;
-      }
-    }
-  }
+  // Chưa vào vòng nào thì trỏ về vòng đầu — chỉ dùng để hiển thị tên vòng khi
+  // sự kiện đang chạy, nên giá trị này vô hại ở draft/đăng ký.
+  const curRound = Math.max(
+    0,
+    findCurrentRoundIndex(eventRounds, rawCurrentRound),
+  );
 
   // --- VÒNG ĐỜI SỰ KIỆN: draft -> registration -> running -> ended ---
   // Toàn bộ quyền sửa và mọi nút hành động đều rẽ nhánh từ đây.
@@ -2163,6 +2158,11 @@ export function EventDetailsPage() {
                 icon: <ListChecks size={16} />,
               },
               { id: "teams", label: "Teams", icon: <Users size={16} /> },
+              {
+                id: "staff",
+                label: "Judges & Mentors",
+                icon: <Scale size={16} />,
+              },
               {
                 id: "leaderboard",
                 label: "Leaderboard",
@@ -3028,6 +3028,10 @@ export function EventDetailsPage() {
           )}
 
           {activeTab === "teams" && <TeamsSection eventId={String(id)} />}
+
+          {activeTab === "staff" && (
+            <StaffSection tracks={tracks} canEdit={!isLocked} />
+          )}
 
           {activeTab === "audit" && (
             <AuditLogsSection

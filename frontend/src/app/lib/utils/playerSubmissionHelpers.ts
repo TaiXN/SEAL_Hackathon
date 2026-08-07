@@ -63,6 +63,19 @@ export const readString = (...values: any[]) => {
   return "";
 };
 
+export const parseApiPayload = (value: any) => {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+};
+
 export const extractEventId = (obj: any): string =>
   readString(
     obj?.eventId,
@@ -132,7 +145,7 @@ export const getSubmitEventKey = (event: SubmissionEventContext) =>
   );
 
 export const normalizeTeamInfoRecords = (value: any): any[] => {
-  const data = unwrapData(value);
+  const data = unwrapData(parseApiPayload(value));
   const records = normalizeList(data);
   if (records.length > 0) return records;
   if (data && typeof data === "object") return [data];
@@ -259,7 +272,14 @@ export const formatAuditDate = (value: string) => {
 };
 
 export const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
-  const logs = normalizeList(unwrapData(value));
+  const payload = parseApiPayload(value);
+  const data = unwrapData(payload);
+  const logs =
+    normalizeList(data).length > 0
+      ? normalizeList(data)
+      : normalizeList(
+          data?.logs || data?.Logs || data?.auditLogs || data?.AuditLogs,
+        );
 
   return logs
     .map((item: any) => {
@@ -350,7 +370,7 @@ export const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
 };
 
 export const pickSubmissionSource = (value: any, eventId = "") => {
-  const data = unwrapData(value);
+  const data = unwrapData(parseApiPayload(value));
   const list = normalizeList(data);
   if (list.length > 0) {
     if (eventId) {
