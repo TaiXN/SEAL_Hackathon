@@ -16,5 +16,8 @@ namespace APIViewModels.Event
 
         public int MinTeamMember { get; set; }
         public int MaxTeamMember { get; set; }
+
+        public DateTime RegistrationStartDate { get; set; }
+        public DateTime RegistrationEndDate { get; set; }
     }
 }

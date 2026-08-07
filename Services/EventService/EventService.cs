@@ -144,7 +144,10 @@ namespace Services.EventService
                     IsActive = e.IsActive,
                     CurrentRound = e.CurrentRound,
                     MinTeamMember = e.MinTeamMember,
-                    MaxTeamMember = e.MaxTeamMember
+                    MaxTeamMember = e.MaxTeamMember,
+                    RegistrationStartDate = e.RegistrationStartDate,
+                    RegistrationEndDate = e.RegistrationEndDate,
+
                 }).ToList();
             }
             catch
@@ -170,7 +173,10 @@ namespace Services.EventService
                     IsActive = e.IsActive,
                     CurrentRound = e.CurrentRound,
                     MinTeamMember = e.MinTeamMember,
-                    MaxTeamMember = e.MaxTeamMember
+                    MaxTeamMember = e.MaxTeamMember,
+                    RegistrationStartDate = e.RegistrationStartDate,
+                    RegistrationEndDate = e.RegistrationEndDate,
+
                 };
             }
             catch

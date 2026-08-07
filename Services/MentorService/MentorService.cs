@@ -150,32 +150,59 @@ namespace Services.MentorService
                 return null;
             }
         }
-        public async Task<TeamMentorContactAPIViewModel> GetMentorContactByTeamAsync(string teamId)
+        public async Task<List<TeamMentorContactAPIViewModel>> GetMentorContactByTeamAsync(string teamId)
         {
             try
             {
-                TeamInRound teamInRound = await _uow.TeamInRound.GetFirstOrDefaultAsync(tr => tr.TeamId == teamId);
-                if (teamInRound == null) return null;
+                TeamInRound teamInRound =
+                    await _uow.TeamInRound.GetFirstOrDefaultAsync(
+                        tr => tr.TeamId == teamId);
+
+                if (teamInRound == null)
+                {
+                    return new List<TeamMentorContactAPIViewModel>();
+                }
 
                 string currentTrackId = teamInRound.TrackId;
 
-                TeacherList mentorLink = await _uow.TeacherList.GetFirstOrDefaultAsync(t => t.TrackId == currentTrackId && t.IsMentor == true);
-                if (mentorLink == null) return null;
+                List<TeacherList> mentorLinks =
+                    await _uow.TeacherList.GetAllAsync(
+                        t => t.TrackId == currentTrackId &&
+                             t.IsMentor == true);
 
-                Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == mentorLink.TeacherId);
-                if (accountDb == null) return null;
-
-                return new TeamMentorContactAPIViewModel
+                if (mentorLinks == null || !mentorLinks.Any())
                 {
-                    MentorId = accountDb.AccountId,
-                    FullName = accountDb.FullName,
-                    Email = accountDb.Email,
-                    Phone = accountDb.Phone
-                };
+                    return new List<TeamMentorContactAPIViewModel>();
+                }
+
+                List<TeamMentorContactAPIViewModel> result =
+                    new List<TeamMentorContactAPIViewModel>();
+
+                foreach (TeacherList mentorLink in mentorLinks)
+                {
+                    Account accountDb =
+                        await _uow.Account.GetFirstOrDefaultAsync(
+                            a => a.AccountId == mentorLink.TeacherId);
+
+                    if (accountDb == null)
+                    {
+                        continue;
+                    }
+
+                    result.Add(new TeamMentorContactAPIViewModel
+                    {
+                        MentorId = accountDb.AccountId,
+                        FullName = accountDb.FullName,
+                        Email = accountDb.Email,
+                        Phone = accountDb.Phone
+                    });
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
-                return null;
+                return new List<TeamMentorContactAPIViewModel>();
             }
         }
 

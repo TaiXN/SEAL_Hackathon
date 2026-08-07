@@ -12,7 +12,7 @@ namespace Services.MentorService
         Task<List<MentorAPIViewModel>> GetAllMentorsAsync();
         Task<List<MentorAPIViewModel>> GetMentorsByTrackAsync(string trackID);
         Task<bool> RemoveMentor(string teacherID, string trackID);
-        Task<TeamMentorContactAPIViewModel> GetMentorContactByTeamAsync(string teamId);
+        Task<List<TeamMentorContactAPIViewModel>> GetMentorContactByTeamAsync(string teamId);
         Task<List<MentorAssignedTeamAPIViewModel>> GetAssignedTeamsByMentorAsync(string mentorId);
         Task<MentorTeamDetailAPIViewModel> GetTeamDetailForMentorAsync(string teamId);
     }

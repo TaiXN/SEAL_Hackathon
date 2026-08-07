@@ -113,12 +113,19 @@ namespace SEAL_Hackathon.Controllers
         [HttpGet("contact/{teamId}")]
         public async Task<IActionResult> GetMentorContact(string teamId)
         {
-            if (string.IsNullOrEmpty(teamId)) return BadRequest("Invalid Team ID.");
+            if (string.IsNullOrEmpty(teamId))
+            {
+                return BadRequest("Invalid Team ID.");
+            }
 
-            var result = await _mentor.GetMentorContactByTeamAsync(teamId);
+            List<TeamMentorContactAPIViewModel> result =
+                await _mentor.GetMentorContactByTeamAsync(teamId);
 
-            if (result == null)
-                return NotFound("No mentor has been assigned to this team's track yet.");
+            if (result == null || result.Count == 0)
+            {
+                return NotFound(
+                    "No mentor has been assigned to this team's track yet.");
+            }
 
             return Ok(result);
         }
