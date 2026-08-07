@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 import { authApi } from "../lib/api/authApi";
 import Swal from "sweetalert2";
 import { playerApi } from "../lib/api/playerApi";
-import { getServerMsg } from "../lib/utils/criteriaHelpers";
+import { friendlyErrorText } from "../lib/utils/apiError";
 
 type AuthView = "login" | "register";
 
@@ -131,7 +131,11 @@ export function AuthLayout() {
     e.preventDefault();
     setLoginError("");
     const loadingToastId = toast.loading("Verifying credentials...");
-    const credentials = { email: loginEmail, password: loginPassword };
+    // Backend dò account bằng Email.Equals(...) khớp tuyệt đối, còn lúc đăng ký
+    // thì email đã được .trim() trước khi lưu. Không trim ở đây thì chỉ cần một
+    // khoảng trắng thừa do copy/paste là ra "Email or password is incorrect".
+    // (Mật khẩu thì KHÔNG trim — khoảng trắng là ký tự hợp lệ trong mật khẩu.)
+    const credentials = { email: loginEmail.trim(), password: loginPassword };
 
     try {
       let data;
@@ -151,17 +155,56 @@ export function AuthLayout() {
       if (!data) throw new Error("No data received from server.");
 
       const actualToken = data.accessToken;
+      // Không có token mà vẫn để đi tiếp thì RequireAuth sẽ đá ngược về /login
+      // ngay sau toast "Login successful" — nhìn y như đăng nhập không ăn.
+      if (!actualToken)
+        throw new Error(
+          "Server did not return an access token. Please contact the administrator.",
+        );
+
       setTokens(actualToken, role);
 
       toast.success("Login successful! Redirecting...", { id: loadingToastId });
 
       navigate(navigateTo, { replace: true });
     } catch (error: any) {
-      const errorMsg =
-        error.response?.data?.message || "An error occurred during login!";
+      // Backend trả lý do dưới dạng text thuần ("Email or password is incorrect"),
+      // không phải { message }. Đọc bằng ?.data?.message thì luôn undefined nên
+      // mọi lỗi đều hiện ra cùng một câu chung chung.
+      const status = error.response?.status;
+      let errorMsg: string;
+
+      if (!error.response) {
+        errorMsg =
+          error.code === "ECONNABORTED"
+            ? "The server took too long to respond. Please try again."
+            : "Cannot reach the server. Check your network connection and try again.";
+      } else if (status === 401) {
+        // AuthController trả 401 với body rỗng khi mật khẩu đúng nhưng account
+        // không thuộc vai trò của cổng đăng nhập đang chọn.
+        errorMsg = `This account is not registered as ${
+          role === "admin"
+            ? "an Administrator"
+            : role === "judge"
+              ? "a Judge / Mentor"
+              : "a Participant"
+        }. Please pick the right role and try again.`;
+      } else {
+        errorMsg = friendlyErrorText(error, { action: "sign you in" });
+      }
+
       toast.dismiss(loadingToastId);
       setLoginError(errorMsg);
-      Swal.fire("Error", errorMsg, "error");
+      Swal.fire({
+        icon: "error",
+        title: "Login failed",
+        text: errorMsg,
+        confirmButtonColor: "#ea580c",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        },
+      });
     }
   };
 
@@ -169,7 +212,11 @@ export function AuthLayout() {
     e.preventDefault();
 
     if (!/^\d{10}$/.test(regPhone.trim())) {
-      Swal.fire("Error", "Phone number must be exactly 10 digits!", "warning");
+      Swal.fire(
+        "Check your phone number",
+        "It must be exactly 10 digits, with no spaces or dashes.",
+        "warning",
+      );
       return;
     }
 
@@ -186,25 +233,45 @@ export function AuthLayout() {
     }
 
     if (regPassword !== regConfirmPassword) {
-      Swal.fire("Error", "Passwords do not match!", "error");
+      Swal.fire(
+        "Passwords don't match",
+        "Re-type the confirmation password so both fields are identical.",
+        "warning",
+      );
       return;
     }
     if (!regUniversityId) {
-      Swal.fire("Error", "Please select a University!", "warning");
+      Swal.fire(
+        "University required",
+        "Pick your university from the list before continuing.",
+        "warning",
+      );
       return;
     }
 
     // Validate 3 trường mới
     if (!regCccdNumber.trim()) {
-      Swal.fire("Error", "Please enter your CCCD number!", "warning");
+      Swal.fire(
+        "ID number required",
+        "Enter the CCCD number printed on your citizen ID card.",
+        "warning",
+      );
       return;
     }
     if (!regIdCardImage) {
-      Swal.fire("Error", "Please upload your ID Card Image!", "warning");
+      Swal.fire(
+        "ID card photo required",
+        "Upload a clear photo of your citizen ID card so an admin can verify you.",
+        "warning",
+      );
       return;
     }
     if (!regStudentCardImage) {
-      Swal.fire("Error", "Please upload your Student Card Image!", "warning");
+      Swal.fire(
+        "Student card photo required",
+        "Upload a clear photo of your student card so an admin can verify you.",
+        "warning",
+      );
       return;
     }
 
@@ -247,30 +314,43 @@ export function AuthLayout() {
     } catch (error: any) {
       toast.dismiss(loadingToastId);
 
-      // 1. Bới móc bằng sạch mọi ngóc ngách để lấy câu chửi chính xác của Backend
-      let errorMsg =
+      // Câu thô của backend CHỈ dùng để đoán tình huống (chưa verify / trùng
+      // email), không đưa thẳng ra màn hình — người dùng nhận câu đã biên tập.
+      const rawMsg = String(
         error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.response?.data?.title ||
-        (typeof error.response?.data === "string" ? error.response.data : "") ||
-        "Invalid email or password.";
+          error.response?.data?.detail ||
+          error.response?.data?.title ||
+          (typeof error.response?.data === "string"
+            ? error.response.data
+            : "") ||
+          "",
+      );
+      const lower = rawMsg.toLowerCase();
+      const isDuplicate =
+        lower.includes("already") ||
+        lower.includes("exist") ||
+        lower.includes("duplicate");
+      const errorMsg = friendlyErrorText(error, {
+        action: "create your account",
+        hint: isDuplicate
+          ? "An account with this email or ID number already exists. Try signing in instead."
+          : "Please double-check your details and uploaded images, then try again.",
+      });
 
       setLoginError(errorMsg);
 
-      // 2. Kiểm tra xem lỗi này có phải là do chưa Verify Email hay không
-      // Tùy Backend của bà trả về câu gì, thường sẽ chứa chữ "verify", "confirm", "active"
+      // Tùy Backend trả câu gì, thường sẽ chứa chữ "verify", "confirm", "active"
       const isUnverified =
-        errorMsg.toLowerCase().includes("verify") ||
-        errorMsg.toLowerCase().includes("confirm") ||
-        errorMsg.toLowerCase().includes("not active");
+        lower.includes("verify") ||
+        lower.includes("confirm") ||
+        lower.includes("not active");
 
       if (isUnverified) {
         // NẾU CHƯA VERIFY: Bật cảnh báo vàng + Nút dắt tay sang tận trang OTP
         Swal.fire({
           icon: "warning",
           title: "Account Not Verified!",
-          text:
-            errorMsg + " Please check your inbox or verify your account now.",
+          text: "This account still needs to be verified. Please check your inbox for the 6-digit code, or verify it now.",
           confirmButtonText: "Verify Now",
           confirmButtonColor: "#ea580c",
           showCancelButton: true,
@@ -289,10 +369,9 @@ export function AuthLayout() {
           }
         });
       } else {
-        // NẾU SAI PASS HAY LỖI KHÁC: Hiện lỗi đỏ rực nguyên bản từ Backend
         Swal.fire({
           icon: "error",
-          title: "Login Failed",
+          title: "Registration failed",
           text: errorMsg,
           confirmButtonColor: "#ea580c",
           customClass: {

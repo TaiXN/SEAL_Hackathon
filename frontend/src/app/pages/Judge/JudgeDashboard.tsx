@@ -17,7 +17,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { jwtDecode } from "jwt-decode";
 import { judgeApi } from "../../lib/api/judgeApi";
 import {
@@ -189,12 +189,9 @@ export function JudgeDashboard() {
         setTeams(res);
       } catch (error: any) {
         console.error("Failed to load assigned teams:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Failed to Load Data",
-          text:
-            error.response?.data?.message ||
-            "Could not load the assigned scoring list.",
+        showApiError(error, {
+          action: "load your scoring list",
+          hint: "If this keeps happening, ask an admin to check that you are assigned to a track.",
         });
         setTeams([]);
       } finally {

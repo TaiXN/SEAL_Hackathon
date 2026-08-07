@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import apiClient from "../../lib/api/apiClient";
-import { eventApi } from "../../lib/api/eventApi";
+import { eventApi, pickId } from "../../lib/api/eventApi";
 import { trackTopicApi } from "../../lib/api/trackTopicApi";
 import { criteriaApi } from "../../lib/api/criteriaApi";
 import { roundApi } from "../../lib/api/roundApi";
@@ -50,14 +50,17 @@ import {
 import {
   getEventPhase,
   canEditStructure,
-  canPublishNow,
+  canPublish,
+  isPublishingEarly,
   isRegistrationOverdue,
   getRegistrationWindow,
   PHASE_LABEL,
   type EventPhase,
 } from "../../lib/utils/eventLifecycle";
+import { showApiError } from "../../lib/utils/apiError";
 import { PrizesSection } from "./eventDetails/PrizesSection";
 import { AuditLogsSection } from "./eventDetails/AuditLogsSection";
+import { TeamsSection } from "./eventDetails/TeamsSection";
 
 const isInactiveRecord = (obj: any): boolean => {
   if (!obj) return false;
@@ -110,9 +113,20 @@ type TabId =
   | "tracks"
   | "rounds"
   | "rubrics"
+  | "teams"
   | "leaderboard"
   | "prizes"
   | "audit";
+
+/**
+ * Giá trị `min` cho mọi ô datetime-local: không cho chọn thời điểm trong quá khứ.
+ * Trình duyệt chỉ chặn được ở mức stepper/validation nên chỗ nào quan trọng vẫn
+ * phải kiểm lại trong preConfirm.
+ */
+const nowForInput = () => toDatetimeLocalValue(new Date().toISOString());
+
+const isPastInput = (value: string) =>
+  !!value && new Date(value).getTime() < Date.now();
 
 export function EventDetailsPage() {
   const navigate = useNavigate();
@@ -128,15 +142,21 @@ export function EventDetailsPage() {
   const [loadingCriteria, setLoadingCriteria] = useState(false);
   const [criteriaError, setCriteriaError] = useState<string | null>(null);
   const deletedSetIdsRef = useRef<Set<string>>(new Set());
+  // Mốc đăng ký ĐANG lưu trên server. Ràng buộc "không được chọn quá khứ" chỉ áp
+  // cho giá trị admin vừa đổi — chặn cả mốc cũ thì sự kiện tạo lâu rồi không sao
+  // bấm Save nổi nữa.
+  const serverRegRef = useRef<{ start?: string; end?: string }>({});
 
   const [eventRounds, setEventRounds] = useState<any[]>([]);
+  // Toàn bộ vòng của hệ thống — audit log dùng làm phương án cuối để tra tên vòng.
+  const [systemRounds, setSystemRounds] = useState<any[]>([]);
   const [roundTeams, setRoundTeams] = useState<any[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   // Danh sách đội gộp từ MỌI vòng — audit log cần cả những đội đã bị loại ở
   // vòng trước, không chỉ đội của vòng hiện tại.
   const [allTeams, setAllTeams] = useState<
-    { teamId: string; teamName: string }[]
+    { teamId: string; teamName: string; trackId: string }[]
   >([]);
 
   useEffect(() => {
@@ -147,6 +167,11 @@ export function EventDetailsPage() {
         if (id) {
           const eventData = await eventApi.getEventById(id);
           setEvent(eventData);
+          const serverWindow = getRegistrationWindow(eventData);
+          serverRegRef.current = {
+            start: serverWindow.start?.toISOString(),
+            end: serverWindow.end?.toISOString(),
+          };
 
           const allTracks = await trackTopicApi.getAllTracks();
           const allTopics = await trackTopicApi.getAllTopics();
@@ -275,18 +300,28 @@ export function EventDetailsPage() {
           ),
         ),
       );
-      const seen = new Map<string, string>();
+      // Giữ luôn trackId: audit log chỉ mang roundId, còn bảng thi của một đội
+      // thì TeamInRound mới biết — đây là chỗ duy nhất ghép được hai thứ đó.
+      const seen = new Map<string, { teamName: string; trackId: string }>();
       results.forEach((res) => {
         if (res.status !== "fulfilled") return;
         getList(res.value.data).forEach((t: any) => {
           const tid = String(t.teamId ?? t.teamID ?? "");
           if (!tid || tid === "undefined") return;
-          if (!seen.has(tid))
-            seen.set(tid, t.teamName ?? t.name ?? `Team ${tid.slice(0, 6)}`);
+          const trackId = String(t.trackId ?? t.trackID ?? "");
+          const prev = seen.get(tid);
+          if (!prev) {
+            seen.set(tid, {
+              teamName: t.teamName ?? t.name ?? `Team ${tid.slice(0, 6)}`,
+              trackId: trackId === "undefined" ? "" : trackId,
+            });
+          } else if (!prev.trackId && trackId && trackId !== "undefined") {
+            prev.trackId = trackId;
+          }
         });
       });
       setAllTeams(
-        Array.from(seen, ([teamId, teamName]) => ({ teamId, teamName })),
+        Array.from(seen, ([teamId, info]) => ({ teamId, ...info })),
       );
     };
     loadAllTeams();
@@ -294,9 +329,15 @@ export function EventDetailsPage() {
 
   // --- API LÀM VIỆC VỚI LIFECYCLE MỚI ---
   const handlePublishEvent = async () => {
+    const { start } = getRegistrationWindow(event);
+    const early = isPublishingEarly(event);
     const result = await Swal.fire({
       title: "Publish & Open Registration?",
-      html: "This will officially open the registration form for participants. <br/><br/><b>WARNING:</b> This will lock all Structural Configurations (Tracks, Rounds, Rubrics). You will not be able to edit them afterward.",
+      html:
+        "This will officially open the registration form for participants. <br/><br/><b>WARNING:</b> This will lock all Structural Configurations (Tracks, Rounds, Rubrics). You will not be able to edit them afterward." +
+        (early && start
+          ? `<br/><br/><span style="color:#b45309;font-weight:700;">Heads up: registration was announced to open ${formatDisplayDateTime(start.toISOString())}. Publishing now opens it earlier than announced.</span>`
+          : ""),
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, Publish Event",
@@ -321,7 +362,7 @@ export function EventDetailsPage() {
         });
         setReloadKey((k) => k + 1);
       } catch (e) {
-        Swal.fire("Error", getServerMsg(e), "error");
+        showApiError(e, { action: "publish this event" });
       } finally {
         setIsLoading(false);
       }
@@ -356,7 +397,7 @@ export function EventDetailsPage() {
         });
         setReloadKey((k) => k + 1);
       } catch (e) {
-        Swal.fire("Error", getServerMsg(e), "error");
+        showApiError(e, { action: "start Round 1" });
       } finally {
         setIsLoading(false);
       }
@@ -374,7 +415,9 @@ export function EventDetailsPage() {
       eventName: event.name,
       season: event.semester,
       year: Number(event.year),
-      currentRound: Number(event.currentRound ?? 0),
+      // ⚠️ Giữ nguyên currentRound đang có. Rơi về 0 là vô tình publish sự kiện
+      // (0 = form đăng ký đang mở) chỉ vì admin bấm Save ở tab Overview.
+      currentRound: Number(event.currentRound ?? -1),
       registrationStartDate: start ? start.toISOString() : undefined,
       registrationEndDate: end ? end.toISOString() : undefined,
       minTeamMember: Number(event.minTeamMember ?? 0) || undefined,
@@ -398,7 +441,7 @@ export function EventDetailsPage() {
         showConfirmButton: false,
       });
     } catch (e) {
-      Swal.fire("Error", getServerMsg(e), "error");
+      showApiError(e, { action: "save this change" });
     } finally {
       setIsLoading(false);
     }
@@ -411,7 +454,7 @@ export function EventDetailsPage() {
       title: "Extend registration deadline",
       html: `<div style="text-align:left;padding:0 8px;">
         <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">New closing date &amp; time</label>
-        <input id="ev-regend" type="datetime-local" class="swal2-input" style="width:100%;margin-top:6px;border-radius:12px;" value="${toDateInput(end)}">
+        <input id="ev-regend" type="datetime-local" min="${nowForInput()}" class="swal2-input" style="width:100%;margin-top:6px;border-radius:12px;" value="${toDateInput(end)}">
       </div>`,
       showCancelButton: true,
       confirmButtonText: "Extend",
@@ -494,7 +537,7 @@ export function EventDetailsPage() {
       });
       navigate("/admin/events");
     } catch (e) {
-      Swal.fire("Error", getServerMsg(e), "error");
+      showApiError(e, { action: "delete this event" });
     } finally {
       setIsLoading(false);
     }
@@ -515,6 +558,13 @@ export function EventDetailsPage() {
       endVal;
     const minTeamVal = round.minTeam ?? round.MinTeam ?? 1;
 
+    // min của mỗi ô = giá trị đang lưu nếu nó đã ở quá khứ, ngược lại là bây giờ.
+    // Vòng đã diễn ra vẫn sửa được các field khác mà không bị trình duyệt bắt lỗi
+    // ngay trên mốc admin không hề đụng tới.
+    const now = nowForInput();
+    const minFor = (current: string) =>
+      current && current < now ? current : now;
+
     const { value: formValues } = await Swal.fire({
       title: "Edit Round Details",
       html: `
@@ -524,13 +574,13 @@ export function EventDetailsPage() {
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">TOP N PROMOTION</label>
           <input id="sw-topn" type="number" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${round.topNPromotion ?? round.TopNPromotion ?? 0}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">START DATE &amp; TIME</label>
-          <input id="sw-start" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${startVal}">
+          <input id="sw-start" type="datetime-local" min="${minFor(startVal)}" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${startVal}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">SUBMISSION DEADLINE</label>
-          <input id="sw-end" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${endVal}">
+          <input id="sw-end" type="datetime-local" min="${minFor(endVal)}" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${endVal}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">JUDGING OPENS AT</label>
-          <input id="sw-score-start" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreStartVal}">
+          <input id="sw-score-start" type="datetime-local" min="${minFor(scoreStartVal)}" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreStartVal}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">JUDGING CLOSES AT</label>
-          <input id="sw-score-end" type="datetime-local" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreEndVal}">
+          <input id="sw-score-end" type="datetime-local" min="${minFor(scoreEndVal)}" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${scoreEndVal}">
           <label style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 15px; display:block;">MIN TEAM</label>
           <input id="sw-minteam" type="number" min="1" class="swal2-input" style="width: 90%; margin-top: 5px;" value="${minTeamVal}">
         </div>
@@ -558,6 +608,22 @@ export function EventDetailsPage() {
           Swal.showValidationMessage(
             "Please select both start and end date/time",
           );
+          return false;
+        }
+        // Chỉ chặn mốc vừa bị đổi sang quá khứ; mốc cũ giữ nguyên thì bỏ qua.
+        const movedToPast = ([input, original]: [string, string]) =>
+          input !== original && isPastInput(input);
+        if (
+          (
+            [
+              [startInput, startVal],
+              [endInput, endVal],
+              [scoreStartInput, scoreStartVal],
+              [scoreEndInput, scoreEndVal],
+            ] as [string, string][]
+          ).some(movedToPast)
+        ) {
+          Swal.showValidationMessage("You cannot pick a date in the past");
           return false;
         }
         if (new Date(endInput) <= new Date(startInput)) {
@@ -633,8 +699,161 @@ export function EventDetailsPage() {
         });
         loadCriteria();
       } catch (e: any) {
-        Swal.fire("Error", `Update failed: ${getServerMsg(e)}`, "error");
+        showApiError(e, { action: "update this round" });
       }
+    }
+  };
+
+  /**
+   * Thêm một vòng mới vào sự kiện đang draft.
+   *
+   * ⚠️ CreateRoundAPIViewModel bắt buộc criteriaSetID, mà backend chưa có API
+   * tạo bộ tiêu chí rỗng, nên vòng mới phải mượn một rubric set đã có của sự
+   * kiện. Sự kiện nào cũng được tạo kèm ít nhất một set ở CreateEvents, còn nếu
+   * lỡ không có thì chặn từ đây cho rõ ràng thay vì để backend trả 400 chung
+   * chung.
+   */
+  const handleAddRound = async () => {
+    if (criteriaSets.length === 0) {
+      return Swal.fire(
+        "No rubric available",
+        "A round must point at a rubric set, and this event has none yet. Create the event's rubric first.",
+        "warning",
+      );
+    }
+
+    const nextIndex =
+      eventRounds.reduce(
+        (max, r) => Math.max(max, Number(r.roundIndex ?? r.RoundIndex ?? 0)),
+        0,
+      ) + 1;
+    const lastRound = eventRounds[eventRounds.length - 1];
+    const defaultStart = toDatetimeLocalValue(
+      lastRound?.scoringEndDate ||
+        lastRound?.ScoringEndDate ||
+        lastRound?.endDate ||
+        lastRound?.EndDate ||
+        "",
+    );
+
+    const setOptions = criteriaSets
+      .map(
+        (s) =>
+          `<option value="${s.setId}">${(s.setName || "Rubric Set").replace(/"/g, "&quot;")}</option>`,
+      )
+      .join("");
+
+    // Vòng mới thì mọi mốc đều do admin nhập lần đầu — chặn quá khứ không nhân nhượng.
+    const minNew = nowForInput();
+
+    const { value: form } = await Swal.fire({
+      title: `Add Round ${nextIndex}`,
+      html: `
+        <div style="text-align:left;">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;">ROUND NAME</label>
+          <input id="ar-name" class="swal2-input" style="width:90%;margin-top:5px;" value="Round ${nextIndex}">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">RUBRIC SET</label>
+          <select id="ar-set" class="swal2-select" style="width:90%;margin-top:5px;border-radius:12px;">${setOptions}</select>
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">TOP N PROMOTION</label>
+          <input id="ar-topn" type="number" min="0" class="swal2-input" style="width:90%;margin-top:5px;" value="0">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">MIN TEAM</label>
+          <input id="ar-minteam" type="number" min="1" class="swal2-input" style="width:90%;margin-top:5px;" value="1">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">MAX TEAM</label>
+          <input id="ar-maxteam" type="number" min="1" class="swal2-input" style="width:90%;margin-top:5px;" value="${Number(lastRound?.maxTeam ?? lastRound?.MaxTeam ?? 10)}">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">START DATE &amp; TIME</label>
+          <input id="ar-start" type="datetime-local" min="${minNew}" class="swal2-input" style="width:90%;margin-top:5px;" value="${defaultStart}">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">SUBMISSION DEADLINE</label>
+          <input id="ar-end" type="datetime-local" min="${minNew}" class="swal2-input" style="width:90%;margin-top:5px;">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">JUDGING OPENS AT</label>
+          <input id="ar-score-start" type="datetime-local" min="${minNew}" class="swal2-input" style="width:90%;margin-top:5px;">
+          <label style="font-size:11px;font-weight:bold;color:#64748b;margin-top:15px;display:block;">JUDGING CLOSES AT</label>
+          <input id="ar-score-end" type="datetime-local" min="${minNew}" class="swal2-input" style="width:90%;margin-top:5px;">
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Create Round",
+      confirmButtonColor: "#f26f21",
+      customClass: { popup: "rounded-[2rem]" },
+      preConfirm: () => {
+        const val = (elId: string) =>
+          (document.getElementById(elId) as HTMLInputElement).value;
+        const roundName = val("ar-name").trim();
+        const start = val("ar-start");
+        const end = val("ar-end");
+        const scoreStart = val("ar-score-start");
+        const scoreEnd = val("ar-score-end");
+        const minTeam = Number(val("ar-minteam"));
+        const maxTeam = Number(val("ar-maxteam"));
+
+        if (!roundName) {
+          Swal.showValidationMessage("Round name cannot be empty");
+          return false;
+        }
+        if (!start || !end || !scoreStart || !scoreEnd) {
+          Swal.showValidationMessage("All four date/time fields are required");
+          return false;
+        }
+        if ([start, end, scoreStart, scoreEnd].some(isPastInput)) {
+          Swal.showValidationMessage("You cannot pick a date in the past");
+          return false;
+        }
+        if (new Date(end) <= new Date(start)) {
+          Swal.showValidationMessage("Deadline must be after the start");
+          return false;
+        }
+        if (new Date(scoreStart) < new Date(end)) {
+          Swal.showValidationMessage(
+            "Judging cannot start before the submission deadline",
+          );
+          return false;
+        }
+        if (new Date(scoreEnd) <= new Date(scoreStart)) {
+          Swal.showValidationMessage("Judging must close after it opens");
+          return false;
+        }
+        if (!minTeam || minTeam < 1) {
+          Swal.showValidationMessage("Min team must be at least 1");
+          return false;
+        }
+        if (maxTeam < minTeam) {
+          Swal.showValidationMessage("Max team cannot be lower than min team");
+          return false;
+        }
+
+        return {
+          roundName,
+          criteriaSetID: (
+            document.getElementById("ar-set") as HTMLSelectElement
+          ).value,
+          topNPromotion: Number(val("ar-topn")) || 0,
+          minTeam,
+          maxTeam,
+          startDate: new Date(start).toISOString(),
+          endDate: new Date(end).toISOString(),
+          scoringStartDate: new Date(scoreStart).toISOString(),
+          scoringEndDate: new Date(scoreEnd).toISOString(),
+        };
+      },
+    });
+
+    if (!form) return;
+
+    try {
+      await roundApi.createRound({
+        eventID: id!,
+        roundIndex: nextIndex,
+        ...form,
+      } as any);
+      Swal.fire({
+        icon: "success",
+        title: "Round added!",
+        timer: 1200,
+        showConfirmButton: false,
+      });
+      loadCriteria();
+    } catch (e: any) {
+      showApiError(e, { action: "add this round" });
     }
   };
 
@@ -659,7 +878,7 @@ export function EventDetailsPage() {
         });
         loadCriteria();
       } catch (e: any) {
-        Swal.fire("Error", `Delete failed: ${getServerMsg(e)}`, "error");
+        showApiError(e, { action: "delete this round" });
       }
     }
   };
@@ -714,11 +933,7 @@ export function EventDetailsPage() {
             "info",
           );
         } else {
-          Swal.fire(
-            "Error",
-            `Cannot update track. Server responded: ${getServerMsg(error)}`,
-            "error",
-          );
+          showApiError(error, { action: "rename this track" });
         }
       }
     }
@@ -755,11 +970,10 @@ export function EventDetailsPage() {
           showConfirmButton: false,
         });
       } catch (error: any) {
-        Swal.fire(
-          "Error",
-          `Cannot delete track. Server responded: ${getServerMsg(error)}`,
-          "error",
-        );
+        showApiError(error, {
+          action: "delete this track",
+          hint: "Tracks that still have topics or registered teams may need those removed first.",
+        });
       }
     }
   };
@@ -834,11 +1048,7 @@ export function EventDetailsPage() {
             "info",
           );
         } else {
-          Swal.fire(
-            "Error",
-            `Cannot update topic. Server responded: ${getServerMsg(error)}`,
-            "error",
-          );
+          showApiError(error, { action: "rename this topic" });
         }
       }
     }
@@ -887,11 +1097,7 @@ export function EventDetailsPage() {
           showConfirmButton: false,
         });
       } catch (error: any) {
-        Swal.fire(
-          "Error",
-          `Cannot delete topic. Server responded: ${getServerMsg(error)}`,
-          "error",
-        );
+        showApiError(error, { action: "delete this topic" });
       }
     }
   };
@@ -925,7 +1131,7 @@ export function EventDetailsPage() {
         });
         setReloadKey((k) => k + 1);
       } catch (error) {
-        Swal.fire("Error", "Could not add track.", "error");
+        showApiError(error, { action: "add this track" });
       }
     }
   };
@@ -960,7 +1166,7 @@ export function EventDetailsPage() {
         });
         setReloadKey((k) => k + 1);
       } catch (error) {
-        Swal.fire("Error", "Could not add topic.", "error");
+        showApiError(error, { action: "add this topic" });
       }
     }
   };
@@ -971,6 +1177,42 @@ export function EventDetailsPage() {
       Swal.fire(
         "Hold on!",
         "You forgot to select the Season (Semester)!",
+        "warning",
+      );
+      return;
+    }
+    const { start: regStart, end: regEnd } = getRegistrationWindow(event);
+
+    // Không cho đặt mốc đăng ký vào quá khứ. Chỉ xét mốc vừa bị đổi — giữ nguyên
+    // mốc cũ đã trôi qua thì vẫn lưu được bình thường.
+    const movedIntoPast = (d: Date | null, serverValue?: string) =>
+      !!d && d.getTime() < Date.now() && d.toISOString() !== serverValue;
+    if (
+      movedIntoPast(regStart, serverRegRef.current.start) ||
+      movedIntoPast(regEnd, serverRegRef.current.end)
+    ) {
+      Swal.fire(
+        "Date is in the past",
+        "Registration dates must be set in the future.",
+        "warning",
+      );
+      return;
+    }
+
+    if (regStart && regEnd && regEnd <= regStart) {
+      Swal.fire(
+        "Invalid registration window",
+        "Registration must close after it opens.",
+        "warning",
+      );
+      return;
+    }
+    const minMembers = Number(event.minTeamMember ?? 0);
+    const maxMembers = Number(event.maxTeamMember ?? 0);
+    if (minMembers && maxMembers && maxMembers < minMembers) {
+      Swal.fire(
+        "Invalid team size",
+        "Max members per team cannot be lower than the minimum.",
         "warning",
       );
       return;
@@ -1001,7 +1243,7 @@ export function EventDetailsPage() {
         });
       }
     } catch (error) {
-      Swal.fire("Error", "Update failed. Please try again!", "error");
+      showApiError(error, { action: "save the event details" });
     } finally {
       setIsLoading(false);
     }
@@ -1079,11 +1321,7 @@ export function EventDetailsPage() {
         const updatedData = await eventApi.getEventById(id);
         setEvent(updatedData);
       } catch (error: any) {
-        Swal.fire(
-          "Error",
-          `Failed to conclude event. ${getServerMsg(error)}`,
-          "error",
-        );
+        showApiError(error, { action: "conclude this event" });
       } finally {
         setIsLoading(false);
       }
@@ -1122,11 +1360,10 @@ export function EventDetailsPage() {
         const updatedData = await eventApi.getEventById(id);
         setEvent(updatedData);
       } catch (error: any) {
-        Swal.fire(
-          "Error",
-          `Cannot transition round! ${getServerMsg(error)}`,
-          "error",
-        );
+        showApiError(error, {
+          action: "advance to the next round",
+          hint: "Make sure every team in the current round has been scored first.",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -1140,8 +1377,14 @@ export function EventDetailsPage() {
       setCriteriaError(null);
 
       const allRounds = await roundApi.getAllRounds();
-      const matchedRounds = (allRounds || []).filter(
-        (r: any) => String(r.eventID || r.eventId) === String(id),
+      setSystemRounds(allRounds || []);
+      // So khớp không phân biệt hoa/thường: GUID backend trả về lúc hoa lúc
+      // thường tùy endpoint, khớp nguyên văn thì mất sạch vòng của sự kiện.
+      const sameId = (a: any, b: any) =>
+        String(a ?? "").trim().toLowerCase() ===
+        String(b ?? "").trim().toLowerCase();
+      const matchedRounds = (allRounds || []).filter((r: any) =>
+        sameId(r.eventID || r.eventId, id),
       );
       const sortedRounds = [...matchedRounds].sort((a: any, b: any) => {
         const ai = Number(a.roundIndex ?? a.RoundIndex ?? 0);
@@ -1289,11 +1532,84 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      Swal.fire(
-        "Update Failed",
-        `Server responded: ${getServerMsg(e)}`,
-        "error",
+      showApiError(e, { action: "update this criterion" });
+    }
+  };
+
+  /**
+   * Thêm tiêu chí vào một rubric set.
+   *
+   * Tiêu chí được tạo thật trên server ngay (để có criteriaId), nhưng chỉ được
+   * GẮN vào set ở state với trọng số 0 — admin chỉnh lại tỉ lệ rồi bấm "Save
+   * Updates". Nếu đẩy updateSet ngay tại đây thì tổng trọng số đang khác 100% và
+   * backend sẽ từ chối.
+   */
+  const handleAddCriterion = async (setIdx: number) => {
+    const { value } = await Swal.fire({
+      title: "Add Criterion",
+      html: `<div style="text-align:left;padding:0 10px;">
+        <label style="font-size:11px;font-weight:bold;color:#64748b;text-transform:uppercase;">Criterion Name</label>
+        <input id="sw-new-name" class="swal2-input" style="width:100%;border-radius:12px;margin:5px 0 20px;font-size:14px;" placeholder="Innovation, Feasibility...">
+        <label style="font-size:11px;font-weight:bold;color:#64748b;text-transform:uppercase;">Description</label>
+        <input id="sw-new-desc" class="swal2-input" style="width:100%;border-radius:12px;margin:5px 0 10px;font-size:14px;" placeholder="What judges look for">
+        <p style="font-size:11px;color:#94a3b8;margin:0;">It is added with 0% weight — rebalance the set to 100% and save.</p>
+      </div>`,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Add",
+      confirmButtonColor: "#f26f21",
+      customClass: { popup: "rounded-[2rem]" },
+      preConfirm: () => {
+        const name = (
+          document.getElementById("sw-new-name") as HTMLInputElement
+        ).value.trim();
+        const description = (
+          document.getElementById("sw-new-desc") as HTMLInputElement
+        ).value.trim();
+        if (!name) {
+          Swal.showValidationMessage("Criterion name cannot be empty");
+          return false;
+        }
+        return { name, description };
+      },
+    });
+    if (!value) return;
+
+    try {
+      const created: any = await criteriaApi.createCriterion({
+        criteriaName: value.name,
+        description: value.description || DEFAULT_CRITERIA_DESCRIPTION,
+      } as any);
+      const newId = pickId(created);
+      if (!newId) throw new Error("Server did not return the criterion id.");
+
+      setCriteriaSets((prev) =>
+        prev.map((s, si) =>
+          si !== setIdx
+            ? s
+            : {
+                ...s,
+                items: [
+                  ...s.items,
+                  {
+                    criteriaId: newId,
+                    name: value.name,
+                    description: value.description,
+                    score: 0,
+                    isActive: true,
+                  },
+                ],
+              },
+        ),
       );
+      Swal.fire({
+        icon: "success",
+        title: "Criterion added",
+        text: "Set its weight, then press Save Updates.",
+        confirmButtonColor: "#f26f21",
+      });
+    } catch (e: any) {
+      showApiError(e, { action: "add this criterion" });
     }
   };
 
@@ -1332,11 +1648,10 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      Swal.fire(
-        "Error",
-        `Deletion failed. Server responded: ${getServerMsg(e)}`,
-        "error",
-      );
+      showApiError(e, {
+        action: "delete this criterion",
+        hint: "Criteria already used for scoring in a past round cannot be removed.",
+      });
     }
   };
 
@@ -1360,11 +1675,7 @@ export function EventDetailsPage() {
       });
     } catch (e: any) {
       await loadCriteria();
-      Swal.fire(
-        "Error",
-        `Restore failed. Server responded: ${getServerMsg(e)}`,
-        "error",
-      );
+      showApiError(e, { action: "restore this criterion" });
     }
   };
 
@@ -1408,7 +1719,10 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      Swal.fire("Error", `Server responded: ${getServerMsg(e)}`, "error");
+      showApiError(e, {
+        action: "save this rubric set",
+        hint: "A rubric set with this name may already exist — try a different name.",
+      });
     }
   };
 
@@ -1443,11 +1757,10 @@ export function EventDetailsPage() {
       });
       await loadCriteria();
     } catch (e: any) {
-      Swal.fire(
-        "Error",
-        `Deletion failed. Server responded: ${getServerMsg(e)}`,
-        "error",
-      );
+      showApiError(e, {
+        action: "delete this rubric set",
+        hint: "A rubric set already used by a round cannot be deleted.",
+      });
     }
   };
 
@@ -1539,7 +1852,8 @@ export function EventDetailsPage() {
   const isEnded = phase === "ended";
   const isRegistrationPhase = phase === "registration";
   const regWindow = getRegistrationWindow(event);
-  const publishReady = canPublishNow(event, phase);
+  const publishReady = canPublish(phase);
+  const publishEarly = isPublishingEarly(event);
   const regOverdue = isRegistrationOverdue(event, phase);
 
   const currentRoundName =
@@ -1639,21 +1953,24 @@ export function EventDetailsPage() {
             <div className="shrink-0 w-full md:w-auto">
               <button
                 onClick={handlePublishEvent}
-                disabled={!publishReady}
-                title={
-                  publishReady
-                    ? "Publish the event and open the registration form"
-                    : "You cannot open registration before the scheduled date"
-                }
+                disabled={!publishReady || isLoading}
+                title="Publish the event and open the registration form"
                 className="w-full md:w-auto bg-fpt-orange hover:bg-fpt-orange-dark text-white px-8 py-3.5 rounded-xl font-black transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-fpt-orange"
               >
-                <Rocket size={18} strokeWidth={2.5} /> Open Registration
+                <Rocket size={18} strokeWidth={2.5} /> Publish & Open
+                Registration
               </button>
-              {!publishReady && (
+              {publishEarly && (
                 <p className="text-[11px] text-slate-400 font-bold mt-2 text-center md:text-right">
-                  Available from the scheduled opening date
+                  Earlier than the announced opening date
                 </p>
               )}
+              <button
+                onClick={handleDeleteEvent}
+                className="w-full md:w-auto mt-3 text-[11px] font-extrabold text-slate-400 hover:text-red-400 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={13} strokeWidth={2.5} /> Discard this draft
+              </button>
             </div>
           </div>
         )}
@@ -1674,13 +1991,14 @@ export function EventDetailsPage() {
                   className={`text-sm font-medium ${regOverdue ? "text-amber-700" : "text-emerald-700"}`}
                 >
                   {regOverdue
-                    ? "Close registration and start Round 1, or use one of the options below if you are short on teams."
+                    ? "Round 1 should have started automatically. If the event is still stuck here, start it manually — or use one of the options below if you are short on teams."
                     : "Students are joining teams. Structural configuration is locked while the form is open."}
                 </p>
-                {regWindow.end && (
+                {regWindow.end && !regOverdue && (
                   <p className="text-xs font-bold mt-2 flex items-center gap-1.5 opacity-80">
                     <Clock size={13} strokeWidth={2.5} /> Closes{" "}
-                    {formatDisplayDateTime(regWindow.end.toISOString())}
+                    {formatDisplayDateTime(regWindow.end.toISOString())} — Round
+                    1 starts automatically at that point
                   </p>
                 )}
               </div>
@@ -1751,6 +2069,7 @@ export function EventDetailsPage() {
                 label: "Rubrics",
                 icon: <ListChecks size={16} />,
               },
+              { id: "teams", label: "Teams", icon: <Users size={16} /> },
               {
                 id: "leaderboard",
                 label: "Leaderboard",
@@ -1784,64 +2103,200 @@ export function EventDetailsPage() {
               Basic Information
             </h3>
             <div className="space-y-6">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Event Display Name
-                </label>
-                <input
-                  disabled={isLocked}
-                  type="text"
-                  value={event.name || ""}
-                  onChange={(e) => setEvent({ ...event, name: e.target.value })}
-                  className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-[#f26f21] text-base ${isLocked ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
-                />
+              {/* Tên và trạng thái nằm chung một hàng, chia đôi đều nhau —
+                  hai ô ngắn xếp chồng nhau chỉ tổ kéo dài trang. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    Event Display Name
+                  </label>
+                  <input
+                    disabled={isLocked}
+                    type="text"
+                    value={event.name || ""}
+                    onChange={(e) =>
+                      setEvent({ ...event, name: e.target.value })
+                    }
+                    className={`w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl outline-none font-bold text-[#f26f21] text-base ${isLocked ? "opacity-60 cursor-not-allowed" : "focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    Current Status
+                  </label>
+                  <div
+                    className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${phase === "draft" ? "bg-slate-50 border-slate-200 text-slate-500" : isRegistrationPhase ? "bg-emerald-50 border-emerald-200 text-emerald-700" : isEnded ? "bg-slate-100 border-slate-300 text-slate-600" : "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"}`}
+                  >
+                    <span className="text-sm uppercase tracking-widest">
+                      {currentRoundName}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">
-                  Current Status
-                </label>
-                <div
-                  className={`w-full px-5 py-3.5 border rounded-2xl font-bold flex items-center justify-center shadow-sm ${phase === "draft" ? "bg-slate-50 border-slate-200 text-slate-500" : isRegistrationPhase ? "bg-emerald-50 border-emerald-200 text-emerald-700" : isEnded ? "bg-slate-100 border-slate-300 text-slate-600" : "bg-fpt-orange-soft border-fpt-orange/30 text-fpt-orange-dark"}`}
-                >
-                  <span className="text-sm uppercase tracking-widest">
-                    {currentRoundName}
-                  </span>
+              {/* Điều kiện đăng ký — quyết định lúc nào được bấm Publish.
+                  Ở draft admin sửa được hết; publish xong thì chỉ còn đọc. */}
+              {isLocked ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-6">
+                  <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                      Registration window
+                    </span>
+                    <p className="text-sm font-extrabold text-slate-700">
+                      {regWindow.start
+                        ? formatDisplayDateTime(regWindow.start.toISOString())
+                        : "Not set"}
+                    </p>
+                    <p className="text-xs font-bold text-slate-400 my-1">
+                      &darr; until
+                    </p>
+                    <p className="text-sm font-extrabold text-slate-700">
+                      {regWindow.end
+                        ? formatDisplayDateTime(regWindow.end.toISOString())
+                        : "Not set"}
+                    </p>
+                  </div>
+                  <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                      Team size
+                    </span>
+                    <p className="text-2xl font-black text-[#f26f21]">
+                      {event.minTeamMember ?? "—"} – {event.maxTeamMember ?? "—"}
+                    </p>
+                    <p className="text-xs font-medium text-slate-500 mt-1">
+                      members allowed per team
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border-t border-slate-100 pt-6 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Season
+                      </label>
+                      <select
+                        value={event.semester || ""}
+                        onChange={(e) =>
+                          setEvent({ ...event, semester: e.target.value })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm cursor-pointer focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      >
+                        <option value="">Select a season…</option>
+                        {["Spring", "Summer", "Fall", "Winter"].map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Year
+                      </label>
+                      <input
+                        type="number"
+                        value={event.year ?? ""}
+                        onChange={(e) =>
+                          setEvent({ ...event, year: Number(e.target.value) })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      />
+                    </div>
+                  </div>
 
-              {/* Điều kiện đăng ký — quyết định lúc nào được bấm Publish */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-6">
-                <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                    Registration window
-                  </span>
-                  <p className="text-sm font-extrabold text-slate-700">
-                    {regWindow.start
-                      ? formatDisplayDateTime(regWindow.start.toISOString())
-                      : "Not set"}
-                  </p>
-                  <p className="text-xs font-bold text-slate-400 my-1">
-                    &darr; until
-                  </p>
-                  <p className="text-sm font-extrabold text-slate-700">
-                    {regWindow.end
-                      ? formatDisplayDateTime(regWindow.end.toISOString())
-                      : "Not set"}
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Registration opens
+                      </label>
+                      <input
+                        type="datetime-local"
+                        // Mốc đã lưu có thể nằm trong quá khứ; ép min = now thì
+                        // trình duyệt gạch đỏ luôn giá trị admin chưa hề đụng tới.
+                        min={
+                          toDateInput(regWindow.start) &&
+                          toDateInput(regWindow.start) < nowForInput()
+                            ? toDateInput(regWindow.start)
+                            : nowForInput()
+                        }
+                        value={toDateInput(regWindow.start)}
+                        onChange={(e) =>
+                          setEvent({
+                            ...event,
+                            registrationStartDate: e.target.value
+                              ? new Date(e.target.value).toISOString()
+                              : undefined,
+                          })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Registration closes
+                      </label>
+                      <input
+                        type="datetime-local"
+                        min={
+                          toDateInput(regWindow.end) &&
+                          toDateInput(regWindow.end) < nowForInput()
+                            ? toDateInput(regWindow.end)
+                            : nowForInput()
+                        }
+                        value={toDateInput(regWindow.end)}
+                        onChange={(e) =>
+                          setEvent({
+                            ...event,
+                            registrationEndDate: e.target.value
+                              ? new Date(e.target.value).toISOString()
+                              : undefined,
+                          })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Min members per team
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={event.minTeamMember ?? ""}
+                        onChange={(e) =>
+                          setEvent({
+                            ...event,
+                            minTeamMember: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        Max members per team
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={event.maxTeamMember ?? ""}
+                        onChange={(e) =>
+                          setEvent({
+                            ...event,
+                            maxTeamMember: Number(e.target.value),
+                          })
+                        }
+                        className="w-full px-5 py-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl mt-2 outline-none font-bold text-slate-700 text-sm focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                    Team size
-                  </span>
-                  <p className="text-2xl font-black text-[#f26f21]">
-                    {event.minTeamMember ?? "—"} – {event.maxTeamMember ?? "—"}
-                  </p>
-                  <p className="text-xs font-medium text-slate-500 mt-1">
-                    members allowed per team
-                  </p>
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
@@ -1868,12 +2323,22 @@ export function EventDetailsPage() {
 
           {activeTab === "rounds" && (
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 className="text-xl font-extrabold text-[#f26f21] mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                <FastForward size={20} strokeWidth={2.5} />
-              </div>
-              Tournament Rounds
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
+              <h3 className="text-xl font-extrabold text-[#f26f21] flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                  <FastForward size={20} strokeWidth={2.5} />
+                </div>
+                Tournament Rounds
+              </h3>
+              {!isLocked && (
+                <button
+                  onClick={handleAddRound}
+                  className="px-5 py-2.5 bg-fpt-orange-soft text-fpt-orange-dark text-xs font-extrabold rounded-xl flex items-center gap-2 hover:bg-fpt-orange/15 transition-colors"
+                >
+                  <Plus size={16} strokeWidth={3} /> Add Round
+                </button>
+              )}
+            </div>
 
             <div
               className={`grid grid-cols-1 gap-6 ${
@@ -2145,6 +2610,13 @@ export function EventDetailsPage() {
                         </div>
                         {!isLocked && (
                           <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <button
+                              onClick={() => handleAddCriterion(setIdx)}
+                              title="Add Criterion"
+                              className="text-slate-400 hover:text-fpt-orange p-2 rounded-xl hover:bg-fpt-orange-soft transition-colors bg-white shadow-sm border border-slate-100"
+                            >
+                              <Plus size={14} strokeWidth={3} />
+                            </button>
                             <button
                               onClick={() => handleDeleteSet(set)}
                               title="Delete Set"
@@ -2462,8 +2934,15 @@ export function EventDetailsPage() {
             />
           )}
 
+          {activeTab === "teams" && <TeamsSection eventId={String(id)} />}
+
           {activeTab === "audit" && (
-            <AuditLogsSection rounds={eventRounds} teams={allTeams} />
+            <AuditLogsSection
+              rounds={eventRounds}
+              allRounds={systemRounds}
+              tracks={tracks}
+              teams={allTeams}
+            />
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BarChart2, Filter, Loader2, Medal, Trophy } from "lucide-react";
-import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
 import { trackTopicApi } from "../../lib/api/trackTopicApi";
@@ -71,7 +71,10 @@ export function AdminLeaderboardPage() {
         );
         setLeaderboardData(data || []);
       } catch (error: any) {
-        Swal.fire("Error", "Failed to fetch leaderboard data!", "error");
+        showApiError(error, {
+          action: "load the leaderboard",
+          hint: "Pick the round and track again, or reload the page.",
+        });
         setLeaderboardData([]);
       } finally {
         setIsLoading(false);

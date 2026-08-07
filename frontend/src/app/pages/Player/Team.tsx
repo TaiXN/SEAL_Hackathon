@@ -22,20 +22,7 @@ import {
   resolveMemberName,
   resolveMemberRole,
 } from "../../lib/utils/playerTeamHelpers";
-
-const getApiErrorMessage = (error: any, fallback: string): string => {
-  const raw = error?.response?.data;
-  if (!raw) return fallback;
-  if (typeof raw === "string") return raw;
-  if (typeof raw?.message === "string") return raw.message;
-  if (typeof raw?.Message === "string") return raw.Message;
-  if (typeof raw?.title === "string") return raw.title;
-  if (typeof raw?.detail === "string") return raw.detail;
-  if (raw?.errors && typeof raw.errors === "object") {
-    return Object.values(raw.errors).flat().filter(Boolean).join("\n");
-  }
-  return fallback;
-};
+import { showApiError } from "../../lib/utils/apiError";
 
 export function Team() {
   const [team, setTeam] = useState<any>(null);
@@ -105,14 +92,7 @@ export function Team() {
     } catch (error: any) {
       console.error("Load my team failed:", error);
 
-      Swal.fire({
-        icon: "error",
-        title: "Error Loading Team",
-        text:
-          error.response?.data?.message ||
-          error.response?.data ||
-          "Unable to get current team information.",
-      });
+      showApiError(error, { action: "load your team" });
       setTeamHistory([]);
     } finally {
       setIsLoading(false);
@@ -199,15 +179,9 @@ export function Team() {
       console.error("Create team status:", error.response?.status);
       console.error("Create team response data:", error.response?.data);
 
-      const errorMessage = getApiErrorMessage(
-        error,
-        "Backend refused to create the team.",
-      );
-
-      Swal.fire({
-        icon: "error",
-        title: "Cannot Create Team",
-        text: errorMessage,
+      showApiError(error, {
+        action: "create your team",
+        hint: "A team with this name may already exist, or you may already belong to a team in this event.",
       });
     } finally {
       setIsCreatingTeam(false);
@@ -245,13 +219,9 @@ export function Team() {
     } catch (error: any) {
       console.error("Join team failed:", error);
 
-      Swal.fire({
-        icon: "error",
-        title: "Cannot Join Team",
-        text: getApiErrorMessage(
-          error,
-          "Backend refused the join team action.",
-        ),
+      showApiError(error, {
+        action: "join this team",
+        hint: "The team may be full, or the invite code may be wrong or expired.",
       });
     } finally {
       setIsJoiningTeam(false);
@@ -288,10 +258,9 @@ export function Team() {
         window.dispatchEvent(new Event("player-team-updated"));
       } catch (error: any) {
         console.error("Rename failed:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Cannot Rename",
-          text: error.response?.data?.message || "Backend refused this action.",
+        showApiError(error, {
+          action: "rename your team",
+          hint: "Another team may already be using this name.",
         });
       }
     }
@@ -330,14 +299,7 @@ export function Team() {
     } catch (error: any) {
       console.error("Kick member failed:", error);
 
-      Swal.fire({
-        icon: "error",
-        title: "Cannot Kick Member",
-        text:
-          error.response?.data?.message ||
-          error.response?.data ||
-          "Backend refused this action.",
-      });
+      showApiError(error, { action: "remove this member" });
     }
   };
 
@@ -369,11 +331,7 @@ export function Team() {
       window.dispatchEvent(new Event("player-team-updated"));
     } catch (error: any) {
       console.error("Transfer leader failed:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Cannot Transfer Role",
-        text: error.response?.data?.message || "Backend refused this action.",
-      });
+      showApiError(error, { action: "transfer the leader role" });
     }
   };
 
@@ -416,13 +374,9 @@ export function Team() {
     } catch (error: any) {
       console.error("Leave team failed:", error);
 
-      Swal.fire({
-        icon: "error",
-        title: "Cannot Leave Team",
-        text:
-          error.response?.data?.message ||
-          error.response?.data ||
-          "Backend refused the leave team action.",
+      showApiError(error, {
+        action: "leave this team",
+        hint: "A team leader must hand the role to someone else before leaving.",
       });
     }
   };

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import apiClient from "../../lib/api/apiClient";
 
 const getList = (res: any): any[] => {
@@ -227,11 +228,7 @@ export function AdminViolationsPage() {
       });
       fetchTeams(selectedRoundId);
     } catch (error: any) {
-      Swal.fire(
-        "Error",
-        error?.response?.data || "Unable to approve team at this time!",
-        "error",
-      );
+      showApiError(error, { action: "approve this team" });
     }
   };
 
@@ -268,11 +265,7 @@ export function AdminViolationsPage() {
       });
       fetchTeams(selectedRoundId);
     } catch (error: any) {
-      Swal.fire(
-        "Error",
-        error?.response?.data || "Unable to disqualify this team!",
-        "error",
-      );
+      showApiError(error, { action: "disqualify this team" });
     }
   };
 
@@ -301,7 +294,7 @@ export function AdminViolationsPage() {
         });
         fetchTeams(selectedRoundId);
       } catch (error) {
-        Swal.fire("Error", "Unable to lift the ban on this team!", "error");
+        showApiError(error, { action: "lift the ban on this team" });
       }
     }
   };

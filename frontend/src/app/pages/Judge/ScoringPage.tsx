@@ -13,6 +13,7 @@ import {
   FileText,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { jwtDecode } from "jwt-decode";
 
 import apiClient from "../../lib/api/apiClient";
@@ -322,8 +323,8 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "Configuration Error",
-            text: "Could not load the criteria set. Please contact Admin!",
+            title: "This round has no rubric",
+            text: "Scoring can't start until an admin attaches a rubric to this round. Please contact an admin.",
           });
         }
 
@@ -406,8 +407,8 @@ export function ScoringPage() {
     if (!currentTeacherId)
       return Swal.fire({
         icon: "error",
-        title: "Authentication Error",
-        text: "Judge ID was not found.",
+        title: "Your session has expired",
+        text: "Please sign in again before submitting scores.",
       });
     if (criteriaList.length === 0)
       return Swal.fire({
@@ -462,12 +463,9 @@ export function ScoringPage() {
       }).then(() => navigate("/judge"));
     } catch (error: any) {
       console.error("Failed to save score:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Save Failed",
-        text:
-          error.response?.data?.message ||
-          "The submitted data does not match the backend contract.",
+      showApiError(error, {
+        action: "save these scores",
+        hint: "Check that every criterion has a score within its allowed range, then save again.",
       });
     } finally {
       setIsSaving(false);

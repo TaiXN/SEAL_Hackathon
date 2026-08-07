@@ -37,4 +37,19 @@ export const playerApi = {
     const res = await apiClient.get("/api/University");
     return res.data;
   },
+
+  // ===== Quản lý player đã được duyệt (Admin) =====
+
+  // Danh sách toàn bộ player đã có tài khoản (kể cả đứa đang bị ban).
+  async getAllPlayers() {
+    const res = await apiClient.get("/api/Player/all-players");
+    return res.data;
+  },
+
+  // Backend gửi mail báo lý do cho player nên `reason` là bắt buộc, không để rỗng.
+  banPlayer: (payload: { studentId: string; reason: string }) =>
+    apiClient.put("/api/Player/ban", payload),
+
+  unbanPlayer: (studentId: string) =>
+    apiClient.put(`/api/Player/${studentId}/unban`),
 };

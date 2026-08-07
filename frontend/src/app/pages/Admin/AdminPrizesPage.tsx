@@ -14,6 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { eventApi } from "../../lib/api/eventApi";
 import { prizeApi, type PrizeData } from "../../lib/api/prizeApi";
 import { roundApi } from "../../lib/api/roundApi";
@@ -217,11 +218,10 @@ export function AdminPrizesPage() {
         });
         fetchPrizes();
       } catch (err: any) {
-        Swal.fire(
-          "Error",
-          "Failed to create prize. " + (err.response?.data?.message || ""),
-          "error",
-        );
+        showApiError(err, {
+          action: "create this prize",
+          hint: "Each rank can only hold one prize — check that the rank isn't already taken.",
+        });
       }
     }
   };
@@ -285,11 +285,7 @@ export function AdminPrizesPage() {
         });
         fetchPrizes();
       } catch (err: any) {
-        Swal.fire(
-          "Error",
-          "Failed to update. " + (err.response?.data?.message || ""),
-          "error",
-        );
+        showApiError(err, { action: "update this prize" });
       }
     }
   };
@@ -325,11 +321,10 @@ export function AdminPrizesPage() {
         });
         fetchPrizes();
       } catch (err: any) {
-        Swal.fire(
-          "Error",
-          "Deletion failed. " + (err.response?.data?.message || ""),
-          "error",
-        );
+        showApiError(err, {
+          action: "delete this prize",
+          hint: "A prize already awarded to a team cannot be deleted.",
+        });
       }
     }
   };
@@ -347,11 +342,7 @@ export function AdminPrizesPage() {
       });
       fetchPrizes();
     } catch (err: any) {
-      Swal.fire(
-        "Error",
-        "Restore failed. " + (err.response?.data?.message || ""),
-        "error",
-      );
+      showApiError(err, { action: "restore this prize" });
     }
   };
 
@@ -473,12 +464,10 @@ export function AdminPrizesPage() {
         fetchPrizes();
       }
     } catch (err: any) {
-      Swal.fire(
-        "Error",
-        "An error occurred while fetching data. " +
-          (err.response?.data?.message || err.message),
-        "error",
-      );
+      showApiError(err, {
+        action: "load the prize list",
+        hint: "Press reload to try again.",
+      });
     }
   };
 

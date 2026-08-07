@@ -9,14 +9,24 @@
  *                 Sự kiện công khai, thí sinh lập team và đăng ký. Cấu hình bị
  *                 khóa, TRỪ hai việc cứu vãn khi không đủ chỉ tiêu: dời hạn đăng
  *                 ký và hạ số thành viên tối thiểu.
- *   running       Admin đã bấm "Start Round 1" (PUT /api/Event/{id}/start-round-1).
- *                 Form đăng ký đóng vĩnh viễn, các đội bắt đầu nộp bài.
+ *   running       Form đăng ký đã đóng, các đội bắt đầu nộp bài. Xảy ra khi admin
+ *                 bấm "Start Round 1" (PUT /api/Event/{id}/start-round-1), hoặc
+ *                 tự động khi tới registrationEndDate.
  *   ended         Đã qua vòng cuối. Chỉ còn xem và trao giải.
  *
- * ⚠️ Vì sao hàm này phải dò nhiều tên field đến vậy: backend không trả về một
- * field "phase" nào cả, và tùy endpoint lại đặt tên/kiểu khác nhau. Trước đây
- * mỗi trang admin tự đoán một kiểu, dẫn tới sự kiện vừa tạo đã bị coi là đang mở
- * đăng ký — mất luôn nút "Open Registration" và khóa nhầm quyền sửa của admin.
+ * ⚠️ QUY ƯỚC currentRound CỦA BACKEND — đây là field DUY NHẤT cho biết sự kiện
+ * đang ở giai đoạn nào, đừng suy diễn từ thứ khác:
+ *
+ *      -1  draft (vừa tạo, chưa publish)
+ *       0  đã publish, form đăng ký đang mở
+ *      >=1 đang thi, số chính là vòng hiện tại (vòng đầu tiên là 1)
+ *
+ * Trước đây -1 bị map nhầm thành "registration", nên mọi sự kiện vừa tạo đều
+ * hiện ra như đang mở đăng ký: mất banner draft, mất nút Publish, và admin bị
+ * khóa quyền sửa chính sự kiện mình vừa tạo.
+ *
+ * ⚠️ "Field DUY NHẤT" ở trên là nói thật, không phải nói cho vui: currentRound
+ * phải được xét TRƯỚC field `status`. Xem chú thích trong getEventPhase.
  */
 
 export type EventPhase = "draft" | "registration" | "running" | "ended";
@@ -49,14 +59,33 @@ export const pickDate = (obj: any, names: string[]): Date | null => {
   return isNaN(d.getTime()) ? null : d;
 };
 
+/**
+ * Backend không thống nhất tên hai mốc đăng ký giữa các endpoint, nên dò rộng.
+ * Thiếu là ô "Registration opens/closes" ở tab Overview hiện trống dù admin đã
+ * nhập từ lúc tạo sự kiện.
+ */
 export const getRegistrationWindow = (ev: any) => ({
-  start: pickDate(ev, ["registrationStartDate", "registerStartDate"]),
-  end: pickDate(ev, ["registrationEndDate", "registerEndDate"]),
+  start: pickDate(ev, [
+    "registrationStartDate",
+    "registerStartDate",
+    "registrationStart",
+    "regStartDate",
+    "startRegistrationDate",
+    "registrationOpenDate",
+  ]),
+  end: pickDate(ev, [
+    "registrationEndDate",
+    "registerEndDate",
+    "registrationEnd",
+    "regEndDate",
+    "endRegistrationDate",
+    "registrationCloseDate",
+  ]),
 });
 
 /**
  * currentRound theo quy ước 1-based: vòng đầu tiên là 1 (khớp với roundIndex mà
- * CreateEvents gửi lên). 0 / null nghĩa là chưa bước vào vòng nào.
+ * CreateEvents gửi lên). Xem bảng quy ước -1 / 0 / >=1 ở đầu file.
  */
 const readCurrentRound = (ev: any): number | null => {
   const raw = firstDefined(ev, ["currentRound", "CurrentRound"]);
@@ -68,35 +97,42 @@ const readCurrentRound = (ev: any): number | null => {
 export function getEventPhase(ev: any, totalRounds: number): EventPhase {
   if (!ev) return "draft";
 
-  // 1. Field status tường minh — tin tưởng nhất nếu backend có trả.
-  const statusRaw = firstDefined(ev, ["status", "Status", "eventStatus"]);
-  const s = String(statusRaw ?? "")
-    .trim()
-    .toLowerCase();
-  if (s) {
-    if (["draft", "0", "new", "created"].includes(s)) return "draft";
-    if (["published", "1", "registration", "registering", "open"].includes(s))
-      return "registration";
-    if (["ongoing", "2", "running", "inprogress", "in_progress"].includes(s))
-      return "running";
-    if (["ended", "3", "finished", "completed", "closed"].includes(s))
-      return "ended";
-  }
-
-  // 2. Cờ boolean.
+  // 1. Cờ kết thúc tường minh — thắng tất cả.
   if (isTrue(firstDefined(ev, ["isEnded", "IsEnded", "isFinished"])))
     return "ended";
 
   const r = readCurrentRound(ev);
 
-  // 3. Suy từ currentRound. Chỉ khi đã vào vòng 1 trở đi mới coi là đang thi.
+  // 2. currentRound — nguồn chính thức, xem bảng quy ước ở đầu file.
+  //
+  // ⚠️ Khối này PHẢI đứng trước khối `status` bên dưới. Trước đây `status` được
+  // xét trước, mà backend lại dùng `status` cho một thứ khác hẳn giai đoạn
+  // (kiểu 1 = đang hoạt động). Chuỗi "1" nằm trong danh sách "đã publish" nên
+  // sự kiện vừa tạo bị chốt luôn là "registration" ngay ở bước 1, currentRound
+  // không bao giờ được đọc tới — sửa quy ước -1/0 ở dưới bao nhiêu cũng vô ích.
   if (r !== null) {
-    if (r >= 1) return r > totalRounds && totalRounds > 0 ? "ended" : "running";
-    // -1 là quy ước cũ của backend cho "đã publish, đang mở đăng ký".
-    if (r === -1) return "registration";
+    if (r <= -1) return "draft";
+    if (r === 0) return "registration";
+    return r > totalRounds && totalRounds > 0 ? "ended" : "running";
   }
 
-  // 4. Chưa vào vòng nào: phân biệt draft với đang mở đăng ký bằng cờ publish.
+  // 3. Không có currentRound: mới xét tới status, và CHỈ nhận giá trị dạng chữ.
+  // Mã số trần ("0"/"1"/"2") bị loại vì không phân biệt được với cờ isActive.
+  const statusRaw = firstDefined(ev, ["status", "Status", "eventStatus"]);
+  const s = String(statusRaw ?? "")
+    .trim()
+    .toLowerCase();
+  if (s) {
+    if (["draft", "new", "created"].includes(s)) return "draft";
+    if (["published", "registration", "registering", "open"].includes(s))
+      return "registration";
+    if (["ongoing", "running", "inprogress", "in_progress"].includes(s))
+      return "running";
+    if (["ended", "finished", "completed", "closed"].includes(s))
+      return "ended";
+  }
+
+  // 4. Cuối cùng: dò cờ publish.
   if (
     isTrue(
       firstDefined(ev, [
@@ -120,13 +156,20 @@ export function getEventPhase(ev: any, totalRounds: number): EventPhase {
 export const canEditStructure = (phase: EventPhase) => phase === "draft";
 
 /**
- * Chưa tới ngày mở đăng ký thì nút publish phải bị chặn: sự kiện công khai sớm
- * hơn lịch đã công bố là không quay lại được.
+ * Đang draft là bấm publish được — thời điểm công khai do admin quyết định.
+ *
+ * ⚠️ Trước đây hàm này còn chặn thêm điều kiện `now >= registrationStartDate`.
+ * Nhưng draft đúng nghĩa là khoảng thời gian TRƯỚC ngày mở đăng ký (tạo ngày 7,
+ * hẹn mở form ngày 10 thì 7→10 là draft), nên điều kiện đó vô hiệu hóa nút
+ * publish đúng vào lúc nó cần có mặt nhất. Bấm sớm chỉ cần cảnh báo, xem
+ * isPublishingEarly bên dưới.
  */
-export const canPublishNow = (ev: any, phase: EventPhase, now = new Date()) => {
-  if (phase !== "draft") return false;
+export const canPublish = (phase: EventPhase) => phase === "draft";
+
+/** Bấm publish trước ngày mở đăng ký đã công bố — cho phép, nhưng phải hỏi lại. */
+export const isPublishingEarly = (ev: any, now = new Date()) => {
   const { start } = getRegistrationWindow(ev);
-  return !start || now >= start;
+  return !!start && now < start;
 };
 
 export const canStartRound1 = (phase: EventPhase) => phase === "registration";

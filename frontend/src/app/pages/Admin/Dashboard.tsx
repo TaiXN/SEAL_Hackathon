@@ -13,10 +13,17 @@ import {
   Plus,
   Search,
   Filter as FilterIcon,
+  FileEdit,
+  UserPlus,
 } from "lucide-react";
 
 import { roundApi } from "../../lib/api/roundApi";
 import { eventApi } from "../../lib/api/eventApi";
+import {
+  getEventPhase,
+  PHASE_LABEL,
+  type EventPhase,
+} from "../../lib/utils/eventLifecycle";
 
 const getList = (res: any): any[] => {
   if (Array.isArray(res)) return res;
@@ -57,7 +64,8 @@ type EnrichedEvent = {
   year: any;
   cur: number;
   numRounds: number;
-  status: "ongoing" | "ended" | "unknown";
+  /** Dùng chung một nguồn sự thật với trang chi tiết — xem eventLifecycle.ts. */
+  status: EventPhase;
   curRound: any | null;
 };
 
@@ -101,12 +109,14 @@ export function Dashboard() {
         const cur =
           curRaw === undefined || curRaw === null ? NaN : Number(curRaw);
 
-        let status: EnrichedEvent["status"];
-        if (Number.isNaN(cur)) status = "unknown";
-        else if (cur >= (numRounds || 2)) status = "ended";
-        else status = "ongoing";
+        const status = getEventPhase(e, numRounds);
 
-        const pos = cur >= 0 && cur < numRounds ? cur : numRounds > 0 ? 0 : -1;
+        // Chỉ sự kiện đã bước vào thi đấu mới có "vòng hiện tại" để khoe. Draft
+        // và giai đoạn đăng ký thì chưa vòng nào chạy cả.
+        const pos =
+          status === "running" || status === "ended"
+            ? Math.min(Math.max(cur - 1, 0), Math.max(numRounds - 1, 0))
+            : -1;
         const curRound = pos >= 0 ? rounds[pos] : null;
 
         return {
@@ -119,7 +129,7 @@ export function Dashboard() {
           numRounds,
           status,
           curRound: curRound
-            ? { ...curRound, _displayIndex: pos, _topN: roundTopN(curRound) }
+            ? { ...curRound, _displayIndex: pos + 1, _topN: roundTopN(curRound) }
             : null,
         };
       });
@@ -150,10 +160,24 @@ export function Dashboard() {
   }
 
   // Thống kê tổng quan (Luôn giữ nguyên số liệu gốc)
-  const ongoing = events.filter((e) => e.status === "ongoing");
-  const ended = events.filter((e) => e.status === "ended");
+  const countOf = (p: EventPhase) => events.filter((e) => e.status === p).length;
+  const ongoing = events.filter((e) => e.status === "running");
 
   const stats = [
+    {
+      label: "Draft",
+      value: countOf("draft"),
+      icon: <FileEdit size={24} />,
+      color: "text-slate-500",
+      bg: "bg-slate-50 border-slate-200",
+    },
+    {
+      label: "Registering",
+      value: countOf("registration"),
+      icon: <UserPlus size={24} />,
+      color: "text-blue-600",
+      bg: "bg-blue-50 border-blue-100",
+    },
     {
       label: "Ongoing",
       value: ongoing.length,
@@ -163,7 +187,7 @@ export function Dashboard() {
     },
     {
       label: "Ended",
-      value: ended.length,
+      value: countOf("ended"),
       icon: <CheckCircle2 size={24} />,
       color: "text-slate-500",
       bg: "bg-slate-50 border-slate-200",
@@ -227,7 +251,7 @@ export function Dashboard() {
       </div>
 
       {/* STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-6">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -262,7 +286,9 @@ export function Dashboard() {
             className="bg-slate-50 border border-slate-200 text-[#f26f21] text-sm font-bold rounded-xl px-5 py-3.5 outline-none focus:bg-white focus:border-fpt-orange focus:ring-4 focus:ring-fpt-orange/10 min-w-[200px] w-full cursor-pointer transition-all"
           >
             <option value="all">All Events</option>
-            <option value="ongoing">Ongoing</option>
+            <option value="draft">Draft</option>
+            <option value="registration">Registration Open</option>
+            <option value="running">Ongoing</option>
             <option value="ended">Ended</option>
           </select>
         </div>
@@ -330,7 +356,18 @@ export function Dashboard() {
                       {e.semester} {e.year}
                     </p>
                   </div>
-                  {e.status === "ongoing" && (
+                  {e.status === "draft" && (
+                    <span className="text-[10px] px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-500 font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-sm shrink-0 border border-slate-200">
+                      <FileEdit size={12} strokeWidth={2.5} />{" "}
+                      {PHASE_LABEL.draft}
+                    </span>
+                  )}
+                  {e.status === "registration" && (
+                    <span className="text-[10px] px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-700 font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-sm shrink-0 border border-blue-200">
+                      <UserPlus size={12} strokeWidth={2.5} /> Registering
+                    </span>
+                  )}
+                  {e.status === "running" && (
                     <span className="text-[10px] px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-sm shrink-0 border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       Live

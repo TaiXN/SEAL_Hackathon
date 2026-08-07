@@ -8,22 +8,40 @@ import {
   Scale,
   ArrowRight,
   Search,
+  FastForward,
+  Layers,
+  ChevronDown,
+  Users,
 } from "lucide-react";
 import {
   auditLogApi,
+  readEvaluationScope,
   type ScoreAuditLog,
   type SubmissionAuditLog,
 } from "../../../lib/api/auditLogApi";
-import { getServerMsg } from "../../../lib/utils/criteriaHelpers";
+import { friendlyErrorText } from "../../../lib/utils/apiError";
 
-type TeamRef = { teamId: string; teamName: string };
+type TeamRef = { teamId: string; teamName: string; trackId?: string };
 
 type Props = {
   rounds: any[];
+  tracks: any[];
   teams: TeamRef[];
+  /**
+   * Toàn bộ vòng trong hệ thống, dùng làm phương án cuối để tra tên.
+   * Bản ghi audit log chỉ mang roundId trần; nếu vì lý do gì đó id đó không nằm
+   * trong `rounds` của sự kiện này thì vẫn còn chỗ để tra ra tên thật, thay vì
+   * đổ hết về nhãn "Other round" vô nghĩa.
+   */
+  allRounds?: any[];
 };
 
 const roundIdOf = (r: any) => String(r.roundID ?? r.roundId ?? r.id ?? "");
+const trackIdOf = (t: any) => String(t.trackID ?? t.trackId ?? t.id ?? "");
+
+// GUID từ backend lúc hoa lúc thường tùy endpoint. Tra cứu mà so khớp nguyên văn
+// thì một chữ hoa lệch nhau là ra "Other round" dù id hoàn toàn đúng.
+const idKey = (v: any) => String(v ?? "").trim().toLowerCase();
 
 const formatWhen = (iso: string) => {
   if (!iso) return "—";
@@ -69,8 +87,41 @@ function UrlDiff({
   );
 }
 
-export function AuditLogsSection({ rounds, teams }: Props) {
+/** Chip "vòng nào / bảng nào" gắn kèm mỗi dòng audit log. */
+function ScopeChip({
+  icon,
+  label,
+  tone,
+}: {
+  icon: any;
+  label: string;
+  tone: "round" | "track";
+}) {
+  // Nhãn "Other/Unknown/Unassigned" nghĩa là không tra ra tên — làm mờ để khỏi
+  // trông như một vòng/bảng có thật.
+  const resolved = !/^(other|unknown|unassigned)\b/i.test(label);
+  const palette = resolved
+    ? tone === "round"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+      : "bg-indigo-50 text-indigo-700 border-indigo-100"
+    : "bg-slate-50 text-slate-400 border-slate-200";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${palette}`}
+    >
+      {icon} {label}
+    </span>
+  );
+}
+
+export function AuditLogsSection({
+  rounds,
+  tracks,
+  teams,
+  allRounds = [],
+}: Props) {
   const [view, setView] = useState<"submissions" | "scores">("submissions");
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
   const [teamFilter, setTeamFilter] = useState("all");
   const [subLogs, setSubLogs] = useState<SubmissionAuditLog[]>([]);
@@ -85,9 +136,53 @@ export function AuditLogsSection({ rounds, teams }: Props) {
 
   const teamNameById = useMemo(() => {
     const m: Record<string, string> = {};
-    teams.forEach((t) => (m[t.teamId] = t.teamName));
+    teams.forEach((t) => (m[idKey(t.teamId)] = t.teamName));
     return m;
   }, [teams]);
+
+  // allRounds trước, rounds của sự kiện sau — trùng id thì bản của sự kiện thắng.
+  const roundNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    [...allRounds, ...rounds].forEach((r) => {
+      const id = idKey(roundIdOf(r));
+      if (!id) return;
+      const idx = r.roundIndex ?? r.RoundIndex;
+      m[id] = r.roundName || r.RoundName || (idx != null ? `Round ${idx}` : "Round");
+    });
+    return m;
+  }, [rounds, allRounds]);
+
+  const trackNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    tracks.forEach((t) => {
+      const id = idKey(trackIdOf(t));
+      if (id) m[id] = t.trackName || t.name || "Track";
+    });
+    return m;
+  }, [tracks]);
+
+  /**
+   * Audit log của bài nộp chỉ mang roundId, không mang trackId. Bảng của một đội
+   * nằm ở TeamInRound (nguồn dựng `teams`), nên dùng nó làm đường vòng.
+   */
+  const trackIdByTeam = useMemo(() => {
+    const m: Record<string, string> = {};
+    teams.forEach((t) => {
+      if (t.trackId) m[idKey(t.teamId)] = idKey(t.trackId);
+    });
+    return m;
+  }, [teams]);
+
+  const roundNameOf = (roundId: string) =>
+    roundNameById[idKey(roundId)] || (roundId ? "Other round" : "Unknown round");
+
+  const trackNameOf = (trackId: string, teamId = "") => {
+    const id = idKey(trackId) || trackIdByTeam[idKey(teamId)] || "";
+    return trackNameById[id] || (id ? "Other track" : "Unassigned");
+  };
+
+  const teamNameOf = (teamId: string) =>
+    teamNameById[idKey(teamId)] || teamId || "Unknown team";
 
   const loadSubmissionLogs = async () => {
     const ids =
@@ -101,7 +196,7 @@ export function AuditLogsSection({ rounds, teams }: Props) {
       setSubError(null);
       setSubLogs(sortByNewest(await auditLogApi.getSubmissionLogsByTeams(ids)));
     } catch (e) {
-      setSubError(getServerMsg(e) || "Could not load submission audit logs.");
+      setSubError(friendlyErrorText(e, { action: "load the submission history" }));
     } finally {
       setSubLoading(false);
     }
@@ -122,11 +217,14 @@ export function AuditLogsSection({ rounds, teams }: Props) {
       const roundIds = new Set(rounds.map(roundIdOf).filter(Boolean));
       const teamIds = new Set(teams.map((t) => t.teamId));
 
-      const scoped = evaluations.filter((ev: any) => {
-        const rid = String(ev.roundId ?? ev.roundID ?? ev.RoundId ?? "");
-        const tid = String(ev.teamId ?? ev.teamID ?? ev.TeamId ?? "");
-        return (rid && roundIds.has(rid)) || (tid && teamIds.has(tid));
-      });
+      // Scope vừa để khoanh vùng evaluation thuộc sự kiện này, vừa là thứ duy
+      // nhất cho biết log điểm nằm ở vòng/bảng nào — nên giữ lại cả object.
+      const allScopes = evaluations.map(readEvaluationScope);
+      const scoped = allScopes.filter(
+        (s) =>
+          (s.roundId && roundIds.has(s.roundId)) ||
+          (s.teamId && teamIds.has(s.teamId)),
+      );
 
       // Response của /api/Evaluation không chắc có roundId/teamId. Khi không
       // khoanh vùng được, thà báo rõ còn hơn ngầm hiển thị điểm của sự kiện khác.
@@ -136,18 +234,15 @@ export function AuditLogsSection({ rounds, teams }: Props) {
         return;
       }
 
-      const source = includeAll ? evaluations : scoped;
-      const evalIds = source
-        .map((ev: any) =>
-          String(ev.evaluationID ?? ev.evaluationId ?? ev.id ?? ""),
-        )
-        .filter(Boolean);
+      const source = (includeAll ? allScopes : scoped).filter(
+        (s) => s.evaluationId,
+      );
 
       setScoreLogs(
-        sortByNewest(await auditLogApi.getScoreLogsByEvaluations(evalIds)),
+        sortByNewest(await auditLogApi.getScoreLogsByEvaluations(source)),
       );
     } catch (e) {
-      setScoreError(getServerMsg(e) || "Could not load score audit logs.");
+      setScoreError(friendlyErrorText(e, { action: "load the scoring history" }));
     } finally {
       setScoreLoading(false);
     }
@@ -165,16 +260,103 @@ export function AuditLogsSection({ rounds, teams }: Props) {
   }, [view, rounds.length]);
 
   const q = search.trim().toLowerCase();
+
+  /**
+   * Đánh số lần sửa cho từng đội: #1 là lần sửa SỚM NHẤT.
+   * Đánh số trên toàn bộ subLogs chứ không phải danh sách đã lọc — tìm kiếm mà
+   * làm số thứ tự nhảy lung tung thì nó hết là "lần sửa thứ mấy".
+   */
+  const subLogsWithRevision = useMemo(() => {
+    const counter: Record<string, number> = {};
+    return [...subLogs]
+      .sort(
+        (a, b) =>
+          new Date(a.changedAt || 0).getTime() -
+          new Date(b.changedAt || 0).getTime(),
+      )
+      .map((log) => {
+        const key = idKey(log.teamId);
+        counter[key] = (counter[key] ?? 0) + 1;
+        return { ...log, revision: counter[key] };
+      });
+  }, [subLogs]);
+
+  const totalRevisionsByTeam = useMemo(() => {
+    const m: Record<string, number> = {};
+    subLogsWithRevision.forEach((l) => {
+      const key = idKey(l.teamId);
+      m[key] = Math.max(m[key] ?? 0, l.revision);
+    });
+    return m;
+  }, [subLogsWithRevision]);
+
   const visibleSubLogs = q
-    ? subLogs.filter((l) =>
-        `${teamNameById[l.teamId] ?? ""} ${l.next.github} ${l.next.demo} ${l.next.slide}`
+    ? subLogsWithRevision.filter((l) =>
+        `${teamNameOf(l.teamId)} ${roundNameOf(l.roundId)} ${trackNameOf(
+          l.trackId,
+          l.teamId,
+        )} ${l.next.github} ${l.next.demo} ${l.next.slide}`
           .toLowerCase()
           .includes(q),
       )
-    : subLogs;
+    : subLogsWithRevision;
+
+  /** Một thẻ = một đội, bên trong là các lần sửa của chính đội đó (mới nhất trước). */
+  const subGroups = useMemo(() => {
+    const byTeam = new Map<string, typeof visibleSubLogs>();
+    visibleSubLogs.forEach((log) => {
+      const key = idKey(log.teamId);
+      const bucket = byTeam.get(key);
+      if (bucket) bucket.push(log);
+      else byTeam.set(key, [log]);
+    });
+
+    return Array.from(byTeam, ([key, logs]) => {
+      const ordered = sortByNewest(logs);
+      return {
+        key,
+        teamId: logs[0].teamId,
+        teamName: teamNameOf(logs[0].teamId),
+        logs: ordered,
+        totalRevisions: totalRevisionsByTeam[key] ?? ordered.length,
+        lastChangedAt: ordered[0]?.changedAt ?? "",
+      };
+    }).sort(
+      (a, b) =>
+        new Date(b.lastChangedAt || 0).getTime() -
+        new Date(a.lastChangedAt || 0).getTime(),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleSubLogs, totalRevisionsByTeam, teamNameById]);
+
+  // Nhiều đội thì mặc định gấp lại cho dễ nhìn; đang tìm kiếm hoặc chỉ có đúng
+  // một đội thì mở sẵn, bắt người dùng bấm thêm một nhát nữa là vô duyên.
+  useEffect(() => {
+    if (q || subGroups.length === 1) {
+      setExpandedTeams(new Set(subGroups.map((g) => g.key)));
+    } else {
+      setExpandedTeams(new Set());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, subLogs, teamFilter]);
+
+  const toggleTeam = (key: string) =>
+    setExpandedTeams((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const allExpanded =
+    subGroups.length > 0 && subGroups.every((g) => expandedTeams.has(g.key));
+
   const visibleScoreLogs = q
     ? scoreLogs.filter((l) =>
-        `${l.judgeId} ${l.reason}`.toLowerCase().includes(q),
+        `${teamNameOf(l.teamId)} ${l.judgeId} ${roundNameOf(
+          l.roundId,
+        )} ${trackNameOf(l.trackId, l.teamId)} ${l.reason}`
+          .toLowerCase()
+          .includes(q),
       )
     : scoreLogs;
 
@@ -271,38 +453,112 @@ export function AuditLogsSection({ rounds, teams }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
-            {visibleSubLogs.map((log, i) => (
-              <div
-                key={log.id || i}
-                className="border border-slate-200 rounded-[1.5rem] p-6 bg-slate-50/40 space-y-4"
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold text-slate-400">
+                {subGroups.length} team{subGroups.length === 1 ? "" : "s"} •{" "}
+                {visibleSubLogs.length} change
+                {visibleSubLogs.length === 1 ? "" : "s"}
+              </p>
+              <button
+                onClick={() =>
+                  setExpandedTeams(
+                    allExpanded
+                      ? new Set()
+                      : new Set(subGroups.map((g) => g.key)),
+                  )
+                }
+                className="text-xs font-extrabold text-slate-500 hover:text-fpt-orange transition-colors"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-extrabold text-[#f26f21]">
-                    {teamNameById[log.teamId] || log.teamId || "Unknown team"}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400">
-                    {formatWhen(log.changedAt)}
-                  </span>
+                {allExpanded ? "Collapse all" : "Expand all"}
+              </button>
+            </div>
+
+            {subGroups.map((group) => {
+              const isOpen = expandedTeams.has(group.key);
+              return (
+                <div
+                  key={group.key}
+                  className="border border-slate-200 rounded-[1.5rem] overflow-hidden bg-slate-50/40"
+                >
+                  <button
+                    onClick={() => toggleTeam(group.key)}
+                    className="w-full flex flex-wrap items-center justify-between gap-3 p-5 text-left hover:bg-white/60 transition-colors"
+                  >
+                    <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                      <Users size={16} className="text-slate-400 shrink-0" />
+                      <span className="font-extrabold text-[#f26f21] truncate">
+                        {group.teamName}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg border border-purple-100 bg-purple-50 text-purple-700 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                        {group.logs.length === group.totalRevisions
+                          ? `${group.totalRevisions} change${group.totalRevisions === 1 ? "" : "s"}`
+                          : `${group.logs.length} of ${group.totalRevisions} changes`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs font-bold text-slate-400">
+                        Last edit {formatWhen(group.lastChangedAt)}
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        className={`text-slate-400 transition-transform duration-200 ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-slate-200/70 bg-white p-5 space-y-3">
+                      {group.logs.map((log, i) => (
+                        <div
+                          key={log.id || `${group.key}-${i}`}
+                          className="border border-slate-100 rounded-[1.25rem] p-5 bg-slate-50/50 space-y-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                                Change #{log.revision}
+                              </span>
+                              <ScopeChip
+                                tone="round"
+                                icon={<FastForward size={11} strokeWidth={3} />}
+                                label={roundNameOf(log.roundId)}
+                              />
+                              <ScopeChip
+                                tone="track"
+                                icon={<Layers size={11} strokeWidth={3} />}
+                                label={trackNameOf(log.trackId, log.teamId)}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-slate-400">
+                              {formatWhen(log.changedAt)}
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            <UrlDiff
+                              label="GitHub"
+                              before={log.old.github}
+                              after={log.next.github}
+                            />
+                            <UrlDiff
+                              label="Demo"
+                              before={log.old.demo}
+                              after={log.next.demo}
+                            />
+                            <UrlDiff
+                              label="Slide"
+                              before={log.old.slide}
+                              after={log.next.slide}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-3">
-                  <UrlDiff
-                    label="GitHub"
-                    before={log.old.github}
-                    after={log.next.github}
-                  />
-                  <UrlDiff
-                    label="Demo"
-                    before={log.old.demo}
-                    after={log.next.demo}
-                  />
-                  <UrlDiff
-                    label="Slide"
-                    before={log.old.slide}
-                    after={log.next.slide}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )
       ) : scoreLoading ? (
@@ -338,6 +594,8 @@ export function AuditLogsSection({ rounds, teams }: Props) {
             <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 whitespace-nowrap">When</th>
+                <th className="px-6 py-4">Team</th>
+                <th className="px-6 py-4 whitespace-nowrap">Round / Track</th>
                 <th className="px-6 py-4">Judge</th>
                 <th className="px-6 py-4 text-center whitespace-nowrap">
                   Score change
@@ -350,6 +608,23 @@ export function AuditLogsSection({ rounds, teams }: Props) {
                 <tr key={log.id || i} className="hover:bg-slate-50/60">
                   <td className="px-6 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">
                     {formatWhen(log.changedAt)}
+                  </td>
+                  <td className="px-6 py-4 text-xs font-extrabold text-[#f26f21]">
+                    {teamNameOf(log.teamId)}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1.5 items-start">
+                      <ScopeChip
+                        tone="round"
+                        icon={<FastForward size={11} strokeWidth={3} />}
+                        label={roundNameOf(log.roundId)}
+                      />
+                      <ScopeChip
+                        tone="track"
+                        icon={<Layers size={11} strokeWidth={3} />}
+                        label={trackNameOf(log.trackId, log.teamId)}
+                      />
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-bold text-slate-600 break-all">
                     {log.judgeId || "—"}

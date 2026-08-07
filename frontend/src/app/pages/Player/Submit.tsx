@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Github, Link2, AlertTriangle, Presentation, Send } from "lucide-react";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { submittedTeamApi } from "../../lib/api/submittedTeamApi";
 import { teamApi } from "../../lib/api/teamApi";
 import {
@@ -18,24 +19,6 @@ const isValidUrl = (value: string) => {
   } catch {
     return false;
   }
-};
-
-const getErrorMessage = (error: any, fallback: string) => {
-  const rawError = error?.response?.data;
-
-  if (!rawError) return fallback;
-
-  if (typeof rawError === "string") return rawError;
-
-  if (rawError?.message) return rawError.message;
-
-  if (rawError?.title) return rawError.title;
-
-  if (rawError?.errors) {
-    return JSON.stringify(rawError.errors, null, 2);
-  }
-
-  return JSON.stringify(rawError, null, 2);
 };
 
 export function Submit() {
@@ -161,13 +144,9 @@ export function Submit() {
     } catch (error: any) {
       console.error("Submit project failed:", error);
 
-      Swal.fire({
-        icon: "error",
-        title: "Submission Failed",
-        html: `<pre style="white-space:pre-wrap;text-align:left;font-size:12px">${getErrorMessage(
-          error,
-          "Unable to submit project at this time.",
-        )}</pre>`,
+      showApiError(error, {
+        action: "submit your project",
+        hint: "Check that the round is still open and that your links are valid, then try again.",
       });
     } finally {
       setIsSubmitting(false);

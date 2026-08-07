@@ -107,7 +107,15 @@ export const criteriaApi = {
   async deleteSet(id: string): Promise<void> {
     await apiClient.delete(`/api/Criteria/set/${id}`);
   },
-  // dùng api mới update criteria set - có thay đổi endpoint
+  /**
+   * Cập nhật một bộ tiêu chí (endpoint MỚI: PUT /api/Criteria/{setId}).
+   *
+   * ⚠️ Backend KHÔNG sửa đè lên bộ tiêu chí gốc: nó tách ra một bộ mới cho sự
+   * kiện đang thao tác, còn các sự kiện cũ vẫn giữ nguyên bộ mà chúng đang dùng.
+   * Vì vậy response có thể mang về một setId KHÁC với setId đã truyền vào —
+   * phía gọi phải đọc lại ID trong kết quả rồi dùng ID đó, đừng giả định là
+   * vẫn setId cũ.
+   */
   updateSet: async (
     setId: string,
     payload: {
@@ -116,6 +124,7 @@ export const criteriaApi = {
       criteriaList: { criteriaId: string; score: number }[];
     },
   ) => {
-    return await apiClient.put(`/api/Criteria/set/${setId}`, payload);
+    const res = await apiClient.put(`/api/Criteria/${setId}`, payload);
+    return res.data;
   },
 };

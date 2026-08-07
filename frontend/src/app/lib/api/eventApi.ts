@@ -64,7 +64,11 @@ export function normalizeEvent(item: any): any {
     name: raw.eventName ?? raw.name,
     semester: raw.season ?? raw.semester,
     year: raw.year,
-    currentRound: raw.currentRound ?? 0,
+    // ⚠️ Fallback là -1 (draft), KHÔNG phải 0. Theo quy ước của backend 0 nghĩa
+    // là "đã publish, form đăng ký đang mở" — mặc định về 0 sẽ khiến sự kiện mà
+    // backend không trả currentRound bị coi là đã công khai và khóa mất quyền
+    // sửa của admin. Xem eventLifecycle.ts.
+    currentRound: raw.currentRound ?? raw.CurrentRound ?? -1,
   };
 }
 
@@ -87,9 +91,49 @@ export const eventApi = {
     return res.data;
   },
 
+  /**
+   * ⚠️ GET /api/Event/{id} có lúc trả về hồ sơ rút gọn KHÔNG kèm mốc đăng ký,
+   * trong khi GET /api/Event (danh sách) thì có. Thiếu hai mốc này thì tab
+   * Overview hiện ô "Registration opens/closes" trống trơn dù admin đã nhập lúc
+   * tạo sự kiện. Nên khi bản ghi chi tiết không có, vá lại từ danh sách.
+   */
   async getEventById(id: string): Promise<any> {
     const res = await apiClient.get(`/api/Event/${id}`);
-    return normalizeEvent(res.data);
+    const ev = normalizeEvent(res.data);
+
+    const hasRegDates =
+      ev?.registrationStartDate ||
+      ev?.RegistrationStartDate ||
+      ev?.registrationEndDate ||
+      ev?.RegistrationEndDate;
+    if (hasRegDates) return ev;
+
+    try {
+      const list = await this.getAllEventsRaw();
+      const match = (list || []).find(
+        (item: any) =>
+          String(item.eventId ?? item.eventID ?? item.id) === String(id),
+      );
+      // Bản chi tiết vẫn là nguồn chính, danh sách chỉ lấp chỗ trống.
+      return match ? { ...normalizeEvent(match), ...ev } : ev;
+    } catch {
+      return ev;
+    }
+  },
+
+  /**
+   * Danh sách đội đang tham gia một sự kiện, kèm thành viên.
+   * Trả về: teamId, teamName, trackName, topicName, totalMembers, isBanned,
+   * members[{ studentId, studentName, isLeader, isActive }]
+   */
+  async getEventTeams(eventId: string): Promise<any[]> {
+    const res = await apiClient.get(`/api/Event/${eventId}/teams`);
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.result)) return data.result;
+    return [];
   },
 
   async createEvent(data: Partial<EventItem>): Promise<EventItem> {

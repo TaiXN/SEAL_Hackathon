@@ -10,6 +10,7 @@ import {
   Crown,
 } from "lucide-react";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import { MentorSupportCard } from "../../components/player/MentorSupportCard";
 import { teamApi } from "../../lib/api/teamApi";
@@ -801,10 +802,9 @@ export function Dashboard() {
         text: "Your team has successfully registered.",
       });
     } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Registration Failed",
-        text: error.response?.data?.message || "Server Error.",
+      showApiError(error, {
+        action: "register you for this event",
+        hint: "Registration may have closed, or you may already be registered.",
       });
     } finally {
       setIsSubmittingRegistration(false);

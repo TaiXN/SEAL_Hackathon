@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { prizeApi } from "../../../lib/api/prizeApi";
-import { getServerMsg } from "../../../lib/utils/criteriaHelpers";
+import {
+  showApiError,
+  friendlyErrorText,
+  technicalDetails,
+} from "../../../lib/utils/apiError";
 import type { EventPhase } from "../../../lib/utils/eventLifecycle";
 
 const BRAND = "#f26f21";
@@ -61,7 +65,7 @@ export function PrizesSection({
       );
       setPrizes(sorted);
     } catch (e) {
-      setError(getServerMsg(e) || "Could not load prizes for this event.");
+      setError(friendlyErrorText(e, { action: "load the prizes for this event" }));
     } finally {
       setLoading(false);
     }
@@ -146,7 +150,10 @@ export function PrizesSection({
         showConfirmButton: false,
       });
     } catch (e) {
-      Swal.fire("Error", getServerMsg(e), "error");
+      showApiError(e, {
+        action: existing ? "update this prize" : "add this prize",
+        hint: "Each rank can only hold one prize — check that the rank isn't already taken.",
+      });
     }
   };
 
@@ -171,7 +178,7 @@ export function PrizesSection({
         showConfirmButton: false,
       });
     } catch (e) {
-      Swal.fire("Error", getServerMsg(e), "error");
+      showApiError(e, { action: "delete this prize" });
     }
   };
 
@@ -210,7 +217,10 @@ export function PrizesSection({
         showConfirmButton: false,
       });
     } catch (e) {
-      Swal.fire("Error", getServerMsg(e), "error");
+      showApiError(e, {
+        action: "award this prize",
+        hint: "The prize may already have been awarded to another team.",
+      });
     }
   };
 
@@ -256,16 +266,21 @@ export function PrizesSection({
       try {
         await prizeApi.manualAssign(p, teamIdOf(team));
       } catch (e) {
-        failures.push(`${p.prizeName}: ${getServerMsg(e)}`);
+        console.error(`Không trao được giải ${p.prizeName}`, technicalDetails(e), e);
+        failures.push(p.prizeName);
       }
     }
     await load();
     if (failures.length) {
       Swal.fire({
-        icon: "error",
+        icon: "warning",
         title: "Some prizes were not awarded",
-        html: `<pre style="text-align:left;white-space:pre-wrap;font-size:12px;">${esc(failures.join("\n"))}</pre>`,
-        width: 620,
+        html: `These prizes could not be awarded automatically:<br/><b>${esc(
+          failures.join(", "),
+        )}</b><br/><br/>They may already belong to a team. Award them one by one with the trophy button.`,
+        width: 560,
+        confirmButtonColor: BRAND,
+        customClass: { popup: "rounded-[2rem]" },
       });
     } else {
       Swal.fire({

@@ -10,6 +10,7 @@ import {
   AlertCircle,
   RefreshCw,
   CalendarClock,
+  Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -30,78 +31,22 @@ import {
   sumWeight,
   buildCriteriaMap,
   loadSetsWithItems,
-  getServerMsg,
   looksLikeGuid,
   DEFAULT_CRITERIA_DESCRIPTION,
+  type CriteriaItemView,
 } from "../../lib/utils/criteriaHelpers";
+import { showApiError, technicalDetails } from "../../lib/utils/apiError";
 
 const BRAND = "#f26f21";
 let seq = 1000;
 const nextId = () => ++seq;
 
-const escapeHtml = (s: string) =>
-  s.replace(
-    /[&<>"']/g,
-    (c) =>
-      (
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        }) as Record<string, string>
-      )[c],
-  );
-
-/**
- * Mô tả ĐẦY ĐỦ một lỗi API để dán thẳng cho bên Backend.
- *
- * ⚠️ Backend của dự án này hay trả 400 kèm câu chung chung ("Error while
- * creating round") hoặc thậm chí body rỗng — lúc đó axios chỉ đưa ra
- * "Request failed with status code 400", không đủ để sửa. Nên phải in kèm:
- * endpoint đã gọi, status, payload ĐÃ GỬI (error.config.data) và body thô
- * backend trả về. Payload gửi đi thường mới là thứ tố cáo field nào sai.
- */
-const describeApiError = (error: any): string => {
-  const res = error?.response;
-  if (!res) return getServerMsg(error);
-
-  const cfg = error.config || {};
-  const endpoint =
-    `${String(cfg.method || "").toUpperCase()} ${cfg.baseURL || ""}${cfg.url || ""}`.trim();
-
-  const stringify = (v: any) => {
-    if (v === undefined || v === null || v === "") return "(rỗng)";
-    if (typeof v === "string") {
-      try {
-        return JSON.stringify(JSON.parse(v), null, 2);
-      } catch {
-        return v;
-      }
-    }
-    try {
-      return JSON.stringify(v, null, 2);
-    } catch {
-      return String(v);
-    }
-  };
-
-  const body = stringify(res.data);
-
-  return [
-    getServerMsg(error),
-    "",
-    `${endpoint} → ${res.status} ${res.statusText || ""}`.trim(),
-    "",
-    "── Payload frontend ĐÃ GỬI ──",
-    stringify(cfg.data),
-    "",
-    "── Body backend TRẢ VỀ ──",
-    body === "(rỗng)"
-      ? "(rỗng — backend không kèm lý do, cần sửa ở phía Backend)"
-      : body,
-  ].join("\n");
+/** Tên bước triển khai, viết theo ngôn ngữ người dùng thay vì tên biến nội bộ */
+const STEP_LABEL: Record<string, string> = {
+  "Event Creation": "creating the event",
+  "Tracks Configuration": "creating tracks and topics",
+  "Rounds & Rubrics Configuration": "creating rounds and rubrics",
+  "Personnel Assignment": "assigning judges and mentors",
 };
 
 interface CriterionRow {
@@ -130,6 +75,11 @@ interface RubricConfig {
   setName: string;
   items: CriterionRow[];
   reuseSetId: string;
+  // Bản sao CÓ THỂ SỬA của bộ tiêu chí đang mượn lại. Không sửa trực tiếp lên
+  // `availableSets` để còn so sánh được với bản đang nằm trên server (dirty check).
+  reuseItems: CriteriaItemView[];
+  reuseSetName: string;
+  reuseIsDefault: boolean;
 }
 
 const makeRound = (prev?: RoundConfig): RoundConfig => ({
@@ -149,11 +99,58 @@ const makeRubric = (): RubricConfig => ({
   setName: "",
   items: [{ id: nextId(), name: "", description: "", weight: 100 }],
   reuseSetId: "",
+  reuseItems: [],
+  reuseSetName: "",
+  reuseIsDefault: true,
+});
+
+/** Bộ tiêu chí đang mượn lại đã bị sửa khác với bản trên server hay chưa. */
+const isReuseDirty = (rubric: RubricConfig, picked: any): boolean => {
+  if (!picked) return false;
+  if ((rubric.reuseSetName || "").trim() !== (picked.setName || "").trim())
+    return true;
+  const mine = rubric.reuseItems || [];
+  // So với ĐÚNG những dòng đã được nạp vào bản sao (xem selectSet), nếu không
+  // một bộ có dòng thiếu criteriaId sẽ luôn bị coi là "chưa lưu".
+  const theirs: CriteriaItemView[] = (picked.items || []).filter(
+    (it: CriteriaItemView) => !!it.criteriaId,
+  );
+  if (mine.length !== theirs.length) return true;
+  return mine.some(
+    (it, i) =>
+      String(it.criteriaId) !== String(theirs[i].criteriaId) ||
+      Number(it.score) !== Number(theirs[i].score),
+  );
+};
+
+/** Payload criteriaList cho PUT /api/Criteria/{setId} */
+const toSetPayload = (rubric: RubricConfig) => ({
+  setName: rubric.reuseSetName.trim(),
+  isDefault: rubric.reuseIsDefault,
+  criteriaList: (rubric.reuseItems || [])
+    .filter((it) => !!it.criteriaId)
+    .map((it) => ({
+      criteriaId: String(it.criteriaId),
+      score: Number(it.score),
+    })),
 });
 
 // ==========================================================
 // COMPONENT CARD ROUND & RUBRIC
 // ==========================================================
+/**
+ * `min` cho mọi ô datetime-local trong trang tạo sự kiện: sự kiện đang được tạo
+ * mới nên không mốc nào được phép rơi vào quá khứ.
+ */
+const nowLocalInput = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const isPastLocalInput = (v: string) =>
+  !!v && new Date(v).getTime() < Date.now();
+
 function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
   const dStart = round.startDate ? new Date(round.startDate) : null;
   const dEnd = round.endDate ? new Date(round.endDate) : null;
@@ -174,6 +171,13 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
   );
   const scoreBeforeSubmit = !!(dEnd && dScoreStart && dScoreStart < dEnd);
   const minOverMax = Number(round.minTeam) > Number(round.maxTeam);
+  const hasPastDate = [
+    round.startDate,
+    round.endDate,
+    round.scoringStartDate,
+    round.scoringEndDate,
+  ].some(isPastLocalInput);
+  const minDate = nowLocalInput();
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm relative">
@@ -214,6 +218,7 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
           </label>
           <input
             type="datetime-local"
+            min={minDate}
             value={round.startDate}
             onChange={(e) => onChange({ startDate: e.target.value })}
             className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
@@ -225,6 +230,7 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
           </label>
           <input
             type="datetime-local"
+            min={minDate}
             value={round.endDate}
             onChange={(e) => onChange({ endDate: e.target.value })}
             className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
@@ -240,6 +246,7 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
           </label>
           <input
             type="datetime-local"
+            min={minDate}
             value={round.scoringStartDate}
             onChange={(e) => onChange({ scoringStartDate: e.target.value })}
             className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
@@ -251,6 +258,7 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
           </label>
           <input
             type="datetime-local"
+            min={minDate}
             value={round.scoringEndDate}
             onChange={(e) => onChange({ scoringEndDate: e.target.value })}
             className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-fpt-orange"
@@ -304,8 +312,14 @@ function RoundCard({ index, total, round, prevEnd, onChange, onRemove }: any) {
         topTooHigh ||
         scoreEndBeforeStart ||
         scoreBeforeSubmit ||
-        minOverMax) && (
+        minOverMax ||
+        hasPastDate) && (
         <div className="mt-4 space-y-1">
+          {hasPastDate && (
+            <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
+              <AlertCircle size={12} /> Dates cannot be in the past.
+            </p>
+          )}
           {endBeforeStart && (
             <p className="text-[11px] text-red-500 font-semibold flex items-center gap-1">
               <AlertCircle size={12} /> The closing time must be after the
@@ -351,24 +365,63 @@ function RubricCard({
   rubric,
   defaultSetName,
   availableSets,
+  allCriteria,
   loadingSets,
   loadSetsError,
   onRetryLoad,
   onChange,
+  onSaveReuse,
+  savingReuse,
 }: any) {
   const picked = availableSets.find(
     (s: any) => String(s.setId) === String(rubric.reuseSetId),
   );
-  const items = rubric.mode === "new" ? rubric.items : picked?.items || [];
+  const reuseItems: CriteriaItemView[] = rubric.reuseItems || [];
+  const items = rubric.mode === "new" ? rubric.items : reuseItems;
   const total = sumWeight(items);
   const isFull = total === 100;
   const hasEmptyName =
     rubric.mode === "new" && rubric.items.some((i: any) => !i.name.trim());
+  const dirty = rubric.mode === "reuse" && isReuseDirty(rubric, picked);
+  const canSaveReuse =
+    dirty && isFull && reuseItems.length > 0 && !!rubric.reuseSetName.trim();
+
+  // Tiêu chí có sẵn trong hệ thống nhưng CHƯA nằm trong bộ đang mở.
+  const addableCriteria = (allCriteria || []).filter(
+    (c: any) =>
+      !reuseItems.some(
+        (it) => String(it.criteriaId) === String(c.criteriaId),
+      ),
+  );
 
   const updateItem = (id: number, patch: Partial<CriterionRow>) =>
     onChange({
       items: rubric.items.map((i: any) =>
         i.id === id ? { ...i, ...patch } : i,
+      ),
+    });
+
+  /** Nạp bản sao có thể sửa khi admin chọn một bộ tiêu chí trong danh sách. */
+  const selectSet = (setId: string) => {
+    const target = availableSets.find(
+      (s: any) => String(s.setId) === String(setId),
+    );
+    onChange({
+      reuseSetId: setId,
+      reuseSetName: target?.setName || "",
+      reuseIsDefault: target?.isDefault ?? true,
+      // Bỏ qua dòng không dò ra criteriaId: nó không gửi lên PUT được, mà giữ
+      // lại thì tổng trọng số hiển thị sẽ khác với thứ thực sự được lưu.
+      reuseItems: (target?.items || [])
+        .filter((it: CriteriaItemView) => !!it.criteriaId)
+        .map((it: CriteriaItemView) => ({ ...it })),
+    });
+  };
+
+  const patchReuseItem = (criteriaId: string, score: number) =>
+    onChange({
+      reuseItems: reuseItems.map((it) =>
+        String(it.criteriaId) === String(criteriaId) ? { ...it, score } : it,
       ),
     });
 
@@ -505,7 +558,7 @@ function RubricCard({
             <>
               <select
                 value={rubric.reuseSetId}
-                onChange={(e) => onChange({ reuseSetId: e.target.value })}
+                onChange={(e) => selectSet(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-semibold focus:border-fpt-orange"
               >
                 <option value="">-- Select a rubric set --</option>
@@ -515,6 +568,112 @@ function RubricCard({
                   </option>
                 ))}
               </select>
+
+              {picked && (
+                <div className="mt-5 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-500 uppercase">
+                      Rubric set name
+                    </label>
+                    <input
+                      type="text"
+                      value={rubric.reuseSetName}
+                      onChange={(e) =>
+                        onChange({ reuseSetName: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold focus:border-fpt-orange"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    {reuseItems.length === 0 && (
+                      <p className="text-sm text-slate-400 italic py-4 text-center">
+                        This set has no criterion left. Add at least one below.
+                      </p>
+                    )}
+                    {reuseItems.map((it) => (
+                      <div
+                        key={String(it.criteriaId)}
+                        className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex gap-2 items-center"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-700 truncate">
+                            {it.name}
+                          </p>
+                          {!!it.description && (
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {it.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="relative w-20 shrink-0">
+                          <input
+                            type="number"
+                            value={it.score}
+                            onChange={(e) =>
+                              patchReuseItem(
+                                String(it.criteriaId),
+                                Number(e.target.value),
+                              )
+                            }
+                            className="w-full px-2 py-2 pr-6 text-sm text-center bg-white border border-slate-200 rounded-lg font-black outline-none focus:border-fpt-orange"
+                          />
+                          <span className="absolute right-2 top-2 text-slate-400 text-sm font-bold">
+                            %
+                          </span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            onChange({
+                              reuseItems: reuseItems.filter(
+                                (x) =>
+                                  String(x.criteriaId) !==
+                                  String(it.criteriaId),
+                              ),
+                            })
+                          }
+                          className="text-slate-300 hover:text-red-500 p-1 shrink-0"
+                          title="Remove from this set"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {addableCriteria.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase">
+                        Add an existing criterion
+                      </label>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const found = addableCriteria.find(
+                            (c: any) =>
+                              String(c.criteriaId) === String(e.target.value),
+                          );
+                          if (!found) return;
+                          onChange({
+                            reuseItems: [
+                              ...reuseItems,
+                              { ...found, score: 0 },
+                            ],
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none font-semibold focus:border-fpt-orange"
+                      >
+                        <option value="">-- Pick a criterion to add --</option>
+                        {addableCriteria.map((c: any) => (
+                          <option key={c.criteriaId} value={c.criteriaId}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </>
@@ -540,6 +699,30 @@ function RubricCard({
             </p>
           )}
         </>
+      )}
+
+      {dirty && (
+        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+          {/* Backend tách bản sửa thành một bộ riêng cho sự kiện đang tạo, nên
+              các sự kiện cũ KHÔNG bị ảnh hưởng — nói rõ để admin yên tâm sửa. */}
+          <p className="text-[11px] text-slate-500 font-semibold flex items-start gap-1">
+            <Info size={12} className="mt-0.5 shrink-0" /> Saving keeps this
+            edited rubric for the event you are creating. Events already using
+            the original set are not affected.
+          </p>
+          <button
+            onClick={onSaveReuse}
+            disabled={!canSaveReuse || savingReuse}
+            className="w-full px-4 py-2.5 text-sm font-bold rounded-xl bg-fpt-orange text-white hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+          >
+            {savingReuse ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Save size={15} />
+            )}
+            Save changes to this rubric set
+          </button>
+        </div>
       )}
     </div>
   );
@@ -578,9 +761,13 @@ export function CreateEvents() {
     [rounds[0].id]: makeRubric(),
   });
   const [availableSets, setAvailableSets] = useState<any[]>([]);
+  // Danh mục tiêu chí toàn hệ thống — dùng cho ô "thêm tiêu chí có sẵn" khi sửa
+  // một bộ tiêu chí mượn lại.
+  const [allCriteria, setAllCriteria] = useState<CriteriaItemView[]>([]);
   const [loadingSets, setLoadingSets] = useState(false);
   const [loadSetsError, setLoadSetsError] = useState<string | null>(null);
   const [setsLoaded, setSetsLoaded] = useState(false);
+  const [savingSetId, setSavingSetId] = useState<string | null>(null);
 
   // 5. STATE BƯỚC 5
   const [rawTeachers, setRawTeachers] = useState<any[]>([]);
@@ -650,6 +837,149 @@ export function CreateEvents() {
   const defaultSetNameFor = (r: RoundConfig, idx: number) =>
     `${eventForm.eventName || "Event"} - ${r.roundName || `Round ${idx + 1}`} Rubric`;
 
+  /**
+   * Đẩy các thay đổi của một bộ tiêu chí mượn lại lên server và trả về setId
+   * SẼ ĐƯỢC DÙNG cho vòng thi.
+   *
+   * ⚠️ Backend tách bản sửa thành một bộ tiêu chí riêng để không đụng vào các
+   * sự kiện cũ, nên nó có thể trả về một setId mới. Vòng thi phải trỏ vào ID
+   * trả về này; nếu response không kèm ID hợp lệ thì hiểu là backend sửa tại
+   * chỗ và giữ nguyên ID cũ.
+   *
+   * Tách riêng khỏi state để bước Launch cũng gọi lại được mà không phải chờ
+   * React cập nhật xong `rubrics`.
+   */
+  const pushReuseSet = async (
+    rubric: RubricConfig,
+    knownSetIds: string[],
+  ): Promise<string> => {
+    const res = await criteriaApi.updateSet(
+      rubric.reuseSetId,
+      toSetPayload(rubric),
+    );
+
+    const returnedId = extractId(res);
+    if (looksLikeGuid(returnedId)) return returnedId;
+
+    // Backend không kèm ID trong response: dò lại danh sách để tìm bộ VỪA xuất
+    // hiện thêm. Bỏ qua bước này thì lần sửa kế tiếp lại nhắm vào bộ GỐC và
+    // backend từ chối (bộ mới cùng tên đã tồn tại).
+    try {
+      const known = new Set(knownSetIds.map(String));
+      const wantedName = rubric.reuseSetName.trim().toLowerCase();
+      const created = getList(await criteriaApi.getAllSet())
+        .map((s: any) => ({
+          id: grabSetId(s),
+          name: String(s.setName || "").trim().toLowerCase(),
+        }))
+        .find(
+          (s) =>
+            !!s.id && !known.has(String(s.id)) && looksLikeGuid(s.id) &&
+            s.name === wantedName,
+        );
+      if (created?.id) return created.id;
+    } catch (e) {
+      console.warn("Không dò lại được danh sách bộ tiêu chí sau khi cập nhật", e);
+    }
+    return rubric.reuseSetId;
+  };
+
+  const handleSaveReuseSet = async (roundId: number) => {
+    const rubric = rubrics[roundId];
+    if (!rubric || rubric.mode !== "reuse" || !rubric.reuseSetId) return;
+    if (!rubric.reuseSetName.trim())
+      return Swal.fire({
+        icon: "warning",
+        title: "Missing name",
+        text: "The rubric set needs a name.",
+        confirmButtonColor: BRAND,
+      });
+    if (rubric.reuseItems.length === 0)
+      return Swal.fire({
+        icon: "warning",
+        title: "Empty rubric",
+        text: "A rubric set needs at least one criterion.",
+        confirmButtonColor: BRAND,
+      });
+    if (sumWeight(rubric.reuseItems) !== 100)
+      return Swal.fire({
+        icon: "error",
+        title: "Total weight is not 100%",
+        text: "Adjust the weights so they add up to exactly 100%.",
+        confirmButtonColor: BRAND,
+      });
+
+    const previousSetId = rubric.reuseSetId;
+    try {
+      setSavingSetId(previousSetId);
+      const effectiveSetId = await pushReuseSet(
+        rubric,
+        availableSets.map((s) => String(s.setId)),
+      );
+      const isNewSet = String(effectiveSetId) !== String(previousSetId);
+
+      const savedName = rubric.reuseSetName.trim();
+      const savedItems = rubric.reuseItems.map((it) => ({ ...it }));
+      const savedSet = {
+        setId: effectiveSetId,
+        setName: savedName,
+        isDefault: rubric.reuseIsDefault,
+        items: savedItems,
+      };
+
+      // Backend tách bản sửa ra thành bộ mới ⇒ THÊM vào danh sách chứ không ghi
+      // đè bộ cũ: các vòng khác vẫn đang trỏ vào bộ cũ và phải giữ nguyên.
+      setAvailableSets((prev) =>
+        isNewSet
+          ? [...prev, savedSet]
+          : prev.map((s) =>
+              String(s.setId) === String(previousSetId)
+                ? { ...s, ...savedSet }
+                : s,
+            ),
+      );
+      // Chỉ đổi vòng đang thao tác sang bộ mới. Nếu backend sửa tại chỗ (không
+      // trả ID mới) thì mới đồng bộ luôn các vòng khác dùng chung bộ đó, để
+      // chúng không bị coi là còn thay đổi chưa lưu.
+      setRubrics((prev) => {
+        const next: Record<number, RubricConfig> = { ...prev };
+        Object.keys(next).forEach((key) => {
+          const rid = Number(key);
+          const other = next[rid];
+          if (other.mode !== "reuse") return;
+          const isTarget = rid === roundId;
+          const sharesOldSet =
+            String(other.reuseSetId) === String(previousSetId);
+          if (!isTarget && (isNewSet || !sharesOldSet)) return;
+          next[rid] = {
+            ...other,
+            reuseSetId: effectiveSetId,
+            reuseSetName: savedName,
+            reuseItems: savedItems.map((it) => ({ ...it })),
+          };
+        });
+        return next;
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: isNewSet ? "New rubric set created!" : "Rubric set updated!",
+        text: isNewSet
+          ? "This round now uses the updated copy. Past events keep their original rubric."
+          : undefined,
+        timer: isNewSet ? 2200 : 1400,
+        showConfirmButton: false,
+      });
+    } catch (e: any) {
+      showApiError(e, {
+        action: "save this rubric set",
+        hint: "A rubric set with this name may already exist — try a different name, then save again.",
+      });
+    } finally {
+      setSavingSetId(null);
+    }
+  };
+
   const loadAvailableSets = async () => {
     try {
       setLoadingSets(true);
@@ -659,12 +989,26 @@ export function CreateEvents() {
         criteriaApi.getAllCriteria(),
       ]);
       const critMap = buildCriteriaMap(critRaw);
+      setAllCriteria(
+        Object.entries(critMap).map(([criteriaId, info]) => ({
+          criteriaId,
+          name: info.name,
+          description: info.description,
+          score: 0,
+        })),
+      );
       const baseSets = getList(setsRaw)
         .map((s: any) => ({
           setId: grabSetId(s),
           setName: s.setName || "Rubric set",
+          // isDefault phải giữ lại: PUT cập nhật bộ tiêu chí gửi nguyên field này,
+          // thiếu là vô tình đổi cờ mặc định của bộ đang có.
+          isDefault: (s.isDefault ?? s.IsDefault ?? true) === true,
         }))
-        .filter((s): s is { setId: string; setName: string } => !!s.setId);
+        .filter(
+          (s): s is { setId: string; setName: string; isDefault: boolean } =>
+            !!s.setId,
+        );
       const enriched = await loadSetsWithItems(baseSets, critMap, (setId) =>
         criteriaApi.getSetById(setId),
       );
@@ -712,6 +1056,20 @@ export function CreateEvents() {
         icon: "warning",
         title: "Missing Reg Timeline",
         text: "Please provide both opening and closing dates for registration.",
+        confirmButtonColor: BRAND,
+      });
+    }
+
+    if (
+      [
+        eventForm.registrationStartDate,
+        eventForm.registrationEndDate,
+      ].some(isPastLocalInput)
+    ) {
+      return Swal.fire({
+        icon: "error",
+        title: "Date is in the past",
+        text: "Registration dates must be set in the future.",
         confirmButtonColor: BRAND,
       });
     }
@@ -829,6 +1187,20 @@ export function CreateEvents() {
           text: `The schedule of "${label}" is invalid.`,
           confirmButtonColor: BRAND,
         });
+      if (
+        [
+          r.startDate,
+          r.endDate,
+          r.scoringStartDate,
+          r.scoringEndDate,
+        ].some(isPastLocalInput)
+      )
+        return Swal.fire({
+          icon: "error",
+          title: "Date is in the past",
+          text: `The schedule of "${label}" cannot be set in the past.`,
+          confirmButtonColor: BRAND,
+        });
       if (dEnd <= dStart)
         return Swal.fire({
           icon: "warning",
@@ -938,7 +1310,21 @@ export function CreateEvents() {
             text: `Please pick an existing set for "${label}".`,
             confirmButtonColor: BRAND,
           });
-        if (sumWeight(picked.items || []) !== 100)
+        if (rub.reuseItems.length === 0)
+          return Swal.fire({
+            icon: "warning",
+            title: "Empty rubric",
+            text: `Rubric of "${label}" needs at least one criterion.`,
+            confirmButtonColor: BRAND,
+          });
+        if (!rub.reuseSetName.trim())
+          return Swal.fire({
+            icon: "warning",
+            title: "Missing name",
+            text: `The rubric set of "${label}" needs a name.`,
+            confirmButtonColor: BRAND,
+          });
+        if (sumWeight(rub.reuseItems) !== 100)
           return Swal.fire({
             icon: "error",
             title: "Total weight is not 100%",
@@ -1240,13 +1626,34 @@ export function CreateEvents() {
         html: "<div style='text-align: left; padding: 10px; font-weight: bold;'><span style='color: #10b981'>Step 2/5: ✔️ Done.</span><br/><br/><span style='color: #f26f21'>Step 3/5:</span> Building Rounds and Grading Rubrics...</div>",
       });
 
+      // Nhiều vòng có thể cùng mượn một bộ tiêu chí và sửa giống hệt nhau — chỉ
+      // đẩy lên server một lần, các vòng sau dùng lại setId đã nhận được.
+      const syncedSets = new Map<string, string>();
+
       for (let i = 0; i < rounds.length; i++) {
         const r = rounds[i];
         const rub = rubrics[r.id];
         let setId: string | null = null;
 
-        if (rub.mode === "reuse") setId = rub.reuseSetId;
-        else
+        if (rub.mode === "reuse") {
+          setId = rub.reuseSetId;
+          // Lưới an toàn: admin sửa bộ tiêu chí mượn lại nhưng quên bấm "Save
+          // changes" thì lưu hộ ngay trước khi tạo vòng.
+          const picked = availableSets.find(
+            (s) => String(s.setId) === String(setId),
+          );
+          if (isReuseDirty(rub, picked)) {
+            // ⚠️ Backend trả về bộ MỚI khi sửa, nên vòng phải trỏ vào ID trả về
+            // chứ không phải ID gốc đã chọn trong dropdown.
+            setId =
+              syncedSets.get(String(setId)) ??
+              (await pushReuseSet(
+                rub,
+                availableSets.map((s) => String(s.setId)),
+              ));
+            syncedSets.set(String(rub.reuseSetId), setId);
+          }
+        } else
           setId = await syncSetOrchestrator(
             rub.items,
             rub.setName.trim() || defaultSetNameFor(r, i),
@@ -1326,13 +1733,21 @@ export function CreateEvents() {
         }).then(() => navigate("/admin/events"));
       }, 500);
     } catch (error: any) {
-      console.error(`Deployment failed at ${errorStep}:`, error);
-      Swal.fire({
-        icon: "error",
-        title: `Deployment Failed at ${errorStep}`,
-        html: `<pre style="text-align:left; white-space:pre-wrap; word-break:break-word; background:#fef2f2; color:#b91c1c; padding:12px; border-radius:8px; font-size:12px; line-height:1.5; max-height:340px; overflow:auto;">${escapeHtml(describeApiError(error))}</pre>`,
-        width: 680,
-        confirmButtonColor: BRAND,
+      // Chi tiết kỹ thuật (endpoint + payload + body) chỉ ra Console cho dev;
+      // người dùng chỉ cần biết dừng ở bước nào và làm gì tiếp.
+      console.error(
+        `Deployment failed at ${errorStep}:`,
+        technicalDetails(error),
+        error,
+      );
+      // Sự kiện được dựng theo nhiều bước nối tiếp — hỏng giữa chừng thì phần
+      // đã tạo VẪN nằm trên server, phải nói rõ để admin không tạo trùng.
+      const partial = errorStep !== "Event Creation";
+      showApiError(error, {
+        action: `finish setting up the event (stopped at: ${STEP_LABEL[errorStep] || errorStep})`,
+        hint: partial
+          ? "Everything before this step was already saved. Open the event from the Events list and finish the remaining setup there instead of creating it again."
+          : "Nothing was saved, so you can safely correct the details and try again.",
       });
     } finally {
       setIsLaunching(false);
@@ -1457,6 +1872,7 @@ export function CreateEvents() {
                       </label>
                       <input
                         type="datetime-local"
+                        min={nowLocalInput()}
                         value={eventForm.registrationStartDate}
                         onChange={(e) =>
                           setEventForm({
@@ -1473,6 +1889,7 @@ export function CreateEvents() {
                       </label>
                       <input
                         type="datetime-local"
+                        min={nowLocalInput()}
                         value={eventForm.registrationEndDate}
                         onChange={(e) =>
                           setEventForm({
@@ -1785,10 +2202,17 @@ export function CreateEvents() {
                     rubric={rubrics[r.id] || makeRubric()}
                     defaultSetName={defaultSetNameFor(r, idx)}
                     availableSets={availableSets}
+                    allCriteria={allCriteria}
                     loadingSets={loadingSets}
                     loadSetsError={loadSetsError}
                     onRetryLoad={loadAvailableSets}
                     onChange={(patch: any) => patchRubric(r.id, patch)}
+                    onSaveReuse={() => handleSaveReuseSet(r.id)}
+                    savingReuse={
+                      savingSetId != null &&
+                      String(savingSetId) ===
+                        String(rubrics[r.id]?.reuseSetId || "")
+                    }
                   />
                 ))}
               </div>

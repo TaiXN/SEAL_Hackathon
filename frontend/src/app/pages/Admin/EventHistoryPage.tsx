@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Trash2, Eye, Calendar, Hexagon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { showApiError } from "../../lib/utils/apiError";
 import { eventApi } from "../../lib/api/eventApi";
 import { roundApi } from "../../lib/api/roundApi";
 import {
@@ -46,7 +47,10 @@ export function EventHistoryPage() {
 
       setEvents(enrichedData);
     } catch (error) {
-      Swal.fire("Error", "Failed to load event list from server.", "error");
+      showApiError(error, {
+        action: "load the event list",
+        hint: "Press reload to try again.",
+      });
     } finally {
       setIsLoading(false);
     }
