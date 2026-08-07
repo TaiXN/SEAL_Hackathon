@@ -20,7 +20,6 @@ namespace SEAL_Hackathon.Controllers
             _submission = submission;
         }
 
-        // Thay đổi Route để Frontend phải truyền đúng Event nào
         [HttpPost("{teamId}/event/{eventId}/submit-urls")]
         public async Task<IActionResult> SubmitProjectUrls(string teamId, string eventId, [FromBody] SubmitGithubAPIViewModel request)
         {

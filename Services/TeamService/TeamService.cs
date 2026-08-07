@@ -22,7 +22,6 @@ namespace Services.TeamService
             {
                 List<TeamInRound> teamSubmissions = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == mem.TeamId);
 
-                // Khởi tạo Team với danh sách Events rỗng
                 var teamHistory = new TeamHistoryAPIViewModel
                 {
                     TeamId = mem.TeamId,
@@ -42,7 +41,6 @@ namespace Services.TeamService
                             uniqueEventIdsForTeam.Add(round.EventId);
                             Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == round.EventId);
 
-                            // Add Event vào mảng thay vì tạo bản ghi Team mới
                             teamHistory.Events.Add(new JoinedEventInfo
                             {
                                 EventId = eventDb?.EventId,
@@ -96,11 +94,9 @@ namespace Services.TeamService
             Team team = await _uow.Team.GetFirstOrDefaultAsync(t => t.TeamId == teamId);
             if (team == null) return new List<TeamDashboardAPIViewModel>();
 
-            // Lấy tất cả các vòng thi mà team này đã nộp bài/tham gia
             List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(st => st.TeamId == teamId);
             if (!allTeamRounds.Any()) return new List<TeamDashboardAPIViewModel>();
 
-            // Tìm ra danh sách các EventId độc nhất từ các vòng thi đó
             HashSet<string> uniqueEventIds = new HashSet<string>();
             foreach (var tr in allTeamRounds)
             {
@@ -111,11 +107,9 @@ namespace Services.TeamService
             List<TeamDashboardAPIViewModel> result = new List<TeamDashboardAPIViewModel>();
             DateTime vnNow = DateTime.UtcNow.AddHours(7);
 
-            // Tính tổng số thành viên của team (Dùng chung cho mọi event)
             List<TeamMember> allMembers = await _uow.TeamMember.GetAllAsync();
             int memberCount = allMembers.Count(ut => ut.TeamId == teamId);
 
-            // Xử lý từng Event riêng biệt
             foreach (string eventId in uniqueEventIds)
             {
                 Event eventDb = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId);
@@ -131,7 +125,6 @@ namespace Services.TeamService
                 List<Round> eventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
                 List<string> eventRoundIds = eventRounds.Select(r => r.RoundId).ToList();
 
-                // Lọc bài nộp của team CHỈ TRONG Event này
                 List<TeamInRound> teamSubmissionsInEvent = allTeamRounds.Where(st => eventRoundIds.Contains(st.RoundId)).ToList();
 
                 TeamInRound submittedProject = null;

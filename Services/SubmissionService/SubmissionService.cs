@@ -26,19 +26,16 @@ namespace Services.SubmissionService
             if (myTeamInfo == null) throw new Exception("You are not currently in this team.");
             if (!myTeamInfo.IsLeader) throw new Exception("Only the Team Leader can submit the project URLs.");
 
-            // 1. Lấy tất cả vòng thi của sự kiện cụ thể này
             List<Round> eventRounds = await _uow.Round.GetAllAsync(r => r.EventId == eventId);
             List<string> eventRoundIds = eventRounds.Select(r => r.RoundId).ToList();
 
             if (!eventRoundIds.Any()) throw new Exception("Event not found or has no rounds.");
 
-            // 2. Chỉ lọc ra các bài nộp của team MÀ THUỘC VỀ SỰ KIỆN NÀY
             List<TeamInRound> allTeamRounds = await _uow.TeamInRound.GetAllAsync(tr => tr.TeamId == teamId && eventRoundIds.Contains(tr.RoundId));
 
             TeamInRound teamInRound = null;
             Round currentRound = null;
 
-            // 3. Tìm vòng thi hiện tại (cao nhất) trong sự kiện này
             foreach (TeamInRound tr in allTeamRounds)
             {
                 Round r = eventRounds.FirstOrDefault(x => x.RoundId == tr.RoundId);
