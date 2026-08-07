@@ -536,39 +536,150 @@ namespace Services.EvaluationService
             }
         }
 
-        public async Task<List<EvaluationAuditLogAPIViewModel>> GetAuditLogsByEvaluationIdAsync(string evaluationId)
+        public async Task<List<EvaluationAuditLogAPIViewModel>>GetAuditLogsByEvaluationIdAsync(string evaluationId)
         {
             try
             {
-                List<EvaluationAuditLog> logs = await _uow.EvaluationAuditLog.GetAllQueryable()
-                    .Where(log => log.EvaluationId == evaluationId)
-                    .OrderByDescending(log => log.Timestamp)
-                    .ToListAsync();
 
-                List<EvaluationAuditLogAPIViewModel> result = new List<EvaluationAuditLogAPIViewModel>();
+                Evaluation evaluation = await _uow.Evaluation
+                    .GetFirstOrDefaultAsync(e => e.Id == evaluationId);
+
+                if (evaluation == null)
+                {
+                    return new List<EvaluationAuditLogAPIViewModel>();
+                }
+
+                Submission submission = await _uow.Submission
+                    .GetFirstOrDefaultAsync(
+                        s => s.Id == evaluation.SubmissionId,
+                        "TeamInRound");
+
+                if (submission == null || submission.TeamInRound == null)
+                {
+                    return new List<EvaluationAuditLogAPIViewModel>();
+                }
+
+                string teamInRoundId = submission.TeamInRound.Id;
+
+    
+                TeamInRound teamInRound = await _uow.TeamInRound
+                    .GetAllQueryable()
+                    .Include(t => t.Team)
+                    .Include(t => t.Track)
+                    .Include(t => t.Round)
+                    .FirstOrDefaultAsync(t => t.Id == teamInRoundId);
+
+                if (teamInRound == null)
+                {
+                    return new List<EvaluationAuditLogAPIViewModel>();
+                }
+
+                Round roundDb = teamInRound.Round;
+
+                if (roundDb == null)
+                {
+                    roundDb = await _uow.Round
+                        .GetFirstOrDefaultAsync(
+                            r => r.RoundId == teamInRound.RoundId);
+                }
+
+                DataAccess.Entities.Event eventDb = null;
+
+                if (roundDb != null &&
+                    !string.IsNullOrWhiteSpace(roundDb.EventId))
+                {
+                    eventDb = await _uow.Event
+                        .GetFirstOrDefaultAsync(
+                            e => e.EventId == roundDb.EventId);
+                }
+
+                List<EvaluationAuditLog> logs =
+                    await _uow.EvaluationAuditLog
+                        .GetAllQueryable()
+                        .Where(log => log.EvaluationId == evaluationId)
+                        .OrderByDescending(log => log.Timestamp)
+                        .ToListAsync();
+
+                List<EvaluationAuditLogAPIViewModel> result =
+                    new List<EvaluationAuditLogAPIViewModel>();
 
                 foreach (EvaluationAuditLog log in logs)
                 {
-                    Account accountDb = await _uow.Account.GetFirstOrDefaultAsync(a => a.AccountId == log.JudgeId);
+                    Account accountDb = await _uow.Account
+                        .GetFirstOrDefaultAsync(
+                            a => a.AccountId == log.JudgeId);
 
-                    EvaluationAuditLogAPIViewModel model = new EvaluationAuditLogAPIViewModel
-                    {
-                        LogId = log.Id,
-                        EvaluationId = log.EvaluationId,
-                        JudgeId = log.JudgeId,
+                    EvaluationAuditLogAPIViewModel model =
+                        new EvaluationAuditLogAPIViewModel
+                        {
+            
+                            LogId = log.Id,
+                            EvaluationId = log.EvaluationId,
 
-                        JudgeName = accountDb != null ? accountDb.FullName : "Unknown Judge",
+                 
+                            JudgeId = log.JudgeId,
+                            JudgeName = accountDb?.FullName ?? "Unknown Judge",
 
-                        OldScore = log.OldScore,
-                        NewScore = log.NewScore,
-                        Reason = log.Reason,
-                        Timestamp = log.Timestamp
-                    };
+                    
+                            TeamId = teamInRound.TeamId,
+                            TeamName = teamInRound.Team?.TeamName ?? "N/A",
+
+                    
+                            TrackId = teamInRound.TrackId,
+                            TrackName = teamInRound.Track?.TrackName ?? "N/A",
+
+            
+                            RoundId = teamInRound.RoundId,
+                            RoundName = roundDb?.RoundName ?? "N/A",
+
+                    
+                            EventId = roundDb?.EventId ?? "",
+                            EventName = eventDb?.EventName ?? "N/A",
+
+           
+                            OldScore = log.OldScore,
+                            NewScore = log.NewScore,
+                            Reason = log.Reason,
+                            Timestamp = log.Timestamp
+                        };
 
                     result.Add(model);
                 }
 
                 return result;
+            }
+            catch (Exception ex)
+            {
+                return new List<EvaluationAuditLogAPIViewModel>();
+            }
+        }
+
+        public async Task<List<EvaluationAuditLogAPIViewModel>>GetJudgeAuditLogsAsync(string teacherId, string evaluationId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(teacherId) ||
+                    string.IsNullOrWhiteSpace(evaluationId))
+                {
+                    return new List<EvaluationAuditLogAPIViewModel>();
+                }
+
+                Evaluation evaluation =
+                    await _uow.Evaluation.GetFirstOrDefaultAsync(e =>
+                        e.Id == evaluationId &&
+                        e.TeacherId == teacherId);
+
+                if (evaluation == null)
+                {
+                    return new List<EvaluationAuditLogAPIViewModel>();
+                }
+
+                List<EvaluationAuditLogAPIViewModel> logs =
+                    await GetAuditLogsByEvaluationIdAsync(evaluationId);
+
+                return logs
+                    .Where(log => log.JudgeId == teacherId)
+                    .ToList();
             }
             catch (Exception ex)
             {

@@ -155,5 +155,46 @@ namespace SEAL_Hackathon.Controllers
             }
         }
 
+        [HttpGet("judge/audit-logs/{evaluationId}")]
+        [Authorize(Roles = "Judge, Teacher")]
+        public async Task<IActionResult> GetJudgeAuditLogs(string evaluationId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(evaluationId))
+                {
+                    return BadRequest(
+                        "Evaluation ID cannot be empty."
+                    );
+                }
+
+                string? teacherId =
+                    User.FindFirst(
+                        ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(teacherId))
+                {
+                    return Unauthorized(
+                        "Cannot identify the current Judge."
+                    );
+                }
+
+                List<EvaluationAuditLogAPIViewModel> result =
+                    await _evaluation
+                        .GetJudgeAuditLogsAsync(
+                            teacherId,
+                            evaluationId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    $"Server error: {ex.Message}"
+                );
+            }
+        }
+
     }
 }

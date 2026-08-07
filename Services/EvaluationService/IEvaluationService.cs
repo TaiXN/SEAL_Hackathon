@@ -17,6 +17,7 @@ namespace Services.EvaluationService
         Task<bool> DeleteEvaluationAsync(string teacherId, string evaluationID);
         Task<List<JudgeDashboardAssignmentAPIViewModel>> GetDashboardAssignmentsAsync(string teacherId);
         Task<List<EvaluationAuditLogAPIViewModel>> GetAuditLogsByEvaluationIdAsync(string evaluationId);
+        Task<List<EvaluationAuditLogAPIViewModel>> GetJudgeAuditLogsAsync(string teacherId, string evaluationId);
 
     }
 }

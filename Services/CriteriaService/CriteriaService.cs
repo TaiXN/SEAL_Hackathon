@@ -92,29 +92,73 @@ namespace Services.CriteriaService
         {
             try
             {
-                double totalScore = info.CriteriaList.Sum(c => c.Score);
-                if (totalScore != 100)
+                if (info == null ||
+                    info.CriteriaList == null ||
+                    !info.CriteriaList.Any())
                 {
-                    return (false,null);
+                    return (false, null);
                 }
 
-                CriteriaSet oldSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.CriteriaSetId == setID && e.IsActive);
-                if (oldSet == null) return (false, null);
+                bool hasDuplicateCriteria = info.CriteriaList
+                    .GroupBy(c => c.CriteriaId)
+                    .Any(g => g.Count() > 1);
 
-                CriteriaSet duplicateSet = await _uow.CriteriaSet.GetFirstOrDefaultAsync(e => e.SetName.ToLower() == info.SetName.ToLower() && e.CriteriaSetId != setID && e.IsActive);
-                if (duplicateSet != null) return (false, null);
+                if (hasDuplicateCriteria)
+                {
+                    return (false, null);
+                }
 
-     
+                if (info.CriteriaList.Any(c => c.Score <= 0))
+                {
+                    return (false, null);
+                }
+
+                double totalScore = info.CriteriaList.Sum(c => c.Score);
+
+                if (Math.Abs(totalScore - 100) > 0.001)
+                {
+                    return (false, null);
+                }
+
+                CriteriaSet oldSet =
+                    await _uow.CriteriaSet.GetFirstOrDefaultAsync(
+                        e => e.CriteriaSetId == setID &&
+                             e.IsActive
+                    );
+
+                if (oldSet == null)
+                {
+                    return (false, null);
+                }
+
+                CriteriaSet duplicateSet =
+                    await _uow.CriteriaSet.GetFirstOrDefaultAsync(
+                        e => e.SetName.ToLower() == info.SetName.ToLower()
+                             && e.CriteriaSetId != setID
+                             && e.IsActive
+                    );
+
+                if (duplicateSet != null)
+                {
+                    return (false, null);
+                }
+
                 foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
                 {
-                    Criterion checkCriterion = await _uow.Criteria.GetFirstOrDefaultAsync(e => e.CriteriaId == item.CriteriaId && e.IsActive);
-                    if (checkCriterion == null) return (false, null);
+                    Criterion checkCriterion =
+                        await _uow.Criteria.GetFirstOrDefaultAsync(
+                            e => e.CriteriaId == item.CriteriaId &&
+                                 e.IsActive
+                        );
+
+                    if (checkCriterion == null)
+                    {
+                        return (false, null);
+                    }
                 }
 
-                oldSet.IsActive = false;
-                _uow.CriteriaSet.Update(oldSet);
-
                 string newSetId = Guid.NewGuid().ToString();
+
                 CriteriaSet newSet = new CriteriaSet()
                 {
                     CriteriaSetId = newSetId,
@@ -122,9 +166,11 @@ namespace Services.CriteriaService
                     IsDefault = info.IsDefault,
                     IsActive = true
                 };
+
                 await _uow.CriteriaSet.AddAsync(newSet);
 
                 List<Mapping> newMappings = new List<Mapping>();
+
                 foreach (CriteriaMappingItemViewModel item in info.CriteriaList)
                 {
                     Mapping newMapping = new Mapping()
@@ -133,8 +179,10 @@ namespace Services.CriteriaService
                         CriteriaId = item.CriteriaId,
                         Score = item.Score
                     };
+
                     newMappings.Add(newMapping);
                 }
+
                 await _uow.Mapping.AddRangeAsync(newMappings);
 
                 await _uow.SaveAsync();
