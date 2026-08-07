@@ -20,15 +20,16 @@ namespace SEAL_Hackathon.Controllers
             _submission = submission;
         }
 
-        [HttpPost("{teamId}/submit-urls")]
-        public async Task<IActionResult> SubmitProjectUrls(string teamId, [FromBody] SubmitGithubAPIViewModel request)
+        // Thay đổi Route để Frontend phải truyền đúng Event nào
+        [HttpPost("{teamId}/event/{eventId}/submit-urls")]
+        public async Task<IActionResult> SubmitProjectUrls(string teamId, string eventId, [FromBody] SubmitGithubAPIViewModel request)
         {
             try
             {
                 string accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(accountId)) return Unauthorized();
 
-                bool isSuccess = await _submission.SubmitUrlAsync(accountId, teamId, request);
+                bool isSuccess = await _submission.SubmitUrlAsync(accountId, teamId, eventId, request);
                 if (isSuccess)
                 {
                     return Ok(new { message = "Project URLs submitted successfully!" });

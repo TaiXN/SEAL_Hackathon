@@ -465,7 +465,6 @@ namespace Services.EvaluationService
         {
             try
             {
-
                 List<string> assignedTrackIds = await _uow.TeacherList.GetAllQueryable()
                     .Where(t => t.TeacherId == teacherId && !t.IsMentor)
                     .Select(t => t.TrackId)
@@ -501,11 +500,12 @@ namespace Services.EvaluationService
 
                 List<JudgeDashboardAssignmentAPIViewModel> result = new List<JudgeDashboardAssignmentAPIViewModel>();
 
+                DateTime vnNow = DateTime.UtcNow.AddHours(7);
+
                 foreach (TeamInRound tir in teamInRounds)
                 {
 
                     Submission submission = submissions.FirstOrDefault(s => s.TeamInRoundId == tir.Id);
-
 
                     Evaluation evaluation = submission != null ? evaluations.FirstOrDefault(e => e.SubmissionId == submission.Id) : null;
 
@@ -515,15 +515,16 @@ namespace Services.EvaluationService
                         TeamName = tir.Team?.TeamName ?? "N/A",
                         TrackName = tir.Track?.TrackName ?? "N/A",
                         RoundName = tir.Round?.RoundName ?? "N/A",
-
-
                         CriteriaSetId = tir.Round?.CriteriaSetId ?? "",
-
-
                         SubmissionId = submission?.Id,
                         EvaluationId = evaluation?.Id,
                         Score = evaluation?.Score
                     };
+
+                    if (submission == null && tir.Round != null && vnNow > tir.Round.EndDate)
+                    {
+                        model.Score = 0;
+                    }
 
                     result.Add(model);
                 }

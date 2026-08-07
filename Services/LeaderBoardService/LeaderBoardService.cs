@@ -68,28 +68,36 @@ namespace Services.LeaderBoardService
         {
             try
             {
-                LeaderBoard leaderboard = await _uow.LeaderBoard.GetFirstOrDefaultAsync(q => q.RoundId == roundId && q.TrackId == trackId);
-
-              
-                if (leaderboard == null) return new List<LeaderBoardDisplayAPIViewModel>();
-
-                
-                List<LeaderBoardDetail> details = await _uow.LeaderBoardDetail.GetAllAsync(
-                    q => q.LeaderBoardId == leaderboard.Id,
-                    includeProperties: "TeamInRound,TeamInRound.Team"
+                List<TeamInRound> allTeamsInRound = await _uow.TeamInRound.GetAllAsync(
+                    q => q.RoundId == roundId && q.TrackId == trackId && q.IsCheck == true && q.IsBanned == false,
+                    includeProperties: "Team"
                 );
 
-              
-                List<LeaderBoardDisplayAPIViewModel> result = details
-                    .OrderByDescending(d => d.Score)
-                    .Select(d => new LeaderBoardDisplayAPIViewModel
-                    {
-                        TeamInRoundId = d.TeamInRoundId,
-                        TeamName = d.TeamInRound?.Team?.TeamName ?? "N/A",
-                        Score = d.Score
-                    }).ToList();
+                if (!allTeamsInRound.Any()) return new List<LeaderBoardDisplayAPIViewModel>();
 
-                return result;
+                LeaderBoard leaderboard = await _uow.LeaderBoard.GetFirstOrDefaultAsync(q => q.RoundId == roundId && q.TrackId == trackId);
+
+                List<LeaderBoardDetail> details = new List<LeaderBoardDetail>();
+                if (leaderboard != null)
+                {
+                    details = await _uow.LeaderBoardDetail.GetAllAsync(q => q.LeaderBoardId == leaderboard.Id);
+                }
+
+                List<LeaderBoardDisplayAPIViewModel> result = new List<LeaderBoardDisplayAPIViewModel>();
+
+                foreach (TeamInRound team in allTeamsInRound)
+                {
+                    LeaderBoardDetail teamDetail = details.FirstOrDefault(d => d.TeamInRoundId == team.Id);
+
+                    result.Add(new LeaderBoardDisplayAPIViewModel
+                    {
+                        TeamInRoundId = team.Id,
+                        TeamName = team.Team?.TeamName ?? "N/A",
+                        Score = teamDetail != null ? teamDetail.Score : 0
+                    });
+                }
+
+                return result.OrderByDescending(d => d.Score).ToList();
             }
             catch (Exception ex)
             {
