@@ -349,8 +349,12 @@ const extractTeamHistoryEventRecords = (team: any): any[] => {
     ...normalizeList(team?.registeredEvents),
     ...normalizeList(team?.RegisteredEvents),
   ];
+  const topLevelEventId = extractEventId(team);
+  const topLevelEventName = extractEventName(team);
+  const topLevelEvent =
+    topLevelEventId || topLevelEventName !== "Not registered" ? [team] : [];
 
-  return events
+  return [...events, ...topLevelEvent]
     .map((event) => ({
       ...event,
       teamId: getTeamId(team),
@@ -364,47 +368,110 @@ const extractTeamHistoryEventRecords = (team: any): any[] => {
     .filter((event) => extractEventId(event) || extractEventName(event) !== "Not registered");
 };
 
+const getHistoryRecordsForTeam = (history: any[], teamId: string): any[] => {
+  const normalizedTeamId = normalizeId(teamId);
+  if (!normalizedTeamId) return [];
+
+  return history.filter(
+    (record) => normalizeId(getTeamId(record)) === normalizedTeamId,
+  );
+};
+
+const mergeHistoryTeamRecords = (records: any[], fallbackTeam: any) => {
+  const events = records.flatMap((record) => [
+    ...normalizeList(record?.events),
+    ...normalizeList(record?.Events),
+    ...normalizeList(record?.registeredEvents),
+    ...normalizeList(record?.RegisteredEvents),
+  ]);
+
+  return {
+    ...(fallbackTeam || {}),
+    ...(records[0] || {}),
+    events,
+  };
+};
+
+const extractHistoryEventRecordsForTeam = (
+  records: any[],
+  fallbackTeam: any,
+): any[] => {
+  const sourceRecords = records.length > 0 ? records : [fallbackTeam];
+  const unique = new Map<string, any>();
+
+  sourceRecords.forEach((record) => {
+    extractTeamHistoryEventRecords(record).forEach((event) => {
+      const key = getParticipationKey(event);
+      if (!unique.has(key)) unique.set(key, event);
+    });
+  });
+
+  return Array.from(unique.values());
+};
+
+const normalizeTeamInfoRecords = (value: any): any[] => {
+  const data = unwrapData(value);
+  const records = normalizeList(data);
+  if (records.length > 0) return records;
+
+  if (
+    data &&
+    typeof data === "object" &&
+    (extractEventId(data) || extractEventName(data) !== "Not registered")
+  ) {
+    return [data];
+  }
+
+  return [];
+};
+
 const mergeTeamInfoIntoHistoryEvents = (
   historyEvents: any[],
   teamInfo: any,
 ): any[] => {
-  if (!teamInfo) return historyEvents;
+  const infoRecords = normalizeTeamInfoRecords(teamInfo);
+  if (infoRecords.length === 0) return historyEvents;
 
-  const infoEventId = extractEventId(teamInfo);
-  const infoEventName = extractEventName(teamInfo).toLowerCase();
-  const hasInfoEvent =
-    Boolean(infoEventId) ||
-    (infoEventName && infoEventName !== "not registered");
+  const usedInfoKeys = new Set<string>();
 
-  if (!hasInfoEvent) return historyEvents;
-
-  let merged = false;
   const records = historyEvents.map((event) => {
-    const sameEvent =
-      (infoEventId && extractEventId(event) === infoEventId) ||
-      extractEventName(event).toLowerCase() === infoEventName;
+    const eventId = extractEventId(event);
+    const eventName = extractEventName(event).toLowerCase();
 
-    if (!sameEvent) return event;
-    merged = true;
+    const matchedInfo = infoRecords.find((info) => {
+      const infoEventId = extractEventId(info);
+      const infoEventName = extractEventName(info).toLowerCase();
+
+      return (
+        (eventId && infoEventId && eventId === infoEventId) ||
+        (eventName &&
+          infoEventName &&
+          eventName !== "not registered" &&
+          eventName === infoEventName)
+      );
+    });
+
+    if (!matchedInfo) return event;
+    usedInfoKeys.add(getParticipationKey(matchedInfo));
     return {
       ...event,
-      ...teamInfo,
-      eventId: extractEventId(event) || infoEventId,
-      eventName: extractEventName(teamInfo),
+      ...matchedInfo,
+      eventId: eventId || extractEventId(matchedInfo),
+      eventName: extractEventName(matchedInfo),
       isRegisteredEvent: true,
       source: "team-history",
     };
   });
 
-  if (merged) return records;
-
   return [
     ...records,
-    {
-      ...teamInfo,
-      isRegisteredEvent: true,
-      source: "team-info",
-    },
+    ...infoRecords
+      .filter((info) => !usedInfoKeys.has(getParticipationKey(info)))
+      .map((info) => ({
+        ...info,
+        isRegisteredEvent: true,
+        source: "team-info",
+      })),
   ];
 };
 
@@ -575,6 +642,8 @@ export function Dashboard() {
   const [selectedTrack, setSelectedTrack] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
   const [selectedParticipationKey, setSelectedParticipationKey] = useState("");
+  const [historyParticipationRecords, setHistoryParticipationRecords] =
+    useState<any[]>([]);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [lastNoticeToastKey, setLastNoticeToastKey] = useState("");
   const [accountBanInfo, setAccountBanInfo] = useState({
@@ -624,6 +693,7 @@ export function Dashboard() {
       setSelectedEvent("");
       setSelectedTrack("");
       setSelectedTopic("");
+      setHistoryParticipationRecords([]);
       setShowRegistrationForm(false);
       setTracks([]);
       setTopics([]);
@@ -648,13 +718,22 @@ export function Dashboard() {
         setCurrentRoundName("");
         setLeaderboard([]);
         setSelectedParticipationKey("");
+        setHistoryParticipationRecords([]);
         setShowRegistrationForm(false);
         setIsLoading(false);
         return;
       }
 
       const activeTeamId = getTeamId(currentTeam);
-      let dashData = { ...currentTeam };
+      const activeTeamHistoryRecords = getHistoryRecordsForTeam(
+        teamHistory,
+        activeTeamId,
+      );
+      const currentTeamSnapshot = mergeHistoryTeamRecords(
+        activeTeamHistoryRecords,
+        currentTeam,
+      );
+      let dashData = { ...currentTeamSnapshot };
       let teamInfoData: any = null;
 
       try {
@@ -667,7 +746,10 @@ export function Dashboard() {
       try {
         const infoRes = await teamApi.getTeamDashboard(activeTeamId);
         teamInfoData = unwrapData(infoRes);
-        dashData = { ...dashData, ...teamInfoData };
+        const teamInfoRecords = normalizeTeamInfoRecords(teamInfoData);
+        if (!Array.isArray(teamInfoData) && teamInfoRecords.length <= 1) {
+          dashData = { ...dashData, ...(teamInfoRecords[0] || teamInfoData) };
+        }
         setAccountBanInfo((prev) => ({
           isBanned: prev.isBanned || isBannedAccount(infoRes, unwrapData(infoRes)),
           reason: prev.reason || getBanReason(infoRes, unwrapData(infoRes)),
@@ -677,10 +759,13 @@ export function Dashboard() {
       }
 
       const historyEventRecords = mergeTeamInfoIntoHistoryEvents(
-        extractTeamHistoryEventRecords(currentTeam),
+        extractHistoryEventRecordsForTeam(activeTeamHistoryRecords, currentTeam),
         teamInfoData,
       );
+      setHistoryParticipationRecords(historyEventRecords);
+      const teamInfoRecords = normalizeTeamInfoRecords(teamInfoData);
       const infoParticipations = [
+        ...teamInfoRecords,
         ...normalizeList(dashData.participations),
         ...normalizeList(dashData.Participations),
         ...normalizeList(dashData.registeredEvents),
@@ -1059,7 +1144,11 @@ export function Dashboard() {
     ...dashboardData,
     members: activeTeamMembers,
   });
-  const participationRecords = extractEventParticipations(dashboardData);
+  const dashboardParticipationRecords = extractEventParticipations(dashboardData);
+  const participationRecords =
+    historyParticipationRecords.length > 0
+      ? historyParticipationRecords
+      : dashboardParticipationRecords;
   const selectedParticipation =
     participationRecords.find(
       (record) => getParticipationKey(record) === selectedParticipationKey,
@@ -1151,7 +1240,7 @@ export function Dashboard() {
     if (!selectedParticipationKey || !selectedStillExists) {
       setSelectedParticipationKey(getParticipationKey(participationRecords[0]));
     }
-  }, [dashboardData, selectedParticipationKey]);
+  }, [dashboardData, historyParticipationRecords, selectedParticipationKey]);
 
   useEffect(() => {
     if (!noticeToastKey || noticeToastKey === lastNoticeToastKey || !teamNotice) {
