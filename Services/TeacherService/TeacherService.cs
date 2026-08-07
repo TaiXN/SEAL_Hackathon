@@ -309,123 +309,259 @@ namespace Services.TeacherService
         {
             try
             {
-                Event ev = await _uow.Event.GetFirstOrDefaultAsync(e => e.EventId == eventId && e.IsActive);
-                if (ev == null) return null;
 
-                Round currentRound = await _uow.Round.GetFirstOrDefaultAsync(r => r.EventId == eventId && r.RoundIndex == ev.CurrentRound);
-                if (currentRound == null) return null;
+                Event ev = await _uow.Event.GetFirstOrDefaultAsync(
+                    e => e.EventId == eventId &&
+                         e.IsActive);
 
-                List<TrackSimpleViewModel> judgeTracks = await GetTeacherTracksAsync(teacherId, eventId, false);
-                List<TrackSimpleViewModel> mentorTracks = await GetTeacherTracksAsync(teacherId, eventId, true);
-
-                PortalEventDetailViewModel detail = new PortalEventDetailViewModel
+                if (ev == null)
                 {
-                    EventId = ev.EventId,
-                    EventName = ev.EventName,
-                    CurrentRound = ev.CurrentRound,
-                    CurrentRoundName = currentRound.RoundName,
+                    return null;
+                }
 
-    
-                    ScoringStartDate = currentRound.ScoringStartDate,
-                    ScoringEndDate = currentRound.ScoringEndDate,
+                Round currentRound =
+                    await _uow.Round.GetFirstOrDefaultAsync(
+                        r => r.EventId == eventId &&
+                             r.RoundIndex == ev.CurrentRound);
 
-                    Roles = new RoleFlagsViewModel
+                if (currentRound == null)
+                {
+                    return null;
+                }
+
+                List<TrackSimpleViewModel> judgeTracks =
+                    await GetTeacherTracksAsync(
+                        teacherId,
+                        eventId,
+                        false);
+
+                List<TrackSimpleViewModel> mentorTracks =
+                    await GetTeacherTracksAsync(
+                        teacherId,
+                        eventId,
+                        true);
+
+                PortalEventDetailViewModel detail =
+                    new PortalEventDetailViewModel
                     {
-                        IsJudge = judgeTracks.Count > 0,
-                        IsMentor = mentorTracks.Count > 0
-                    },
-                    JudgeTracks = judgeTracks,
-                    MentorTracks = mentorTracks,
-                    Teams = new List<TeamInEventViewModel>()
-                };
+                        EventId = ev.EventId,
+                        EventName = ev.EventName,
 
-                List<TeamInRound> teamsInRound = await _uow.TeamInRound.GetAllQueryable()
-                                                           .Include(t => t.Team)
-                                                           .Include(t => t.Track)
-                                                           .Where(t => t.RoundId == currentRound.RoundId && t.IsCheck && !t.IsBanned)
-                                                           .ToListAsync();
+                        CurrentRound = ev.CurrentRound,
+                        CurrentRoundName = currentRound.RoundName,
 
-                List<string> teamIds = teamsInRound.Select(t => t.Id).ToList();
+                        ScoringStartDate = currentRound.ScoringStartDate,
+                        ScoringEndDate = currentRound.ScoringEndDate,
 
-                List<Submission> submissions = await _uow.Submission.GetAllQueryable()
-                                                         .Where(s => teamIds.Contains(s.TeamInRoundId))
-                                                         .ToListAsync();
+                        Roles = new RoleFlagsViewModel
+                        {
+                            IsJudge = judgeTracks.Count > 0,
+                            IsMentor = mentorTracks.Count > 0
+                        },
 
-                List<Evaluation> evaluations = await _uow.Evaluation.GetAllQueryable()
-                                                         .Where(e => submissions.Select(s => s.Id).Contains(e.SubmissionId) && e.TeacherId == teacherId)
-                                                         .ToListAsync();
+                        JudgeTracks = judgeTracks,
+                        MentorTracks = mentorTracks,
+
+                        Teams = new List<TeamInEventViewModel>()
+                    };
+
+
+                List<TeamInRound> teamsInRound =
+                    await _uow.TeamInRound
+                        .GetAllQueryable()
+                        .Include(t => t.Team)
+                        .Include(t => t.Track)
+                        .Where(t =>
+                            t.RoundId == currentRound.RoundId &&
+                            t.IsCheck &&
+                            !t.IsBanned)
+                        .ToListAsync();
+
+                List<string> teamInRoundIds =
+                    teamsInRound
+                        .Select(t => t.Id)
+                        .ToList();
+
+                List<Submission> submissions =
+                    await _uow.Submission
+                        .GetAllQueryable()
+                        .Where(s =>
+                            teamInRoundIds.Contains(s.TeamInRoundId))
+                        .ToListAsync();
+
+                List<string> submissionIds =
+                    submissions
+                        .Select(s => s.Id)
+                        .ToList();
+
+                List<Evaluation> evaluations =
+                    await _uow.Evaluation
+                        .GetAllQueryable()
+                        .Where(e =>
+                            submissionIds.Contains(e.SubmissionId) &&
+                            e.TeacherId == teacherId)
+                        .ToListAsync();
 
                 DateTime vnNow = DateTime.UtcNow.AddHours(7);
 
                 foreach (TeamInRound tir in teamsInRound)
                 {
-                    Submission submission = submissions.FirstOrDefault(s => s.TeamInRoundId == tir.Id);
+                    Submission submission =
+                        submissions.FirstOrDefault(
+                            s => s.TeamInRoundId == tir.Id);
+
                     Evaluation evaluation = null;
 
                     if (submission != null)
                     {
-                        evaluation = evaluations.FirstOrDefault(e => e.SubmissionId == submission.Id);
+                        evaluation =
+                            evaluations.FirstOrDefault(
+                                e => e.SubmissionId == submission.Id);
                     }
 
-                    bool isTrackJudge = judgeTracks.Any(j => j.TrackId == tir.TrackId);
-                    bool isTrackMentor = mentorTracks.Any(m => m.TrackId == tir.TrackId);
+                    bool isTrackJudge =
+                        judgeTracks.Any(
+                            j => j.TrackId == tir.TrackId);
 
-                    if (isTrackJudge == false && isTrackMentor == false)
+                    bool isTrackMentor =
+                        mentorTracks.Any(
+                            m => m.TrackId == tir.TrackId);
+
+                    if (!isTrackJudge && !isTrackMentor)
                     {
                         continue;
                     }
 
-                    bool canScoreStatus = isTrackJudge && submission != null && evaluation == null;
+                    string leaderEmail = string.Empty;
+
+                    TeamMember leaderMember =
+                        await _uow.TeamMember
+                            .GetFirstOrDefaultAsync(tm =>
+                                tm.TeamId == tir.TeamId &&
+                                tm.IsLeader == true &&
+                                tm.InviteStatus == true);
+
+                    if (leaderMember != null)
+                    {
+                        Account leaderAccount =
+                            await _uow.Account
+                                .GetFirstOrDefaultAsync(a =>
+                                    a.AccountId ==
+                                    leaderMember.StudentId);
+
+                        if (leaderAccount != null)
+                        {
+                            leaderEmail =
+                                leaderAccount.Email ?? string.Empty;
+                        }
+                    }
+
+
+                    bool canScoreStatus =
+                        isTrackJudge &&
+                        submission != null &&
+                        evaluation == null;
 
                     bool isUrgent = false;
                     string urgentMsg = string.Empty;
 
-                    if (canScoreStatus && currentRound.ScoringEndDate.HasValue)
+                    if (canScoreStatus &&
+                        currentRound.ScoringEndDate.HasValue)
                     {
-                        TimeSpan timeLeft = currentRound.ScoringEndDate.Value - vnNow;
+                        TimeSpan timeLeft =
+                            currentRound.ScoringEndDate.Value - vnNow;
 
-                        if (timeLeft.TotalHours > 0 && timeLeft.TotalHours <= 48)
+                        if (timeLeft.TotalHours > 0 &&
+                            timeLeft.TotalHours <= 48)
                         {
                             isUrgent = true;
-                            int hoursLeft = (int)Math.Floor(timeLeft.TotalHours);
-                            int minutesLeft = timeLeft.Minutes;
-                            urgentMsg = $"Gấp: Chỉ còn {hoursLeft} giờ {minutesLeft} phút để chấm!";
+
+                            int hoursLeft =
+                                (int)Math.Floor(
+                                    timeLeft.TotalHours);
+
+                            int minutesLeft =
+                                timeLeft.Minutes;
+
+                            urgentMsg =
+                                $"Urgent: Only {hoursLeft} hours " +
+                                $"{minutesLeft} minutes left to score!";
                         }
                         else if (timeLeft.TotalHours < 0)
                         {
                             isUrgent = true;
-                            urgentMsg = "Đã quá hạn chấm bài!";
+                            urgentMsg = "The scoring deadline has passed!";
                         }
                     }
 
-                    TeamInEventViewModel teamView = new TeamInEventViewModel
-                    {
-                        TeamId = tir.TeamId,
-                        TeamName = tir.Team != null ? tir.Team.TeamName : "Unknown",
-                        TrackId = tir.TrackId,
-                        TrackName = tir.Track != null ? tir.Track.TrackName : "Unknown",
-                        TopicName = "N/A",
-                        RoundId = currentRound.RoundId,
-                        RoundName = currentRound.RoundName,
+                    TeamInEventViewModel teamView =
+                        new TeamInEventViewModel
+                        {
+                            TeamId = tir.TeamId,
+                            TeamName =
+                                tir.Team != null
+                                    ? tir.Team.TeamName
+                                    : "Unknown",
 
-                        SubmissionId = submission != null ? submission.Id : null,
-                        UrlGithub = submission != null ? submission.Urlgithub : null,
-                        UrlDemo = submission != null ? submission.Urldemo : null,
-                        UrlSlide = submission != null ? submission.Urlslide : null,
+                            TrackId = tir.TrackId,
+                            TrackName =
+                                tir.Track != null
+                                    ? tir.Track.TrackName
+                                    : "Unknown",
 
-                        LeaderEmail = "leader@gmail.com",
+                            TopicName = "N/A",
 
-                        SubmissionStatus = submission != null ? "Submitted" : "Not Submitted",
-                        ScoringStatus = evaluation != null ? "Scored" : "Pending",
-                        Score = evaluation != null ? evaluation.Score : null,
-                        EvaluationId = evaluation != null ? evaluation.Id : null,
+                            RoundId = currentRound.RoundId,
+                            RoundName = currentRound.RoundName,
 
-                        CanScore = canScoreStatus,
-                        CanMentorContact = isTrackMentor,
+                            SubmissionId =
+                                submission != null
+                                    ? submission.Id
+                                    : null,
 
-                        IsUrgentScoring = isUrgent,
-                        UrgentMessage = urgentMsg
-                    };
+                            UrlGithub =
+                                submission != null
+                                    ? submission.Urlgithub
+                                    : null,
+
+                            UrlDemo =
+                                submission != null
+                                    ? submission.Urldemo
+                                    : null,
+
+                            UrlSlide =
+                                submission != null
+                                    ? submission.Urlslide
+                                    : null,
+
+                            LeaderEmail = leaderEmail,
+
+                            SubmissionStatus =
+                                submission != null
+                                    ? "Submitted"
+                                    : "Not Submitted",
+
+                            ScoringStatus =
+                                evaluation != null
+                                    ? "Scored"
+                                    : "Pending",
+
+                            Score =
+                                evaluation != null
+                                    ? evaluation.Score
+                                    : null,
+
+                            EvaluationId =
+                                evaluation != null
+                                    ? evaluation.Id
+                                    : null,
+
+                            CanScore = canScoreStatus,
+                            CanMentorContact = isTrackMentor,
+
+                            IsUrgentScoring = isUrgent,
+                            UrgentMessage = urgentMsg
+                        };
 
                     detail.Teams.Add(teamView);
                 }
