@@ -11,33 +11,29 @@ import {
   Activity,
   CheckCircle2,
   FileText,
+  History,
 } from "lucide-react";
 import Swal from "sweetalert2";
-import { showApiError } from "../../lib/utils/apiError";
 import { jwtDecode } from "jwt-decode";
 
+// Import APIs
 import apiClient from "../../lib/api/apiClient";
 import { judgeApi } from "../../lib/api/judgeApi";
 import { roundApi } from "../../lib/api/roundApi";
 import { useAuthStore } from "../../stores/auth.store";
 
-// Safely normalize common API response shapes into an array.
-const getList = (res: any): any[] => {
-  if (!res) return [];
-  if (Array.isArray(res)) return res;
-  if (Array.isArray(res?.data)) return res.data;
-  if (Array.isArray(res?.items)) return res.items;
-  if (Array.isArray(res?.result)) return res.result;
-  if (res?.data && Array.isArray(res.data?.data)) return res.data.data;
-  return [];
-};
-
-// Normalize ids before comparing values from different API shapes.
-const normalizeId = (id: any) =>
-  String(id || "")
-    .toLowerCase()
-    .trim();
-
+import {
+  formatEventDate as formatAuditDate,
+  getAuditAction,
+  getAuditActor,
+  getAuditReason,
+  getAuditScoreText,
+  getAuditTimestamp,
+  normalizeApiList as getList,
+  normalizeApiList as normalizeAuditList,
+  readString,
+} from "../../lib/utils/judgeDashboardHelpers";
+import { normalizeId } from "../../lib/utils/teamHelpers";
 export function ScoringPage() {
   const navigate = useNavigate();
   const { teamId } = useParams();
@@ -56,6 +52,7 @@ export function ScoringPage() {
     } catch {}
   }
 
+  // Token Mapper
   const currentTeacherId =
     user?.id ||
     user?.Id ||
@@ -82,6 +79,7 @@ export function ScoringPage() {
     demoUrl: "",
     slideUrl: "",
   });
+
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
 
   // Reuse the evaluation id passed from the dashboard when available.
@@ -94,6 +92,9 @@ export function ScoringPage() {
 
   const [feedback, setFeedback] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -124,6 +125,7 @@ export function ScoringPage() {
         try {
           const subRes = await apiClient.get("/api/Submission");
           const allSubs = getList(subRes);
+
           const expectedTeamInRoundId = normalizeId(
             teamFromList?.teamInRoundId ||
               teamFromList?.teamInRoundID ||
@@ -174,13 +176,22 @@ export function ScoringPage() {
                 mySub.slideUrl ||
                 "",
             });
+
             const foundSubmissionId =
-              mySub.id || mySub.submissionID || mySub.submissionId;
-            if (foundSubmissionId) setActualSubmissionId(foundSubmissionId);
-            if (!finalRoundId)
+              mySub.id ||
+              mySub.submissionID ||
+              mySub.submissionId ||
+              mySub.SubmissionId ||
+              mySub.SubmissionID;
+            if (foundSubmissionId) {
+              setActualSubmissionId(foundSubmissionId);
+            }
+
+            if (!finalRoundId) {
               finalRoundId = normalizeId(
                 mySub.teamInRound?.roundId || mySub.teamInRound?.roundID,
               );
+            }
           }
         } catch (e) {
           console.warn("Failed to load submissions:", e);
@@ -206,9 +217,7 @@ export function ScoringPage() {
             targetSetId = normalizeId(
               roundData?.criteriaSetID || (roundData as any)?.criteriaSetId,
             );
-          } catch (e) {
-            console.warn("Error fetching roundApi:", e);
-          }
+          } catch (e) {}
         }
 
         if (
@@ -223,22 +232,23 @@ export function ScoringPage() {
               allSets.find(
                 (s) => s.isDefault === true || s.IsDefault === true,
               ) || allSets[0];
-            if (defaultSet)
+
+            if (defaultSet) {
               targetSetId = normalizeId(
                 defaultSet.criteriaSetID ||
                   defaultSet.criteriaSetId ||
                   defaultSet.id ||
                   defaultSet.setID,
               );
-          } catch (e) {
-            console.error("Error fetching fallback criteria set:", e);
-          }
+            }
+          } catch (e) {}
         }
 
         // ==========================================
         // STEP 3: Load scoring criteria.
         // ==========================================
         let isCriteriaLoaded = false;
+
         if (
           targetSetId &&
           targetSetId !== "undefined" &&
@@ -252,11 +262,12 @@ export function ScoringPage() {
             const allCriteria = await apiClient.get("/api/Criteria/criterion");
             getList(allCriteria).forEach((c: any) => {
               const cId = normalizeId(c.criteriaID || c.criteriaId || c.id);
-              if (cId)
+              if (cId) {
                 criteriaNameMap[cId] = {
                   name: c.criteriaName || c.CriteriaName || "System Criteria",
                   desc: c.description || c.Description || "",
                 };
+              }
             });
 
             const mappingRes = await apiClient.get(
@@ -265,19 +276,21 @@ export function ScoringPage() {
             let mappingsArray = [];
             const data = mappingRes?.data ?? mappingRes;
 
-            if (Array.isArray(data)) mappingsArray = data;
-            else if (
+            if (Array.isArray(data)) {
+              mappingsArray = data;
+            } else if (
               data?.criteriaList ||
               data?.mapping ||
               data?.items ||
               data?.CriteriaList
-            )
+            ) {
               mappingsArray = getList(
                 data.criteriaList ||
                   data.mapping ||
                   data.items ||
                   data.CriteriaList,
               );
+            }
 
             if (mappingsArray.length > 0) {
               const mappedCriteria = mappingsArray.map((item: any) => {
@@ -291,6 +304,7 @@ export function ScoringPage() {
                   name: "Evaluation Criteria",
                   desc: "",
                 };
+
                 return {
                   id: cId || Math.random().toString(),
                   name:
@@ -305,6 +319,7 @@ export function ScoringPage() {
                   judgeScore: 0,
                 };
               });
+
               setCriteriaList(mappedCriteria);
               isCriteriaLoaded = true;
             }
@@ -323,8 +338,8 @@ export function ScoringPage() {
         if (!isCriteriaLoaded) {
           Swal.fire({
             icon: "error",
-            title: "This round has no rubric",
-            text: "Scoring can't start until an admin attaches a rubric to this round. Please contact an admin.",
+            title: "Configuration Error",
+            text: "Could not load the criteria set. Please contact Admin!",
           });
         }
 
@@ -333,7 +348,7 @@ export function ScoringPage() {
         // ==========================================
         try {
           const currentSubId = actualSubmissionId;
-          if (actualSubmissionId) {
+          if (currentSubId) {
             const evalRes =
               await judgeApi.getEvaluationBySubmission(currentSubId);
             let evalList = evalRes?.data ?? evalRes;
@@ -378,8 +393,45 @@ export function ScoringPage() {
         setIsLoading(false);
       }
     };
+
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
+
+  useEffect(() => {
+    if (!evaluationId) {
+      setAuditLogs([]);
+      setAuditError("");
+      setIsAuditLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAuditLogs = async () => {
+      try {
+        setIsAuditLoading(true);
+        setAuditError("");
+        const response =
+          await judgeApi.getJudgeEvaluationAuditLogs(evaluationId);
+        if (!cancelled) setAuditLogs(normalizeAuditList(response));
+      } catch (error: any) {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setAuditError(
+            error.response?.data?.message || "Could not load audit logs.",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsAuditLoading(false);
+      }
+    };
+
+    loadAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [evaluationId]);
 
   // Score calculation
   const inputTotalScore = criteriaList.reduce(
@@ -390,6 +442,7 @@ export function ScoringPage() {
     (acc, curr) => acc + (curr.maxScore || 0),
     0,
   );
+
   const isEditing = criteriaList.some((c) => c.judgeScore > 0);
   const displayScore = isEditing ? inputTotalScore : savedScore || 0;
 
@@ -398,30 +451,39 @@ export function ScoringPage() {
     if (isNaN(num)) num = 0;
     if (num < 0) num = 0;
     if (num > maxScore) num = maxScore;
+
     setCriteriaList((prev) =>
       prev.map((c) => (c.id === id ? { ...c, judgeScore: num } : c)),
     );
   };
 
   const handleSaveEvaluation = async () => {
-    if (!currentTeacherId)
-      return Swal.fire({
+    if (!currentTeacherId) {
+      Swal.fire({
         icon: "error",
-        title: "Your session has expired",
-        text: "Please sign in again before submitting scores.",
+        title: "Authentication Error",
+        text: "Judge ID was not found.",
       });
-    if (criteriaList.length === 0)
-      return Swal.fire({
+      return;
+    }
+
+    if (displayScore === 0) {
+      Swal.fire({
         icon: "warning",
         title: "Missing Score",
         text: "Please enter a score greater than 0.",
       });
-    if (displayScore === 0)
-      return Swal.fire({
+      return;
+    }
+
+    if (!feedback.trim()) {
+      Swal.fire({
         icon: "warning",
         title: "Missing Feedback",
         text: "Please enter your feedback.",
       });
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -435,10 +497,7 @@ export function ScoringPage() {
           evaluationID: String(evaluationId),
         };
 
-        await apiClient.put(
-          `/api/Evaluation/${currentTeacherId}`,
-          updatePayload,
-        );
+        await judgeApi.updateEvaluation(currentTeacherId, updatePayload);
       } else {
         // Create a new evaluation.
         const createPayload = {
@@ -447,10 +506,7 @@ export function ScoringPage() {
           reason: feedback.trim(),
         };
 
-        await apiClient.post(
-          `/api/Evaluation/${currentTeacherId}`,
-          createPayload,
-        );
+        await judgeApi.createEvaluation(currentTeacherId, createPayload);
       }
 
       Swal.fire({
@@ -459,13 +515,15 @@ export function ScoringPage() {
         text: `The team has been scored: ${displayScore} points.`,
         timer: 2000,
         showConfirmButton: false,
-        customClass: { popup: "rounded-[2rem]" },
       }).then(() => navigate("/judge"));
     } catch (error: any) {
       console.error("Failed to save score:", error);
-      showApiError(error, {
-        action: "save these scores",
-        hint: "Check that every criterion has a score within its allowed range, then save again.",
+      Swal.fire({
+        icon: "error",
+        title: "Save Failed",
+        text:
+          error.response?.data?.message ||
+          "The submitted data does not match the backend contract.",
       });
     } finally {
       setIsSaving(false);
@@ -483,33 +541,31 @@ export function ScoringPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] font-sans text-slate-900 pb-12 animate-in fade-in duration-500">
-      <header className="bg-white border-b border-slate-100 px-10 py-5 flex justify-between items-center shadow-sm sticky top-0 z-20">
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
+      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm sticky top-0 z-20">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-2.5 hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 transition-all mr-2 cursor-pointer"
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors mr-2 cursor-pointer"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-500" strokeWidth={2.5} />
+            <ArrowLeft className="w-5 h-5 text-slate-600" />
           </button>
-          <div className="p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
-            <Hexagon size={28} className="text-[#0a192f]" strokeWidth={2.5} />
-          </div>
+          <Hexagon size={32} className="text-blue-600" strokeWidth={2.5} />
           <div>
-            <h1 className="font-extrabold text-xl tracking-tight text-[#0a192f] leading-tight">
+            <h1 className="font-extrabold text-lg tracking-tight">
               SCORING PANEL
             </h1>
-            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
               SEAL Hackathon
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-[#0a192f] border border-slate-800 px-6 py-3 rounded-2xl text-white font-black flex items-center gap-3 text-xl shadow-lg shadow-slate-900/10">
-            <Calculator size={22} className="text-blue-400" />
+          <div className="bg-indigo-50 border border-indigo-100 px-5 py-2.5 rounded-xl text-indigo-700 font-black flex items-center gap-2 text-lg">
+            <Calculator size={20} />
             {displayScore}{" "}
-            <span className="text-sm font-bold text-slate-400">
-              / {maxPossibleScore > 0 ? maxPossibleScore : 100} points
+            <span className="text-sm font-medium text-indigo-400">
+              / {maxPossibleScore > 0 ? maxPossibleScore : 100}
             </span>
           </div>
         </div>
@@ -536,11 +592,8 @@ export function ScoringPage() {
             </div>
 
             {savedScore !== null && (
-              <div className="mb-8 bg-emerald-50 border border-emerald-100 p-5 rounded-2xl flex items-start gap-4 shadow-sm">
-                <CheckCircle2
-                  className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5"
-                  strokeWidth={2.5}
-                />
+              <div className="mb-6 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-emerald-800 text-sm">
                     Existing Score Found
@@ -564,7 +617,7 @@ export function ScoringPage() {
                     href={submissionData.githubUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all"
+                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
                   >
                     {submissionData.githubUrl}
                   </a>
@@ -575,16 +628,16 @@ export function ScoringPage() {
                 )}
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl hover:border-slate-200 hover:bg-white transition-all shadow-sm">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Globe size={14} strokeWidth={2.5} /> Demo / Website
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-blue-50 transition-colors">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <Globe size={14} /> Demo / Website
                 </p>
                 {submissionData.demoUrl ? (
                   <a
                     href={submissionData.demoUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all"
+                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
                   >
                     {submissionData.demoUrl}
                   </a>
@@ -604,7 +657,7 @@ export function ScoringPage() {
                     href={submissionData.slideUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline break-all flex items-center gap-1.5"
+                    className="text-sm font-semibold text-blue-600 hover:underline break-all"
                   >
                     View Presentation Slides
                   </a>
@@ -639,18 +692,15 @@ export function ScoringPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-5">
-                {criteriaList.map((crit, index) => (
-                  <div
-                    key={`${crit.id}-${index}`}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-slate-50/80 border border-slate-100 p-6 rounded-[1.5rem] hover:border-blue-200 hover:bg-white transition-all shadow-sm"
-                  >
+              criteriaList.map((crit, index) => (
+                <div key={`${crit.id}-${index}`} className="mb-5 last:mb-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border border-slate-100 p-4 rounded-xl hover:border-blue-200 transition-colors">
                     <div className="flex-1">
-                      <h4 className="font-extrabold text-[#0a192f] text-base">
+                      <h4 className="font-bold text-slate-800 text-sm">
                         {index + 1}. {crit.name}
                       </h4>
                       {crit.description && (
-                        <p className="text-[13px] font-medium text-slate-500 mt-2 leading-relaxed">
+                        <p className="text-[12px] text-slate-500 mt-1">
                           {crit.description}
                         </p>
                       )}
@@ -659,7 +709,7 @@ export function ScoringPage() {
                         <span className="text-blue-600">{crit.maxScore}</span>
                       </p>
                     </div>
-                    <div className="relative w-36 shrink-0">
+                    <div className="relative w-32 shrink-0">
                       <input
                         type="number"
                         min="0"
@@ -673,15 +723,15 @@ export function ScoringPage() {
                           )
                         }
                         placeholder="0"
-                        className="w-full pl-5 pr-14 py-4 bg-white border border-slate-200 rounded-2xl text-xl font-black text-[#0a192f] text-center outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
+                        className="w-full pl-4 pr-12 py-2.5 bg-white border border-slate-300 rounded-lg text-lg font-bold text-slate-900 text-center outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
                       />
-                      <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm pointer-events-none">
-                        points
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                        pts
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
 
             <div className="pt-6 mt-6 border-t border-slate-100">
@@ -696,13 +746,13 @@ export function ScoringPage() {
               ></textarea>
             </div>
 
-            <div className="flex justify-end pt-8 mt-8 border-t border-slate-100">
+            <div className="flex justify-end pt-6 mt-6 border-t border-slate-100">
               <button
                 onClick={handleSaveEvaluation}
                 disabled={isSaving || criteriaList.length === 0}
-                className="px-10 py-4 text-white font-extrabold rounded-2xl shadow-lg shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-[#0a192f] hover:bg-slate-800 cursor-pointer text-sm"
+                className="px-8 py-3 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 bg-gradient-to-r from-blue-600 to-indigo-600 hover:shadow-lg hover:shadow-blue-500/30 cursor-pointer"
               >
-                <Save size={18} strokeWidth={2.5} />
+                <Save size={18} />
                 {isSaving
                   ? "Saving score..."
                   : evaluationId
@@ -710,6 +760,82 @@ export function ScoringPage() {
                     : "Submit Score"}
               </button>
             </div>
+
+            <section className="pt-6 mt-6 border-t border-slate-100">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Audit Logs
+                  </p>
+                  <h3 className="mt-1 flex items-center gap-2 text-lg font-extrabold text-slate-900">
+                    <History className="h-5 w-5 text-blue-600" />
+                    Evaluation history
+                  </h3>
+                </div>
+                {auditLogs.length > 0 && (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+                    {auditLogs.length} logs
+                  </span>
+                )}
+              </div>
+
+              {!evaluationId ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  No audit logs yet. Submit a score first to create an
+                  evaluation history.
+                </div>
+              ) : isAuditLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  Loading audit logs...
+                </div>
+              ) : auditError ? (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-600">
+                  {auditError}
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  No score changes have been recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log, index) => {
+                    const scoreText = getAuditScoreText(log);
+                    const reason = getAuditReason(log);
+                    const actor = getAuditActor(log);
+                    const timestamp = getAuditTimestamp(log);
+
+                    return (
+                      <article
+                        key={`${timestamp || "audit"}-${index}`}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold leading-5 text-slate-900">
+                              {getAuditAction(log)}
+                            </p>
+                            {scoreText && (
+                              <p className="mt-1 text-sm font-bold text-blue-700">
+                                {scoreText}
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-right text-xs font-bold text-slate-400">
+                            {formatAuditDate(timestamp)}
+                          </span>
+                        </div>
+                        {(reason || actor) && (
+                          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-5 text-slate-600">
+                            {reason || "Score updated"}
+                            {actor ? ` by ${actor}` : ""}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </section>
         </div>
       </main>

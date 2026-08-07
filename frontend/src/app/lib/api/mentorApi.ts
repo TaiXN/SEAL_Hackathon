@@ -46,6 +46,83 @@ const readString = (value: any, fallback = ""): string => {
   return fallback;
 };
 
+const placeholderEmails = new Set([
+  "leader@gmail.com",
+  "mentor@gmail.com",
+  "user@example.com",
+]);
+
+const readEmail = (...values: any[]): string => {
+  for (const value of values) {
+    const email = readString(value);
+    const lowerEmail = email.toLowerCase();
+    if (email.includes("@") && !placeholderEmails.has(lowerEmail)) {
+      return email;
+    }
+  }
+
+  return "";
+};
+
+const findLeaderEmail = (item: any): string => {
+  const directEmail = readEmail(
+    item?.leaderEmail,
+    item?.LeaderEmail,
+    item?.leaderGmail,
+    item?.LeaderGmail,
+    item?.leaderMail,
+    item?.LeaderMail,
+    item?.leaderEmailAddress,
+    item?.LeaderEmailAddress,
+    item?.teamLeaderEmail,
+    item?.TeamLeaderEmail,
+    item?.teamLeaderGmail,
+    item?.TeamLeaderGmail,
+    item?.teamLeaderMail,
+    item?.TeamLeaderMail,
+    item?.captainEmail,
+    item?.CaptainEmail,
+    item?.captainGmail,
+    item?.CaptainGmail,
+    item?.leader?.email,
+    item?.leader?.Email,
+    item?.leader?.gmail,
+    item?.leader?.Gmail,
+    item?.teamLeader?.email,
+    item?.teamLeader?.Email,
+    item?.teamLeader?.gmail,
+    item?.teamLeader?.Gmail,
+  );
+
+  if (directEmail) return directEmail;
+
+  const members = normalizeList(
+    item?.members || item?.Members || item?.teamMembers || item?.TeamMembers,
+  );
+  const leader = members.find((member) => {
+    const role = readString(member?.role || member?.Role).toLowerCase();
+    return (
+      member?.isLeader === true ||
+      member?.IsLeader === true ||
+      role.includes("leader") ||
+      role.includes("lead")
+    );
+  });
+
+  return readEmail(
+    leader?.email,
+    leader?.Email,
+    leader?.gmail,
+    leader?.Gmail,
+    leader?.userEmail,
+    leader?.UserEmail,
+    leader?.account?.email,
+    leader?.account?.Email,
+    leader?.user?.email,
+    leader?.user?.Email,
+  );
+};
+
 const normalizeMentor = (value: any): Mentor | null => {
   const data = unwrapData(value);
   const item = Array.isArray(data) ? data[0] : data;
@@ -67,8 +144,15 @@ const normalizeMentor = (value: any): Mentor | null => {
       item.FullName,
     "Mentor",
   );
-  const email = readString(
-    item.email || item.Email || item.teacherEmail || item.mentorEmail,
+  const email = readEmail(
+    item.email,
+    item.Email,
+    item.teacherEmail,
+    item.TeacherEmail,
+    item.mentorEmail,
+    item.MentorEmail,
+    item.gmail,
+    item.Gmail,
   );
 
   return {
@@ -83,7 +167,10 @@ const normalizeMentor = (value: any): Mentor | null => {
 
 const normalizeAssignedTeam = (item: any): MentorAssignedTeam => ({
   teamId: readString(item.teamId || item.teamID || item.TeamID || item.id),
-  teamName: readString(item.teamName || item.TeamName || item.name, "Unnamed Team"),
+  teamName: readString(
+    item.teamName || item.TeamName || item.name,
+    "Unnamed Team",
+  ),
   eventName: readString(item.eventName || item.EventName || item.event?.name),
   trackId: readString(item.trackId || item.trackID || item.TrackID),
   trackName: readString(item.trackName || item.TrackName || item.track?.name),
@@ -111,12 +198,7 @@ const normalizeTeamDetail = (value: any): MentorTeamDetail => {
     ),
     urlDemo: readString(item.urlDemo || item.UrlDemo || item.demoUrl),
     urlSlide: readString(item.urlSlide || item.UrlSlide || item.slideUrl),
-    leaderEmail: readString(
-      item.leaderEmail ||
-        item.LeaderEmail ||
-        item.teamLeaderEmail ||
-        item.TeamLeaderEmail,
-    ),
+    leaderEmail: findLeaderEmail(item),
   };
 };
 
@@ -187,6 +269,16 @@ export const mentorApi = {
 
   async getMentorContactByTeam(teamId: string): Promise<Mentor | null> {
     const res = await apiClient.get(`/api/Mentor/contact/${teamId}`);
+    return normalizeMentor(res);
+  },
+
+  async getMentorContactByEventTeam(
+    eventId: string,
+    teamId: string,
+  ): Promise<Mentor | null> {
+    const res = await apiClient.get(
+      `/api/Mentor/contact/event/${eventId}/team/${teamId}`,
+    );
     return normalizeMentor(res);
   },
 

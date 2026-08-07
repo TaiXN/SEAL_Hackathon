@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   AlertCircle,
   ArrowLeft,
   CalendarDays,
@@ -22,7 +23,6 @@ import {
   X,
 } from "lucide-react";
 import Swal from "sweetalert2";
-import { jwtDecode } from "jwt-decode";
 import { type MentorTeamDetail } from "../../lib/api/mentorApi";
 import {
   teacherApi,
@@ -31,337 +31,46 @@ import {
   type TeacherPortalTeam,
   type TeacherPortalTrack,
 } from "../../lib/api/teacher";
+import { judgeApi } from "../../lib/api/judgeApi";
 import { useAuthStore } from "../../stores/auth.store";
 
-type TeacherEventGroup = {
-  key: string;
-  eventId?: string;
-  eventName: string;
-  currentRoundName?: string;
-  startDate?: string;
-  endDate?: string;
-  scoringStartDate?: string;
-  scoringEndDate?: string;
-  judgeTracks: TeacherPortalTrack[];
-  mentorTracks: TeacherPortalTrack[];
-  summary: {
-    totalTeams: number;
-    submittedTeams: number;
-    pendingScoreTeams: number;
-    scoredTeams: number;
-    mentorTeams: number;
-  };
-  judgeTeams: TeacherPortalTeam[];
-  mentorTeams: TeacherPortalTeam[];
-  allTeams: TeacherPortalTeam[];
-  roles: {
-    isJudge: boolean;
-    isMentor: boolean;
-  };
-};
-
-type DetailTab = "overview" | "teams" | "submissions" | "scoring" | "mentor";
-
-function getUserFromToken(accessToken?: string | null): any {
-  if (!accessToken) return null;
-  try {
-    const decoded: any = jwtDecode(accessToken);
-    const id =
-      decoded?.id ||
-      decoded?.Id ||
-      decoded?.sub ||
-      decoded?.nameid ||
-      decoded?.userId ||
-      decoded?.UserId ||
-      decoded?.teacherId ||
-      decoded?.teacherID ||
-      decoded?.TeacherId ||
-      decoded?.TeacherID ||
-      decoded?.[
-        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-      ] ||
-      "";
-
-    return {
-      id,
-      fullName:
-        decoded?.fullName ||
-        decoded?.FullName ||
-        decoded?.name ||
-        decoded?.unique_name ||
-        decoded?.email,
-      email: decoded?.email,
-    };
-  } catch (err) {
-    console.error("Failed to decode accessToken:", err);
-    return null;
-  }
-}
-
-const readString = (value: any, fallback = ""): string => {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  if (typeof value === "number") return String(value);
-  return fallback;
-};
-
-const getTrackName = (item: any) =>
-  readString(
-    item?.trackName ||
-      item?.TrackName ||
-      item?.track?.trackName ||
-      item?.track?.name,
-    "No track",
-  );
-
-const getTrackId = (item: any) =>
-  readString(
-    item?.trackId ||
-      item?.trackID ||
-      item?.TrackID ||
-      item?.track?.trackId ||
-      item?.track?.trackID ||
-      item?.track?.id,
-  );
-
-const normalizeCompareKey = (value?: string) =>
-  readString(value).toLowerCase().trim();
-
-const teamMatchesAssignedTracks = (team: any, tracks: TeacherPortalTrack[]) => {
-  if (!tracks.length) return false;
-
-  const assignedTrackIds = new Set(
-    tracks.map((track) => normalizeCompareKey(track.trackId)).filter(Boolean),
-  );
-  const assignedTrackNames = new Set(
-    tracks.map((track) => normalizeCompareKey(track.trackName)).filter(Boolean),
-  );
-  const teamTrackId = normalizeCompareKey(getTrackId(team));
-  const teamTrackName = normalizeCompareKey(getTrackName(team));
-
-  return Boolean(
-    (teamTrackId && assignedTrackIds.has(teamTrackId)) ||
-    (teamTrackName && assignedTrackNames.has(teamTrackName)),
-  );
-};
-
-const getRoundName = (item: any) =>
-  readString(
-    item?.roundName ||
-      item?.RoundName ||
-      item?.currentRoundName ||
-      item?.CurrentRoundName,
-    "-",
-  );
-
-const getTeamId = (team: any) =>
-  readString(team?.teamId || team?.teamID || team?.TeamID || team?.id);
-
-const getTeamName = (team: any) =>
-  readString(team?.teamName || team?.TeamName || team?.name, "Unnamed Team");
-
-const getJudgeAssignmentId = (team: any) =>
-  readString(team?.teamInRoundId || team?.teamInRoundID || team?.teamId);
-
-const getJudgeSubmissionId = (team: any) =>
-  readString(team?.submissionId || team?.submissionID);
-
-const isJudgeSubmissionAvailable = (team: any) => {
-  const status = readString(
-    team?.submissionStatus || team?.SubmissionStatus,
-  ).toLowerCase();
-  return Boolean(
-    getJudgeSubmissionId(team) ||
-    team?.urlGithub ||
-    team?.urlDemo ||
-    team?.urlSlide ||
-    status.includes("submitted") ||
-    status.includes("Have"),
-  );
-};
-
-const isJudgeEvaluated = (team: any) => {
-  const score = team?.score ?? team?.Score;
-  const status = readString(
-    team?.scoringStatus || team?.ScoringStatus,
-  ).toLowerCase();
-  return Boolean(
-    team?.evaluationId ||
-    team?.evaluationID ||
-    status.includes("scored") ||
-    (score !== null && score !== undefined && Number.isFinite(Number(score))),
-  );
-};
-
-const isUrgentScoringTeam = (team: any) =>
-  team?.isUrgentScoring === true ||
-  team?.IsUrgentScoring === true ||
-  String(team?.isUrgentScoring || team?.IsUrgentScoring || "")
-    .toLowerCase()
-    .trim() === "true";
-
-const getUrgentMessage = (team: any) =>
-  readString(team?.urgentMessage || team?.UrgentMessage);
-
-const hasSubmissionLink = (
-  detail: MentorTeamDetail | TeacherPortalTeam | null,
-) => Boolean(detail?.urlGithub || detail?.urlDemo || detail?.urlSlide);
-
-const uniqueValues = (items: any[], reader: (item: any) => string) =>
-  Array.from(new Set(items.map(reader).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
-  );
-
-const openUrl = (url?: string) => {
-  if (!url) return;
-  window.open(url, "_blank", "noopener,noreferrer");
-};
-
-const openLeaderGmailCompose = ({
-  leaderEmail,
-  teamName,
-  eventName,
-  trackName,
-  roundName,
-}: {
-  leaderEmail: string;
-  teamName: string;
-  eventName?: string;
-  trackName?: string;
-  roundName?: string;
-}) => {
-  const subject = `[SEAL Hackathon] Mentor support for ${teamName || "your team"}`;
-  const body = `
-Dear Team Leader,
-
-I am contacting you regarding your team's hackathon progress.
-
-Team: ${teamName || "-"}
-Event: ${eventName || "-"}
-Track: ${trackName || "-"}
-Current Round: ${roundName || "-"}
-
-Message:
--
-
-Best regards.
-`.trim();
-
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
-    leaderEmail,
-  )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-  window.open(gmailUrl, "_blank", "noopener,noreferrer");
-};
-
-const getEventKey = (item: { eventId?: string; eventName?: string }) =>
-  item.eventId || item.eventName?.toLowerCase() || "unassigned";
-
-const portalEventToGroup = (
-  event: TeacherPortalEvent | TeacherPortalEventDetail,
-): TeacherEventGroup => {
-  const teams =
-    "teams" in event && Array.isArray(event.teams) ? event.teams : [];
-  const judgeTracks = event.judgeTracks || [];
-  const mentorTracks = event.mentorTracks || [];
-  const judgeTeams = teams.filter(
-    (team) =>
-      teamMatchesAssignedTracks(team, judgeTracks) ||
-      (judgeTracks.length === 0 && team.canScore),
-  );
-  const mentorTeams = teams.filter(
-    (team) =>
-      teamMatchesAssignedTracks(team, mentorTracks) ||
-      (mentorTracks.length === 0 && team.canMentorContact),
-  );
-
-  return {
-    key: getEventKey(event),
-    eventId: event.eventId,
-    eventName: event.eventName,
-    currentRoundName: event.currentRoundName,
-    startDate: event.startDate,
-    endDate: event.endDate,
-    scoringStartDate: event.scoringStartDate,
-    scoringEndDate: event.scoringEndDate,
-    judgeTracks,
-    mentorTracks,
-    summary: event.summary,
-    judgeTeams,
-    mentorTeams,
-    allTeams: teams,
-    roles: event.roles || {
-      isJudge: (event.judgeTracks || []).length > 0,
-      isMentor: (event.mentorTracks || []).length > 0,
-    },
-  };
-};
-
-const countUniqueTeams = (group: TeacherEventGroup) => {
-  if (group.summary.totalTeams > 0) return group.summary.totalTeams;
-  const ids = new Set<string>();
-  group.allTeams.forEach((team) => {
-    ids.add(getTeamId(team) || getTeamName(team));
-  });
-  return ids.size;
-};
-
-const eventMatchesSearch = (group: TeacherEventGroup, query: string) => {
-  if (!query) return true;
-  const haystack = [
-    group.eventName,
-    group.startDate,
-    group.endDate,
-    ...group.judgeTracks.map((track) => track.trackName),
-    ...group.mentorTracks.map((track) => track.trackName),
-    ...uniqueValues(group.allTeams, getTrackName),
-  ]
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
-};
-
-const formatEventDate = (value?: string) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-};
-
-const TEACHER_PORTAL_STATE_KEY = "teacherPortal:selectedEvent";
-
-const saveTeacherPortalState = (eventKey: string, tab: DetailTab) => {
-  sessionStorage.setItem(
-    TEACHER_PORTAL_STATE_KEY,
-    JSON.stringify({ eventKey, tab }),
-  );
-};
-
-const readTeacherPortalState = (): {
-  eventKey: string;
-  tab: DetailTab;
-} | null => {
-  try {
-    const raw = sessionStorage.getItem(TEACHER_PORTAL_STATE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.eventKey) return null;
-    return {
-      eventKey: String(parsed.eventKey),
-      tab: parsed.tab || "overview",
-    };
-  } catch {
-    return null;
-  }
-};
-
+import {
+  TEACHER_PORTAL_STATE_KEY,
+  type DetailTab,
+  type TeacherEventGroup,
+  countUniqueTeams,
+  eventMatchesSearch,
+  formatEventDate,
+  getAuditAction,
+  getAuditActor,
+  getAuditReason,
+  getAuditScoreText,
+  getAuditTimestamp,
+  getJudgeAssignmentId,
+  getJudgeDisplayScore,
+  getJudgeEvaluationId,
+  getJudgeSubmissionId,
+  getRoundName,
+  getTeamId,
+  getTeamName,
+  getTrackName,
+  getUrgentMessage,
+  getUserFromToken,
+  hasSubmissionLink,
+  isJudgeAutoZeroTeam,
+  isJudgeEvaluated,
+  isJudgeScoreFinalized,
+  isJudgeSubmissionAvailable,
+  isUrgentScoringTeam,
+  normalizeApiList,
+  openLeaderGmailCompose,
+  openUrl,
+  portalEventToGroup,
+  readString,
+  readTeacherPortalState,
+  saveTeacherPortalState,
+  uniqueValues,
+} from "../../lib/utils/judgeDashboardHelpers";
 export function JudgeDashboard() {
   const navigate = useNavigate();
   const [portalEvents, setPortalEvents] = useState<TeacherPortalEvent[]>([]);
@@ -375,6 +84,10 @@ export function JudgeDashboard() {
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [detailSearch, setDetailSearch] = useState("");
   const [selectedJudgeTeam, setSelectedJudgeTeam] = useState<any | null>(null);
+  const [evaluationAuditLogs, setEvaluationAuditLogs] = useState<any[]>([]);
+  const [isEvaluationAuditLoading, setIsEvaluationAuditLoading] =
+    useState(false);
+  const [evaluationAuditError, setEvaluationAuditError] = useState("");
   const [selectedMentorTeam, setSelectedMentorTeam] =
     useState<TeacherPortalTeam | null>(null);
   const [mentorTeamDetail, setMentorTeamDetail] =
@@ -485,9 +198,47 @@ export function JudgeDashboard() {
   }, [eventGroups, isEventsLoading, selectedEventKey]);
 
   const selectedJudgeSubmitted = isJudgeSubmissionAvailable(selectedJudgeTeam);
-  const selectedJudgeEvaluated = isJudgeEvaluated(selectedJudgeTeam);
+  const selectedJudgeEvaluated = isJudgeScoreFinalized(selectedJudgeTeam);
   const displayedMentorDetail = mentorTeamDetail || selectedMentorTeam;
   const mentorTeamSubmitted = hasSubmissionLink(mentorTeamDetail);
+
+  useEffect(() => {
+    const evaluationId = getJudgeEvaluationId(selectedJudgeTeam);
+
+    if (!selectedJudgeTeam || !evaluationId) {
+      setEvaluationAuditLogs([]);
+      setEvaluationAuditError("");
+      setIsEvaluationAuditLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAuditLogs = async () => {
+      try {
+        setIsEvaluationAuditLoading(true);
+        setEvaluationAuditError("");
+        const response =
+          await judgeApi.getJudgeEvaluationAuditLogs(evaluationId);
+        if (!cancelled) setEvaluationAuditLogs(normalizeApiList(response));
+      } catch (error: any) {
+        if (!cancelled) {
+          setEvaluationAuditLogs([]);
+          setEvaluationAuditError(
+            error.response?.data?.message || "Could not load audit logs.",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsEvaluationAuditLoading(false);
+      }
+    };
+
+    loadAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJudgeTeam]);
 
   const isLoading = isEventsLoading;
 
@@ -620,6 +371,9 @@ export function JudgeDashboard() {
           team={selectedJudgeTeam}
           isSubmitted={selectedJudgeSubmitted}
           isEvaluated={selectedJudgeEvaluated}
+          auditLogs={evaluationAuditLogs}
+          isAuditLoading={isEvaluationAuditLoading}
+          auditError={evaluationAuditError}
           onClose={() => setSelectedJudgeTeam(null)}
           onScore={() => goToScore(selectedJudgeTeam)}
         />
@@ -628,7 +382,6 @@ export function JudgeDashboard() {
       {selectedMentorTeam && (
         <MentorDetailModal
           displayedDetail={displayedMentorDetail}
-          selectedTeam={selectedMentorTeam}
           teamDetail={mentorTeamDetail}
           isLoading={isMentorDetailLoading}
           error={mentorDetailError}
@@ -746,14 +499,10 @@ function EventCard({
 }) {
   const judgeTracks = group.judgeTracks.map((track) => track.trackName);
   const mentorTracks = group.mentorTracks.map((track) => track.trackName);
-  const submittedCount =
-    group.summary.submittedTeams ||
-    group.judgeTeams.filter(isJudgeSubmissionAvailable).length;
-  const pendingScoreCount =
-    group.summary.pendingScoreTeams ||
-    group.judgeTeams.filter(
-      (team) => isJudgeSubmissionAvailable(team) && !isJudgeEvaluated(team),
-    ).length;
+  const totalTeamsCount = group.summary.totalTeams || countUniqueTeams(group);
+  const submittedCount = group.summary.submittedTeams;
+  const pendingScoreCount = group.summary.pendingScoreTeams;
+  const emailSupportCount = group.summary.mentorTeams;
   const accent = index % 2 === 0 ? "#f26f21" : "#1f5eff";
 
   return (
@@ -789,15 +538,15 @@ function EventCard({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <DatePill label="Scoring Start" value={group.scoringStartDate} />
-          <DatePill label="Scoring End" value={group.scoringEndDate} />
+          <DatePill label="Start" value={group.startDate} />
+          <DatePill label="End" value={group.endDate} />
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-          <Metric label="Teams" value={countUniqueTeams(group)} />
+          <Metric label="Teams" value={totalTeamsCount} />
           <Metric label="Submissions" value={submittedCount} />
           <Metric label="Pending Scores" value={pendingScoreCount} />
-          <Metric label="Email Support" value={group.mentorTeams.length} />
+          <Metric label="Email Support" value={emailSupportCount} />
         </div>
       </div>
 
@@ -840,14 +589,10 @@ function EventDetailView({
 }) {
   const canJudge = group.roles.isJudge || group.judgeTeams.length > 0;
   const canMentor = group.roles.isMentor || group.mentorTeams.length > 0;
-  const submittedCount =
-    group.summary.submittedTeams ||
-    group.judgeTeams.filter(isJudgeSubmissionAvailable).length;
-  const pendingScoreCount =
-    group.summary.pendingScoreTeams ||
-    group.judgeTeams.filter(
-      (team) => isJudgeSubmissionAvailable(team) && !isJudgeEvaluated(team),
-    ).length;
+  const totalTeamsCount = group.summary.totalTeams || countUniqueTeams(group);
+  const submittedCount = group.summary.submittedTeams;
+  const pendingScoreCount = group.summary.pendingScoreTeams;
+  const emailSupportCount = group.summary.mentorTeams;
   const judgeTracks = group.judgeTracks.map((track) => track.trackName);
   const mentorTracks = group.mentorTracks.map((track) => track.trackName);
 
@@ -876,7 +621,7 @@ function EventDetailView({
     (team) =>
       isUrgentScoringTeam(team) &&
       isJudgeSubmissionAvailable(team) &&
-      !isJudgeEvaluated(team),
+      !isJudgeScoreFinalized(team),
   );
 
   return (
@@ -916,7 +661,7 @@ function EventDetailView({
           <SummaryCard
             icon={<UsersRound />}
             label="Teams"
-            value={countUniqueTeams(group)}
+            value={totalTeamsCount}
           />
           <SummaryCard
             icon={<FileText />}
@@ -931,7 +676,7 @@ function EventDetailView({
           <SummaryCard
             icon={<Mail />}
             label="Email Support"
-            value={group.mentorTeams.length}
+            value={emailSupportCount}
           />
         </div>
       </div>
@@ -1051,7 +796,7 @@ function OverviewPanel({
   mentorTracks: string[];
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-4">
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-extrabold text-slate-950">
           Assignment Summary
@@ -1082,16 +827,6 @@ function OverviewPanel({
             value={String(group.mentorTeams.length)}
           />
         </div>
-      </section>
-
-      <section className="rounded-lg border border-orange-100 bg-orange-50 p-6 shadow-sm">
-        <p className="text-sm font-extrabold text-[#c2410c]">
-          Mentor support is email-based
-        </p>
-        <p className="mt-2 text-sm leading-6 text-orange-900">
-          Team support opens Gmail to the team leader. No internal chat data is
-          created until the backend provides a question API.
-        </p>
       </section>
     </div>
   );
@@ -1125,7 +860,7 @@ function TeamsPanel({
           {role}
         </RoleBadge>,
         getTrackName(team),
-        role === "Judge" ? getRoundName(team) : "-",
+        getRoundName(team),
         role === "Judge" ? <JudgeStatusBadge team={team} /> : "Email support",
         <button
           key="action"
@@ -1198,7 +933,7 @@ function ScoringPanel({
   onScoreTeam: (team: any) => void;
 }) {
   const pendingTeams = teams.filter(
-    (team) => isJudgeSubmissionAvailable(team) && !isJudgeEvaluated(team),
+    (team) => isJudgeSubmissionAvailable(team) && !isJudgeScoreFinalized(team),
   );
   const displayTeams = pendingTeams.length > 0 ? pendingTeams : teams;
 
@@ -1219,7 +954,7 @@ function ScoringPanel({
         <TeamCell key="team" team={team} />,
         getTrackName(team),
         getRoundName(team),
-        isJudgeEvaluated(team) ? (team.score ?? "0") : "-",
+        getJudgeDisplayScore(team),
         <JudgeStatusBadge key="status" team={team} />,
         <div key="action" className="flex justify-end gap-2">
           <button
@@ -1255,7 +990,7 @@ function MentorSupportPanel({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-4">
       <DataTable
         headers={["Team", "Track", "Support Channel", "Action"]}
         rows={teams.map((team) => [
@@ -1273,16 +1008,6 @@ function MentorSupportPanel({
           </button>,
         ])}
       />
-
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-extrabold text-slate-950">
-          Email support queue
-        </h3>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          Open a team detail to load the leader email, then use Gmail to reply
-          or provide mentor support.
-        </p>
-      </section>
     </div>
   );
 }
@@ -1316,7 +1041,7 @@ function UrgentScoringCard({
       </div>
 
       <div className="mt-4 grid gap-2">
-        {teams.slice(0, 4).map((team) => {
+        {teams.map((team) => {
           const message =
             getUrgentMessage(team) ||
             "This submission is close to the scoring deadline.";
@@ -1331,7 +1056,7 @@ function UrgentScoringCard({
                   {getTeamName(team)}
                 </p>
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  {getTrackName(team)} • {getRoundName(team)}
+                  {getTrackName(team)} â€¢ {getRoundName(team)}
                 </p>
                 <p className="mt-1 text-xs font-medium text-red-600">
                   {message}
@@ -1360,13 +1085,6 @@ function UrgentScoringCard({
           );
         })}
       </div>
-
-      {teams.length > 4 && (
-        <p className="mt-3 text-xs font-bold text-red-700/70">
-          +{teams.length - 4} more urgent submission
-          {teams.length - 4 > 1 ? "s" : ""} in the scoring tab.
-        </p>
-      )}
     </section>
   );
 }
@@ -1375,15 +1093,25 @@ function JudgeDetailModal({
   team,
   isSubmitted,
   isEvaluated,
+  auditLogs,
+  isAuditLoading,
+  auditError,
   onClose,
   onScore,
 }: {
   team: any;
   isSubmitted: boolean;
   isEvaluated: boolean;
+  auditLogs: any[];
+  isAuditLoading: boolean;
+  auditError: string;
   onClose: () => void;
   onScore: () => void;
 }) {
+  const isAutoZero = isJudgeAutoZeroTeam(team);
+  const effectiveEvaluated = isEvaluated || isAutoZero;
+  const scoreText = getJudgeDisplayScore(team);
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 py-6">
       <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
@@ -1400,34 +1128,36 @@ function JudgeDetailModal({
 
           <div
             className={`flex flex-col justify-between gap-3 rounded-lg border p-4 sm:flex-row sm:items-center ${
-              isSubmitted
-                ? isEvaluated
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-amber-200 bg-amber-50"
-                : "border-slate-200 bg-slate-50"
+              effectiveEvaluated
+                ? "border-emerald-200 bg-emerald-50"
+                : isSubmitted
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-slate-200 bg-slate-50"
             }`}
           >
             <div className="flex items-start gap-3">
-              {isSubmitted ? (
-                isEvaluated ? (
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                ) : (
-                  <ClipboardList className="mt-0.5 h-5 w-5 text-amber-600" />
-                )
+              {effectiveEvaluated ? (
+                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+              ) : isSubmitted ? (
+                <ClipboardList className="mt-0.5 h-5 w-5 text-amber-600" />
               ) : (
                 <FileX className="mt-0.5 h-5 w-5 text-slate-500" />
               )}
               <div>
                 <p className="text-sm font-extrabold text-slate-800">
-                  {!isSubmitted
-                    ? "Not submitted"
-                    : isEvaluated
+                  {isEvaluated
+                    ? "Scored"
+                    : isAutoZero
                       ? "Scored"
-                      : "Pending score"}
+                      : isSubmitted
+                        ? "Pending score"
+                        : "Not submitted"}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {isEvaluated
-                    ? `Score recorded: ${team.score ?? "0"}`
+                  {effectiveEvaluated
+                    ? isAutoZero
+                      ? "The scoring window has ended and this team did not submit, so the score is 0."
+                      : `Score recorded: ${scoreText}`
                     : isSubmitted
                       ? "This submission is ready for evaluation."
                       : "This team has no submission available yet."}
@@ -1436,21 +1166,88 @@ function JudgeDetailModal({
             </div>
             <button
               type="button"
-              disabled={!isSubmitted}
+              disabled={!isSubmitted || isAutoZero}
               onClick={onScore}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#f26f21] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#d85f16] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
             >
               <PlayCircle className="h-4 w-4" />
-              {isEvaluated ? "Edit Score" : "Score Now"}
+              {isAutoZero ? "0" : isEvaluated ? "Edit Score" : "Score Now"}
             </button>
           </div>
 
           <div className="grid gap-3">
-            <InfoBlock
-              label="Score"
-              value={isEvaluated ? String(team.score ?? "0") : "-"}
-            />
+            <InfoBlock label="Score" value={scoreText} />
           </div>
+
+          <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Audit Logs
+                </p>
+                <h3 className="mt-1 text-base font-extrabold text-slate-950">
+                  Evaluation history
+                </h3>
+              </div>
+              <Activity className="h-5 w-5 text-[#f26f21]" />
+            </div>
+
+            {!getJudgeEvaluationId(team) ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                No audit logs yet. This team has not been scored.
+              </p>
+            ) : isAuditLoading ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                Loading audit logs...
+              </p>
+            ) : auditError ? (
+              <p className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-600">
+                {auditError}
+              </p>
+            ) : auditLogs.length === 0 ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                No score changes have been recorded yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {auditLogs.map((log, index) => {
+                  const scoreText = getAuditScoreText(log);
+                  const reason = getAuditReason(log);
+                  const actor = getAuditActor(log);
+                  const timestamp = getAuditTimestamp(log);
+
+                  return (
+                    <div
+                      key={`${timestamp || "audit"}-${index}`}
+                      className="rounded-lg border border-slate-200 bg-white p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold leading-5 text-slate-900">
+                            {getAuditAction(log)}
+                          </p>
+                          {scoreText && (
+                            <p className="mt-1 text-sm font-bold text-[#c2410c]">
+                              {scoreText}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 text-right text-xs font-bold text-slate-400">
+                          {formatEventDate(timestamp)}
+                        </span>
+                      </div>
+                      {(reason || actor) && (
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-5 text-slate-600">
+                          {reason || "Score updated"}
+                          {actor ? ` by ${actor}` : ""}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </div>
       </section>
     </div>
@@ -1459,7 +1256,6 @@ function JudgeDetailModal({
 
 function MentorDetailModal({
   displayedDetail,
-  selectedTeam,
   teamDetail,
   isLoading,
   error,
@@ -1467,13 +1263,20 @@ function MentorDetailModal({
   onClose,
 }: {
   displayedDetail: MentorTeamDetail | TeacherPortalTeam | null;
-  selectedTeam: TeacherPortalTeam;
   teamDetail: MentorTeamDetail | null;
   isLoading: boolean;
   error: string;
   isSubmitted: boolean;
   onClose: () => void;
 }) {
+  const leaderEmail = readString(
+    (teamDetail as any)?.leaderEmail || (displayedDetail as any)?.leaderEmail,
+  );
+  const roundName = readString(
+    teamDetail?.roundName || (displayedDetail as any)?.roundName,
+    "-",
+  );
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 py-6">
       <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl">
@@ -1503,10 +1306,7 @@ function MentorDetailModal({
                 label="Track"
                 value={displayedDetail?.trackName || "-"}
               />
-              <InfoBlock
-                label="Current Round"
-                value={teamDetail?.roundName || "-"}
-              />
+              <InfoBlock label="Current Round" value={roundName} />
             </div>
 
             <div
@@ -1533,35 +1333,44 @@ function MentorDetailModal({
                   </p>
                 </div>
               </div>
-
-              {teamDetail?.leaderEmail && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    openLeaderGmailCompose({
-                      leaderEmail: teamDetail.leaderEmail || "",
-                      teamName: displayedDetail?.teamName || "Unnamed Team",
-                      eventName: displayedDetail?.eventName,
-                      trackName: displayedDetail?.trackName,
-                      roundName: teamDetail?.roundName,
-                    })
-                  }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-slate-50"
-                >
-                  <Mail className="h-4 w-4" />
-                  Open Gmail
-                </button>
-              )}
             </div>
+
+            <section className="flex flex-col justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center">
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">
+                  Leader Contact
+                </p>
+                <p className="mt-1 break-all text-sm font-extrabold text-slate-900">
+                  {leaderEmail || "Leader email not provided by API."}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={!leaderEmail}
+                onClick={() =>
+                  openLeaderGmailCompose({
+                    leaderEmail,
+                    teamName: displayedDetail?.teamName || "Unnamed Team",
+                    eventName: displayedDetail?.eventName,
+                    trackName: displayedDetail?.trackName,
+                    roundName,
+                  })
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Mail className="h-4 w-4" />
+                Open Gmail
+              </button>
+            </section>
 
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h4 className="text-base font-extrabold text-slate-900">
                   Submission Links
                 </h4>
-                {teamDetail?.leaderEmail && (
+                {leaderEmail && (
                   <p className="text-xs font-medium text-slate-500">
-                    Leader: {teamDetail.leaderEmail}
+                    Leader: {leaderEmail}
                   </p>
                 )}
               </div>
@@ -1673,8 +1482,9 @@ function TeamCell({ team }: { team: any }) {
 
 function JudgeStatusBadge({ team }: { team: any }) {
   const urgentMessage = getUrgentMessage(team);
+  const isAutoZero = isJudgeAutoZeroTeam(team);
 
-  if (isUrgentScoringTeam(team) && !isJudgeEvaluated(team)) {
+  if (isUrgentScoringTeam(team) && !isJudgeScoreFinalized(team)) {
     return (
       <span
         title={urgentMessage}
@@ -1686,19 +1496,26 @@ function JudgeStatusBadge({ team }: { team: any }) {
     );
   }
 
-  if (!isJudgeSubmissionAvailable(team)) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">
-        <FileX className="h-3 w-3" />
-        Not Submitted
-      </span>
-    );
-  }
   if (isJudgeEvaluated(team)) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600">
         <CheckCircle2 className="h-3 w-3" />
         Scored
+      </span>
+    );
+  }
+  if (isAutoZero) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-600">
+        <CheckCircle2 className="h-3 w-3" />0
+      </span>
+    );
+  }
+  if (!isJudgeSubmissionAvailable(team)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">
+        <FileX className="h-3 w-3" />
+        Not Submitted
       </span>
     );
   }
@@ -1713,13 +1530,14 @@ function JudgeStatusBadge({ team }: { team: any }) {
 function ScoreButton({ team, onClick }: { team: any; onClick: () => void }) {
   const isSubmitted = isJudgeSubmissionAvailable(team);
   const isEvaluated = isJudgeEvaluated(team);
+  const isAutoZero = isJudgeAutoZeroTeam(team);
   return (
     <button
       type="button"
-      disabled={!isSubmitted}
+      disabled={!isSubmitted || isAutoZero}
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
-        !isSubmitted
+        !isSubmitted || isAutoZero
           ? "cursor-not-allowed bg-slate-100 text-slate-400"
           : isEvaluated
             ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -1727,7 +1545,7 @@ function ScoreButton({ team, onClick }: { team: any; onClick: () => void }) {
       }`}
     >
       <PlayCircle className="h-4 w-4" />
-      {isEvaluated ? "Edit Score" : "Score"}
+      {isAutoZero ? "0" : isEvaluated ? "Edit Score" : "Score"}
     </button>
   );
 }

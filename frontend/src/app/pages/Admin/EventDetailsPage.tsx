@@ -158,6 +158,20 @@ export function EventDetailsPage() {
   const [allTeams, setAllTeams] = useState<
     { teamId: string; teamName: string; trackId: string }[]
   >([]);
+  /**
+   * Từng bản ghi TeamInRound của sự kiện, KHÔNG khử trùng theo đội.
+   * Bài nộp trả về chỉ mang teamInRoundId; audit log cần bảng tra này để đổi nó
+   * ra đội/vòng/bảng, nếu không thì không biết bài nộp nào thuộc sự kiện nào.
+   */
+  const [teamInRounds, setTeamInRounds] = useState<
+    {
+      teamInRoundId: string;
+      teamId: string;
+      teamName: string;
+      roundId: string;
+      trackId: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -292,37 +306,63 @@ export function EventDetailsPage() {
   // Gom danh sách đội của tất cả các vòng, khử trùng theo teamId.
   useEffect(() => {
     const loadAllTeams = async () => {
-      if (eventRounds.length === 0) return setAllTeams([]);
+      if (eventRounds.length === 0) {
+        setAllTeams([]);
+        setTeamInRounds([]);
+        return;
+      }
+      const roundIds = eventRounds.map((r) =>
+        String(r.roundID || r.roundId || r.id || ""),
+      );
       const results = await Promise.allSettled(
-        eventRounds.map((r) =>
-          apiClient.get(
-            `/api/TeamInRound/details/round/${r.roundID || r.roundId || r.id}`,
-          ),
+        roundIds.map((rid) =>
+          apiClient.get(`/api/TeamInRound/details/round/${rid}`),
         ),
       );
       // Giữ luôn trackId: audit log chỉ mang roundId, còn bảng thi của một đội
       // thì TeamInRound mới biết — đây là chỗ duy nhất ghép được hai thứ đó.
       const seen = new Map<string, { teamName: string; trackId: string }>();
-      results.forEach((res) => {
+      const rows: {
+        teamInRoundId: string;
+        teamId: string;
+        teamName: string;
+        roundId: string;
+        trackId: string;
+      }[] = [];
+      results.forEach((res, i) => {
         if (res.status !== "fulfilled") return;
         getList(res.value.data).forEach((t: any) => {
           const tid = String(t.teamId ?? t.teamID ?? "");
           if (!tid || tid === "undefined") return;
           const trackId = String(t.trackId ?? t.trackID ?? "");
+          const cleanTrackId = trackId === "undefined" ? "" : trackId;
+          const teamName = t.teamName ?? t.name ?? `Team ${tid.slice(0, 6)}`;
+          const teamInRoundId = String(
+            t.teamInRoundID ?? t.teamInRoundId ?? t.id ?? "",
+          );
+          if (teamInRoundId && teamInRoundId !== "undefined") {
+            rows.push({
+              teamInRoundId,
+              teamId: tid,
+              teamName,
+              // roundId lấy từ chính vòng vừa hỏi: payload TeamInRound không
+              // chắc có trả lại roundId.
+              roundId: String(t.roundId ?? t.roundID ?? roundIds[i] ?? ""),
+              trackId: cleanTrackId,
+            });
+          }
           const prev = seen.get(tid);
           if (!prev) {
-            seen.set(tid, {
-              teamName: t.teamName ?? t.name ?? `Team ${tid.slice(0, 6)}`,
-              trackId: trackId === "undefined" ? "" : trackId,
-            });
-          } else if (!prev.trackId && trackId && trackId !== "undefined") {
-            prev.trackId = trackId;
+            seen.set(tid, { teamName, trackId: cleanTrackId });
+          } else if (!prev.trackId && cleanTrackId) {
+            prev.trackId = cleanTrackId;
           }
         });
       });
       setAllTeams(
         Array.from(seen, ([teamId, info]) => ({ teamId, ...info })),
       );
+      setTeamInRounds(rows);
     };
     loadAllTeams();
   }, [eventRounds, reloadKey]);
@@ -514,11 +554,15 @@ export function EventDetailsPage() {
     await applyEventPatch({ minTeamMember: value }, "Requirement updated!");
   };
 
-  // Cứu vãn #3: hủy hẳn sự kiện.
+  // Cứu vãn #3: hủy hẳn sự kiện (DELETE /api/Event/{id}).
   const handleDeleteEvent = async () => {
+    // Nêu thẳng con số đội đang thiếu — đó là lý do admin bấm nút này.
+    const shortfallNote = isShortOnTeams
+      ? `<p style="margin-top:10px;color:#dc2626;font-weight:700;">Only ${teamsJoined} of the ${minTeamRequired} required teams have registered.</p>`
+      : "";
     const ok = await Swal.fire({
       title: "Cancel this event?",
-      html: `This deletes <b>${event.name}</b> along with its rounds and tracks. Participants will lose access immediately.`,
+      html: `This deletes <b>${event.name}</b> along with its rounds and tracks. Participants will lose access immediately.${shortfallNote}`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -1856,6 +1900,23 @@ export function EventDetailsPage() {
   const publishEarly = isPublishingEarly(event);
   const regOverdue = isRegistrationOverdue(event, phase);
 
+  /**
+   * Chỉ tiêu số ĐỘI của vòng 1 (minTeam) — khác minTeamMember là số thành viên
+   * trong một đội. Không gom đủ chừng này đội thì sự kiện không mở nổi, và đó
+   * chính là lúc admin cần tới các phương án cứu vãn, kể cả hủy sự kiện.
+   */
+  const firstRound = [...eventRounds].sort(
+    (a, b) => Number(a.roundIndex ?? 0) - Number(b.roundIndex ?? 0),
+  )[0];
+  const minTeamRequired = Number(
+    firstRound?.minTeam ?? firstRound?.MinTeam ?? 0,
+  );
+  const teamsJoined = allTeams.length;
+  const isShortOnTeams =
+    isRegistrationPhase && minTeamRequired > 0 && teamsJoined < minTeamRequired;
+  // Hiện phương án cứu vãn khi hết hạn, HOẶC khi còn hạn nhưng chưa gom đủ đội.
+  const showRescueOptions = regOverdue || isShortOnTeams;
+
   const currentRoundName =
     phase === "running"
       ? eventRounds[curRound]?.roundName || `Round ${curRound + 1}`
@@ -2001,36 +2062,68 @@ export function EventDetailsPage() {
                     1 starts automatically at that point
                   </p>
                 )}
+                {minTeamRequired > 0 && (
+                  <p
+                    className={`text-xs font-bold mt-2 flex items-center gap-1.5 ${isShortOnTeams ? "text-red-600" : "opacity-80"}`}
+                  >
+                    <Users size={13} strokeWidth={2.5} />
+                    {teamsJoined} of {minTeamRequired} required team
+                    {minTeamRequired === 1 ? "" : "s"} registered
+                    {isShortOnTeams
+                      ? ` — ${minTeamRequired - teamsJoined} short of the minimum to run this event`
+                      : " — minimum reached"}
+                  </p>
+                )}
               </div>
-              <button
-                onClick={handleStartRound1}
-                className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3.5 rounded-xl font-black transition-colors shrink-0 shadow-md flex items-center justify-center gap-2"
-              >
-                <PlayCircle size={18} strokeWidth={2.5} /> Close Reg & Start
-                Round 1
-              </button>
+              {/* Bố cục giống hệt khối draft: nút chính, dưới là link hủy mờ. */}
+              <div className="shrink-0 w-full md:w-auto">
+                <button
+                  onClick={handleStartRound1}
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3.5 rounded-xl font-black transition-colors shadow-md flex items-center justify-center gap-2"
+                >
+                  <PlayCircle size={18} strokeWidth={2.5} /> Close Reg & Start
+                  Round 1
+                </button>
+                <button
+                  onClick={handleDeleteEvent}
+                  title="Delete this event — use it when registration closes without enough teams"
+                  className="w-full md:w-auto mt-3 text-[11px] font-extrabold text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={13} strokeWidth={2.5} /> Cancel this event
+                </button>
+              </div>
             </div>
 
-            {/* Không đủ chỉ tiêu khi tới hạn: dời hạn, hạ tiêu chí, hoặc hủy. */}
-            {regOverdue && (
-              <div className="border-t border-amber-200 pt-4 flex flex-wrap gap-3">
+            {/* Không đủ chỉ tiêu: dời hạn, hạ tiêu chí, hoặc hủy hẳn sự kiện. */}
+            {showRescueOptions && (
+              <div
+                className={`border-t pt-4 flex flex-wrap items-center gap-3 ${regOverdue ? "border-amber-200" : "border-emerald-200"}`}
+              >
+                {isShortOnTeams && !regOverdue && (
+                  <p className="w-full text-xs font-bold text-slate-500 -mb-1">
+                    Not enough teams to run this event yet. If it stays this way,
+                    you can extend the deadline or cancel the event entirely.
+                  </p>
+                )}
                 <button
                   onClick={handleExtendRegistration}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-amber-200 text-amber-800 text-xs font-extrabold rounded-xl hover:bg-amber-100 transition-colors"
+                  className={`flex items-center gap-2 px-5 py-2.5 bg-white text-xs font-extrabold rounded-xl border transition-colors ${
+                    regOverdue
+                      ? "border-amber-200 text-amber-800 hover:bg-amber-100"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
                 >
                   <CalendarClock size={15} strokeWidth={2.5} /> Extend deadline
                 </button>
                 <button
                   onClick={handleRelaxTeamRequirement}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-amber-200 text-amber-800 text-xs font-extrabold rounded-xl hover:bg-amber-100 transition-colors"
+                  className={`flex items-center gap-2 px-5 py-2.5 bg-white text-xs font-extrabold rounded-xl border transition-colors ${
+                    regOverdue
+                      ? "border-amber-200 text-amber-800 hover:bg-amber-100"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
                 >
                   <UserMinus size={15} strokeWidth={2.5} /> Lower min team size
-                </button>
-                <button
-                  onClick={handleDeleteEvent}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-200 text-red-600 text-xs font-extrabold rounded-xl hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 size={15} strokeWidth={2.5} /> Cancel event
                 </button>
               </div>
             )}
@@ -2938,10 +3031,12 @@ export function EventDetailsPage() {
 
           {activeTab === "audit" && (
             <AuditLogsSection
+              eventId={String(id)}
               rounds={eventRounds}
               allRounds={systemRounds}
               tracks={tracks}
               teams={allTeams}
+              teamInRounds={teamInRounds}
             />
           )}
         </div>

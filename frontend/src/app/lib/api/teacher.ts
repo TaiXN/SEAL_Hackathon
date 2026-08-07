@@ -23,6 +23,12 @@ export type TeacherPortalTeam = {
   teamName: string;
   eventId?: string;
   eventName?: string;
+  currentRound?: number | null;
+  currentRoundName?: string;
+  eventStartDate?: string;
+  eventEndDate?: string;
+  scoringStartDate?: string;
+  scoringEndDate?: string;
   trackId?: string;
   trackName?: string;
   topicName?: string;
@@ -85,6 +91,83 @@ const readString = (value: any, fallback = ""): string => {
   return fallback;
 };
 
+const placeholderEmails = new Set([
+  "leader@gmail.com",
+  "mentor@gmail.com",
+  "user@example.com",
+]);
+
+const readEmail = (...values: any[]): string => {
+  for (const value of values) {
+    const email = readString(value);
+    const lowerEmail = email.toLowerCase();
+    if (email.includes("@") && !placeholderEmails.has(lowerEmail)) {
+      return email;
+    }
+  }
+
+  return "";
+};
+
+const findLeaderEmail = (item: any): string => {
+  const directEmail = readEmail(
+    item?.leaderEmail,
+    item?.LeaderEmail,
+    item?.leaderGmail,
+    item?.LeaderGmail,
+    item?.leaderMail,
+    item?.LeaderMail,
+    item?.leaderEmailAddress,
+    item?.LeaderEmailAddress,
+    item?.teamLeaderEmail,
+    item?.TeamLeaderEmail,
+    item?.teamLeaderGmail,
+    item?.TeamLeaderGmail,
+    item?.teamLeaderMail,
+    item?.TeamLeaderMail,
+    item?.captainEmail,
+    item?.CaptainEmail,
+    item?.captainGmail,
+    item?.CaptainGmail,
+    item?.leader?.email,
+    item?.leader?.Email,
+    item?.leader?.gmail,
+    item?.leader?.Gmail,
+    item?.teamLeader?.email,
+    item?.teamLeader?.Email,
+    item?.teamLeader?.gmail,
+    item?.teamLeader?.Gmail,
+  );
+
+  if (directEmail) return directEmail;
+
+  const members = normalizeList(
+    item?.members || item?.Members || item?.teamMembers || item?.TeamMembers,
+  );
+  const leader = members.find((member) => {
+    const role = readString(member?.role || member?.Role).toLowerCase();
+    return (
+      member?.isLeader === true ||
+      member?.IsLeader === true ||
+      role.includes("leader") ||
+      role.includes("lead")
+    );
+  });
+
+  return readEmail(
+    leader?.email,
+    leader?.Email,
+    leader?.gmail,
+    leader?.Gmail,
+    leader?.userEmail,
+    leader?.UserEmail,
+    leader?.account?.email,
+    leader?.account?.Email,
+    leader?.user?.email,
+    leader?.user?.Email,
+  );
+};
+
 const readNumber = (value: any, fallback = 0): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (
@@ -105,7 +188,9 @@ const readBool = (value: any): boolean => {
 };
 
 const normalizeTrack = (item: any): TeacherPortalTrack => ({
-  trackId: readString(item?.trackId || item?.trackID || item?.TrackID || item?.id),
+  trackId: readString(
+    item?.trackId || item?.trackID || item?.TrackID || item?.id,
+  ),
   trackName: readString(
     item?.trackName || item?.TrackName || item?.name || item?.Name,
     "No track",
@@ -121,7 +206,10 @@ const normalizeSummary = (item: any): TeacherPortalSummary => {
   const summary = item?.summary || item?.Summary || {};
   return {
     totalTeams: readNumber(
-      summary.totalTeams ?? summary.TotalTeams ?? item?.totalTeams ?? item?.TotalTeams,
+      summary.totalTeams ??
+        summary.TotalTeams ??
+        item?.totalTeams ??
+        item?.TotalTeams,
     ),
     submittedTeams: readNumber(
       summary.submittedTeams ??
@@ -136,10 +224,16 @@ const normalizeSummary = (item: any): TeacherPortalSummary => {
         item?.PendingScoreTeams,
     ),
     scoredTeams: readNumber(
-      summary.scoredTeams ?? summary.ScoredTeams ?? item?.scoredTeams ?? item?.ScoredTeams,
+      summary.scoredTeams ??
+        summary.ScoredTeams ??
+        item?.scoredTeams ??
+        item?.ScoredTeams,
     ),
     mentorTeams: readNumber(
-      summary.mentorTeams ?? summary.MentorTeams ?? item?.mentorTeams ?? item?.MentorTeams,
+      summary.mentorTeams ??
+        summary.MentorTeams ??
+        item?.mentorTeams ??
+        item?.MentorTeams,
     ),
   };
 };
@@ -159,31 +253,51 @@ const normalizeTeam = (item: any): TeacherPortalTeam => {
   const submissionId = readString(
     item?.submissionId || item?.submissionID || item?.SubmissionID,
   );
-  const leaderEmail = readString(
-    item?.leaderEmail ||
-      item?.LeaderEmail ||
-      item?.teamLeaderEmail ||
-      item?.TeamLeaderEmail,
-  );
+  const leaderEmail = findLeaderEmail(item);
   const scoreValue = item?.score ?? item?.Score;
 
   return {
-    teamId: readString(item?.teamId || item?.teamID || item?.TeamID || item?.id),
+    teamId: readString(
+      item?.teamId || item?.teamID || item?.TeamID || item?.id,
+    ),
     teamName: readString(
       item?.teamName || item?.TeamName || item?.name || item?.Name,
       "Unnamed Team",
     ),
     eventId: readString(item?.eventId || item?.eventID || item?.EventID),
     eventName: readString(item?.eventName || item?.EventName),
+    currentRound:
+      item?.currentRound !== undefined && item?.currentRound !== null
+        ? readNumber(item?.currentRound)
+        : item?.CurrentRound !== undefined && item?.CurrentRound !== null
+          ? readNumber(item?.CurrentRound)
+          : null,
+    currentRoundName: readString(
+      item?.currentRoundName || item?.CurrentRoundName,
+    ),
+    eventStartDate: readString(
+      item?.eventStartDate || item?.startDate || item?.StartDate,
+    ),
+    eventEndDate: readString(
+      item?.eventEndDate || item?.endDate || item?.EndDate,
+    ),
+    scoringStartDate: readString(
+      item?.scoringStartDate || item?.ScoringStartDate,
+    ),
+    scoringEndDate: readString(item?.scoringEndDate || item?.ScoringEndDate),
     trackId: readString(item?.trackId || item?.trackID || item?.TrackID),
     trackName: readString(item?.trackName || item?.TrackName, "No track"),
-    topicName: readString(item?.topicName || item?.TopicName || item?.topicDetail),
+    topicName: readString(
+      item?.topicName || item?.TopicName || item?.topicDetail,
+    ),
     roundId: readString(item?.roundId || item?.roundID || item?.RoundID),
     roundName: readString(
       item?.roundName || item?.RoundName || item?.currentRoundName,
     ),
     submissionId,
-    urlGithub: readString(item?.urlGithub || item?.UrlGithub || item?.githubUrl),
+    urlGithub: readString(
+      item?.urlGithub || item?.UrlGithub || item?.githubUrl,
+    ),
     urlDemo: readString(item?.urlDemo || item?.UrlDemo || item?.demoUrl),
     urlSlide: readString(item?.urlSlide || item?.UrlSlide || item?.slideUrl),
     leaderEmail,
@@ -191,7 +305,9 @@ const normalizeTeam = (item: any): TeacherPortalTeam => {
     scoringStatus,
     score:
       scoreValue === null || scoreValue === undefined
-        ? null
+        ? scoringStatus.toLowerCase().includes("scored")
+          ? 0
+          : null
         : readNumber(scoreValue, Number.NaN),
     evaluationId: readString(
       item?.evaluationId || item?.evaluationID || item?.EvaluationID,
@@ -200,9 +316,7 @@ const normalizeTeam = (item: any): TeacherPortalTeam => {
     canMentorContact: readBool(
       item?.canMentorContact ?? item?.CanMentorContact,
     ),
-    isUrgentScoring: readBool(
-      item?.isUrgentScoring ?? item?.IsUrgentScoring,
-    ),
+    isUrgentScoring: readBool(item?.isUrgentScoring ?? item?.IsUrgentScoring),
     urgentMessage: readString(item?.urgentMessage || item?.UrgentMessage),
   };
 };
@@ -217,7 +331,9 @@ const normalizeRoles = (
 
   return {
     isJudge:
-      readBool(roles.isJudge ?? roles.IsJudge ?? item?.isJudge ?? item?.IsJudge) ||
+      readBool(
+        roles.isJudge ?? roles.IsJudge ?? item?.isJudge ?? item?.IsJudge,
+      ) ||
       judgeTracks.length > 0 ||
       teams.some((team) => team.canScore),
     isMentor:
@@ -238,7 +354,9 @@ const normalizeEvent = (value: any): TeacherPortalEvent => {
   const teams = normalizeList(item.teams || item.Teams).map(normalizeTeam);
 
   return {
-    eventId: readString(item.eventId || item.eventID || item.EventID || item.id),
+    eventId: readString(
+      item.eventId || item.eventID || item.EventID || item.id,
+    ),
     eventName: readString(
       item.eventName || item.EventName || item.name || item.Name,
       "Unassigned Event",

@@ -4,6 +4,7 @@ import { mentorApi, type Mentor } from "../../lib/api/mentorApi";
 
 type MentorSupportCardProps = {
   teamId: string;
+  eventId: string;
   teamName: string;
   trackName: string;
   topicName: string;
@@ -49,6 +50,7 @@ Thank you.
 
 export function MentorSupportCard({
   teamId,
+  eventId,
   teamName,
   trackName,
   topicName,
@@ -65,11 +67,14 @@ export function MentorSupportCard({
       setMentor(null);
       setHasLoaded(false);
 
-      if (!teamId || !canLoadMentor) return;
+      if (!teamId || !eventId || !canLoadMentor) return;
 
       try {
         setIsLoading(true);
-        const contact = await mentorApi.getMentorContactByTeam(teamId);
+        const contact = await mentorApi.getMentorContactByEventTeam(
+          eventId,
+          teamId,
+        );
         if (isMounted) setMentor(contact);
       } catch (error) {
         if (isMounted) setMentor(null);
@@ -86,7 +91,7 @@ export function MentorSupportCard({
     return () => {
       isMounted = false;
     };
-  }, [teamId, canLoadMentor]);
+  }, [teamId, eventId, canLoadMentor]);
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
@@ -111,7 +116,15 @@ export function MentorSupportCard({
       ) : !canLoadMentor ? (
         <div className="text-sm text-slate-500 space-y-1">
           <p className="font-bold text-slate-700">Register first</p>
-          <p>Your mentor will appear after your team selects an Event, Track, and Topic.</p>
+          <p>
+            Your mentor will appear after your team selects an Event, Track, and
+            Topic.
+          </p>
+        </div>
+      ) : !eventId ? (
+        <div className="text-sm text-slate-500 space-y-1">
+          <p className="font-bold text-slate-700">Select an event</p>
+          <p>Choose one registered event to load the right mentor contact.</p>
         </div>
       ) : isLoading ? (
         <p className="text-sm font-medium text-slate-400 animate-pulse">

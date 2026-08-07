@@ -14,13 +14,13 @@ import {
 } from "lucide-react";
 import { ConfirmModal } from "../../components/leaderPage/ConfirmModal";
 import Swal from "sweetalert2";
-import { showApiError } from "../../lib/utils/apiError";
 import { submittedTeamApi } from "../../lib/api/submittedTeamApi";
 import { teamApi } from "../../lib/api/teamApi";
 import {
   normalizeList,
   getCurrentTeamFromHistory,
   getTeamId,
+  normalizeId,
   isLeaderTeam,
   isBannedAccount,
   isEliminatedTeam,
@@ -28,279 +28,21 @@ import {
   unwrapData,
 } from "../../lib/utils/teamHelpers";
 
-type SubmissionSnapshot = {
-  submissionId: string;
-  githubUrl: string;
-  demoUrl: string;
-  slideUrl: string;
-  score: string;
-  reason: string;
-  roundName: string;
-  status: string;
-};
-
-type SubmissionAuditLog = {
-  title: string;
-  oldGithubUrl: string;
-  oldDemoUrl: string;
-  oldSlideUrl: string;
-  newGithubUrl: string;
-  newDemoUrl: string;
-  newSlideUrl: string;
-  actor: string;
-  createdAt: string;
-};
-
-const isValidUrl = (value: string) => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
-const getErrorMessage = (error: any, fallback: string) => {
-  const rawError = error?.response?.data;
-
-  if (!rawError) return fallback;
-  if (typeof rawError === "string") return rawError;
-  if (rawError?.message) return rawError.message;
-  if (rawError?.title) return rawError.title;
-  if (rawError?.errors) return JSON.stringify(rawError.errors, null, 2);
-
-  return JSON.stringify(rawError, null, 2);
-};
-
-const readString = (...values: any[]) => {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value))
-      return String(value);
-  }
-  return "";
-};
-
-const stripTechnicalIds = (value: string) =>
-  value
-    .replace(
-      /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
-      "",
-    )
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-const formatAuditDate = (value: string) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-};
-
-const normalizeAuditLogs = (value: any): SubmissionAuditLog[] => {
-  const logs = normalizeList(unwrapData(value));
-
-  return logs
-    .map((item: any) => {
-      const oldGithubUrl = readString(
-        item?.oldUrlGithub,
-        item?.OldUrlGithub,
-        item?.oldGithubUrl,
-        item?.OldGithubUrl,
-      );
-      const oldDemoUrl = readString(
-        item?.oldUrlDemo,
-        item?.OldUrlDemo,
-        item?.oldDemoUrl,
-        item?.OldDemoUrl,
-      );
-      const oldSlideUrl = readString(
-        item?.oldUrlSlide,
-        item?.OldUrlSlide,
-        item?.oldSlideUrl,
-        item?.OldSlideUrl,
-      );
-      const newGithubUrl = readString(
-        item?.newUrlGithub,
-        item?.NewUrlGithub,
-        item?.newGithubUrl,
-        item?.NewGithubUrl,
-      );
-      const newDemoUrl = readString(
-        item?.newUrlDemo,
-        item?.NewUrlDemo,
-        item?.newDemoUrl,
-        item?.NewDemoUrl,
-      );
-      const newSlideUrl = readString(
-        item?.newUrlSlide,
-        item?.NewUrlSlide,
-        item?.newSlideUrl,
-        item?.NewSlideUrl,
-      );
-      const firstSubmission = [oldGithubUrl, oldDemoUrl, oldSlideUrl].some(
-        (entry) => entry.toLowerCase().includes("first submission"),
-      );
-      const title = stripTechnicalIds(
-        readString(
-          item?.action,
-          item?.Action,
-          item?.activity,
-          item?.Activity,
-          item?.event,
-          item?.Event,
-          firstSubmission ? "First submission" : "Submission updated",
-        ),
-      );
-
-      return {
-        title: title || "Submission updated",
-        oldGithubUrl,
-        oldDemoUrl,
-        oldSlideUrl,
-        newGithubUrl,
-        newDemoUrl,
-        newSlideUrl,
-        actor: stripTechnicalIds(
-          readString(
-            item?.actorName,
-            item?.ActorName,
-            item?.createdBy,
-            item?.CreatedBy,
-            item?.userName,
-            item?.UserName,
-            item?.email,
-            item?.Email,
-          ),
-        ),
-        createdAt: readString(
-          item?.createdAt,
-          item?.CreatedAt,
-          item?.updatedAt,
-          item?.UpdatedAt,
-          item?.timestamp,
-          item?.Timestamp,
-          item?.date,
-          item?.Date,
-        ),
-      };
-    })
-    .filter((log) => log.title || log.createdAt);
-};
-
-const pickSubmissionSource = (value: any) => {
-  const data = unwrapData(value);
-  const list = normalizeList(data);
-  if (list.length > 0) return list[0];
-
-  return (
-    data?.submission ||
-    data?.Submission ||
-    data?.mySubmission ||
-    data?.MySubmission ||
-    data?.result ||
-    data?.Result ||
-    data ||
-    null
-  );
-};
-
-const normalizeSubmission = (value: any): SubmissionSnapshot | null => {
-  const source = pickSubmissionSource(value);
-  if (!source || typeof source !== "object") return null;
-
-  const evaluation = source.evaluation || source.Evaluation || {};
-  const teamInRound = source.teamInRound || source.TeamInRound || {};
-  const score = readString(
-    source.score,
-    source.Score,
-    source.totalScore,
-    source.TotalScore,
-    source.averageScore,
-    source.AverageScore,
-    source.avgScore,
-    source.AvgScore,
-    evaluation.score,
-    evaluation.Score,
-    evaluation.averageScore,
-    evaluation.AverageScore,
-  );
-
-  const snapshot = {
-    submissionId: readString(
-      source.submissionId,
-      source.submissionID,
-      source.SubmissionId,
-      source.SubmissionID,
-      source.id,
-      source.ID,
-    ),
-    githubUrl: readString(
-      source.urlGithub,
-      source.UrlGithub,
-      source.githubUrl,
-      source.GithubUrl,
-      source.gitHubUrl,
-      source.GitHubUrl,
-    ),
-    demoUrl: readString(
-      source.urlDemo,
-      source.UrlDemo,
-      source.demoUrl,
-      source.DemoUrl,
-    ),
-    slideUrl: readString(
-      source.urlSlide,
-      source.UrlSlide,
-      source.slideUrl,
-      source.SlideUrl,
-    ),
-    score,
-    reason: readString(
-      source.reason,
-      source.Reason,
-      evaluation.reason,
-      evaluation.Reason,
-    ),
-    roundName: readString(
-      source.roundName,
-      source.RoundName,
-      source.currentRoundName,
-      source.CurrentRoundName,
-      teamInRound.roundName,
-      teamInRound.RoundName,
-    ),
-    status: readString(
-      source.status,
-      source.Status,
-      source.submissionStatus,
-      source.SubmissionStatus,
-    ),
-  };
-
-  if (
-    !snapshot.submissionId &&
-    !snapshot.githubUrl &&
-    !snapshot.demoUrl &&
-    !snapshot.slideUrl &&
-    !snapshot.score
-  ) {
-    return null;
-  }
-
-  return snapshot;
-};
-
-const hasSubmissionLinks = (submission: SubmissionSnapshot | null) =>
-  Boolean(submission?.githubUrl || submission?.demoUrl || submission?.slideUrl);
-
+import {
+  type SubmissionAuditLog,
+  type SubmissionEventContext,
+  type SubmissionSnapshot,
+  buildSubmitEventContexts,
+  formatAuditDate,
+  getErrorMessage,
+  getSubmitEventKey,
+  hasSubmissionLinks,
+  isValidUrl,
+  normalizeAuditLogs,
+  normalizeSubmission,
+  readString,
+  stripTechnicalIds,
+} from "../../lib/utils/playerSubmissionHelpers";
 export function Submit() {
   const [githubUrl, setGithubUrl] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
@@ -308,6 +50,10 @@ export function Submit() {
 
   const [teamId, setTeamId] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [eventContexts, setEventContexts] = useState<SubmissionEventContext[]>(
+    [],
+  );
+  const [selectedEventKey, setSelectedEventKey] = useState("");
   const [submission, setSubmission] = useState<SubmissionSnapshot | null>(null);
   const [auditLogs, setAuditLogs] = useState<SubmissionAuditLog[]>([]);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
@@ -321,10 +67,24 @@ export function Submit() {
   const [submitBlockReason, setSubmitBlockReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadMySubmission = async (currentTeamId: string) => {
+  const loadMySubmission = async (
+    currentTeamId: string,
+    currentEventId = "",
+  ) => {
+    if (!currentTeamId || !currentEventId) {
+      setSubmission(null);
+      setGithubUrl("");
+      setDemoUrl("");
+      setSlideUrl("");
+      return;
+    }
+
     try {
-      const response = await submittedTeamApi.getMySubmission(currentTeamId);
-      const nextSubmission = normalizeSubmission(response);
+      const response = await submittedTeamApi.getMySubmission(
+        currentTeamId,
+        currentEventId,
+      );
+      const nextSubmission = normalizeSubmission(response, currentEventId);
 
       setSubmission(nextSubmission);
       setGithubUrl(nextSubmission?.githubUrl || "");
@@ -342,8 +102,12 @@ export function Submit() {
     }
   };
 
-  const loadAuditLogs = async (currentTeamId: string, leader: boolean) => {
-    if (!currentTeamId) {
+  const loadAuditLogs = async (
+    currentTeamId: string,
+    leader: boolean,
+    currentEventId = "",
+  ) => {
+    if (!currentTeamId || !currentEventId) {
       setAuditLogs([]);
       return;
     }
@@ -351,8 +115,14 @@ export function Submit() {
     try {
       setIsAuditLoading(true);
       const response = leader
-        ? await submittedTeamApi.getAuditLogsByTeam(currentTeamId)
-        : await submittedTeamApi.getMyTeamAuditLogs(currentTeamId);
+        ? await submittedTeamApi.getAuditLogsByTeam(
+            currentTeamId,
+            currentEventId,
+          )
+        : await submittedTeamApi.getMyTeamAuditLogs(
+            currentTeamId,
+            currentEventId,
+          );
       setAuditLogs(normalizeAuditLogs(response));
     } catch (error: any) {
       if (error?.response?.status !== 404) {
@@ -388,7 +158,26 @@ export function Submit() {
       const banned = isBannedAccount(response, currentTeam, teamInfo);
       const eliminated = isEliminatedTeam(currentTeam, teamInfo);
       const banReason = getBanReason(response, currentTeam, teamInfo);
-      const editable = leader && !banned && !eliminated;
+      const contexts = buildSubmitEventContexts(currentTeam, teamInfo);
+      const savedEventId =
+        currentTeamId && typeof window !== "undefined"
+          ? localStorage.getItem(`activeTeamEventId_${currentTeamId}`)
+          : "";
+      const savedEventKey =
+        currentTeamId && typeof window !== "undefined"
+          ? localStorage.getItem(`activeTeamEventKey_${currentTeamId}`)
+          : "";
+      const selectedContext =
+        contexts.find(
+          (event) =>
+            (savedEventId &&
+              normalizeId(event.eventId) === normalizeId(savedEventId)) ||
+            (savedEventKey && event.key === savedEventKey),
+        ) ||
+        contexts[0] ||
+        null;
+      const editable =
+        leader && !banned && !eliminated && Boolean(selectedContext?.eventId);
 
       setTeamId(currentTeamId);
       setTeamName(
@@ -401,15 +190,23 @@ export function Submit() {
           "Current team",
         ),
       );
+      setEventContexts(contexts);
+      setSelectedEventKey(selectedContext?.key || "");
       setIsLeader(leader);
       setCanSubmitProject(editable);
 
       if (currentTeamId) {
-        await loadMySubmission(currentTeamId);
-        await loadAuditLogs(currentTeamId, leader);
+        await loadMySubmission(currentTeamId, selectedContext?.eventId || "");
+        await loadAuditLogs(
+          currentTeamId,
+          leader,
+          selectedContext?.eventId || "",
+        );
       } else {
         setSubmission(null);
         setAuditLogs([]);
+        setEventContexts([]);
+        setSelectedEventKey("");
         setGithubUrl("");
         setDemoUrl("");
         setSlideUrl("");
@@ -430,6 +227,11 @@ export function Submit() {
         setSubmitBlockReason(
           "This team has been eliminated. Submission editing is disabled, but previous links and scores remain visible.",
         );
+      } else if (contexts.length === 0 || !selectedContext?.eventId) {
+        setSubmitBlockTitle("No Event Selected");
+        setSubmitBlockReason(
+          "Select a registered event on the Dashboard before submitting project links.",
+        );
       } else if (!leader) {
         setSubmitBlockTitle("View-only Access");
         setSubmitBlockReason(
@@ -443,6 +245,8 @@ export function Submit() {
       console.warn("Cannot verify submit permission:", error);
       setTeamId("");
       setTeamName("");
+      setEventContexts([]);
+      setSelectedEventKey("");
       setSubmission(null);
       setAuditLogs([]);
       setIsLeader(false);
@@ -468,13 +272,42 @@ export function Submit() {
     };
   }, []);
 
+  const handleSubmitEventChange = async (key: string) => {
+    setSelectedEventKey(key);
+    const nextEvent = eventContexts.find((event) => event.key === key);
+    if (!nextEvent || !teamId) return;
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`activeTeamEventKey_${teamId}`, nextEvent.key);
+      if (nextEvent.eventId) {
+        localStorage.setItem(`activeTeamEventId_${teamId}`, nextEvent.eventId);
+      }
+    }
+
+    setCanSubmitProject(isLeader && Boolean(nextEvent.eventId));
+    await loadMySubmission(teamId, nextEvent.eventId);
+    await loadAuditLogs(teamId, isLeader, nextEvent.eventId);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedSubmitEvent = eventContexts.find(
+      (event) => event.key === selectedEventKey,
+    );
 
     if (!canSubmitProject) {
       Swal.fire(
         "Permission Denied",
         submitBlockReason || "Only the Team Leader can submit the project.",
+        "warning",
+      );
+      return;
+    }
+
+    if (!selectedSubmitEvent?.eventId) {
+      Swal.fire(
+        "Missing Event",
+        "Please choose the event you want to submit for.",
         "warning",
       );
       return;
@@ -542,15 +375,31 @@ export function Submit() {
     try {
       setIsConfirmOpen(false);
       setIsSubmitting(true);
+      const selectedSubmitEvent = eventContexts.find(
+        (event) => event.key === selectedEventKey,
+      );
 
-      const response = await submittedTeamApi.submitProject(teamId, {
-        githubUrl: githubUrl.trim(),
-        demoUrl: demoUrl.trim(),
-        slideUrl: slideUrl.trim(),
-      });
+      if (!selectedSubmitEvent?.eventId) {
+        Swal.fire(
+          "Missing Event",
+          "Please choose the event you want to submit for.",
+          "warning",
+        );
+        return;
+      }
+
+      const response = await submittedTeamApi.submitProject(
+        teamId,
+        selectedSubmitEvent.eventId,
+        {
+          githubUrl: githubUrl.trim(),
+          demoUrl: demoUrl.trim(),
+          slideUrl: slideUrl.trim(),
+        },
+      );
 
       setSubmission(
-        normalizeSubmission(response) || {
+        normalizeSubmission(response, selectedSubmitEvent.eventId) || {
           submissionId: "",
           githubUrl: githubUrl.trim(),
           demoUrl: demoUrl.trim(),
@@ -561,7 +410,7 @@ export function Submit() {
           status: "Submitted",
         },
       );
-      await loadAuditLogs(teamId, true);
+      await loadAuditLogs(teamId, true, selectedSubmitEvent.eventId);
 
       Swal.fire({
         icon: "success",
@@ -571,9 +420,13 @@ export function Submit() {
     } catch (error: any) {
       console.error("Submit project failed:", error);
 
-      showApiError(error, {
-        action: "submit your project",
-        hint: "Check that the round is still open and that your links are valid, then try again.",
+      Swal.fire({
+        icon: "error",
+        title: "Submission Failed",
+        html: `<pre style="white-space:pre-wrap;text-align:left;font-size:12px">${getErrorMessage(
+          error,
+          "Unable to submit project at this time.",
+        )}</pre>`,
       });
     } finally {
       setIsSubmitting(false);
@@ -603,6 +456,10 @@ export function Submit() {
 
   const isReadOnly = !canSubmitProject;
   const hasExistingSubmission = hasSubmissionLinks(submission);
+  const selectedSubmitEvent =
+    eventContexts.find((event) => event.key === selectedEventKey) ||
+    eventContexts[0] ||
+    null;
 
   return (
     <div className="animate-in fade-in duration-500 max-w-4xl">
@@ -616,6 +473,65 @@ export function Submit() {
             : "View your team's submitted project links and score."}
         </p>
       </header>
+
+      {teamId && (
+        <section className="mb-6 bg-card border border-border rounded-radius-lg p-5 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Submitting For
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-foreground">
+                {selectedSubmitEvent?.eventName || "No event selected"}
+              </h2>
+              <p className="mt-1 text-sm font-bold text-muted-foreground">
+                {selectedSubmitEvent
+                  ? `${selectedSubmitEvent.trackName}${
+                      selectedSubmitEvent.topicName &&
+                      selectedSubmitEvent.topicName !== "No topic"
+                        ? ` - ${selectedSubmitEvent.topicName}`
+                        : ""
+                    }`
+                  : "Choose a registered event before submitting."}
+              </p>
+            </div>
+
+            <div className="w-full md:w-72">
+              <label
+                htmlFor="submit-event"
+                className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
+              >
+                Event
+              </label>
+              <select
+                id="submit-event"
+                value={selectedEventKey}
+                onChange={(event) =>
+                  handleSubmitEventChange(event.target.value)
+                }
+                disabled={eventContexts.length <= 1 || isSubmitting}
+                className="w-full rounded-radius-md border border-border bg-background px-4 py-3 text-sm font-bold text-foreground outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {eventContexts.length === 0 ? (
+                  <option value="">No registered event</option>
+                ) : (
+                  eventContexts.map((event) => (
+                    <option key={event.key} value={event.key}>
+                      {event.eventName}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+
+          {selectedSubmitEvent?.roundName && (
+            <div className="mt-4 rounded-radius-md border border-orange-100 bg-orange-50 px-4 py-3 text-sm font-bold text-primary">
+              Current round: {selectedSubmitEvent.roundName}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <StatusCard
@@ -764,7 +680,9 @@ export function Submit() {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={executeSubmit}
         title="Confirm Final Submission"
-        description="Are you sure you want to submit this GitHub link, demo link, and slide link?"
+        description={`Are you sure you want to submit these project links for ${
+          selectedSubmitEvent?.eventName || "the selected event"
+        }?`}
         confirmText="Yes, Submit Project"
         isDestructive={false}
       />

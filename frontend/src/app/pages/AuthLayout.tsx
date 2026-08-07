@@ -41,6 +41,49 @@ const PASSWORD_RULES: { test: (pw: string) => boolean; label: string }[] = [
 const getPasswordErrors = (pw: string): string[] =>
   PASSWORD_RULES.filter((rule) => !rule.test(pw)).map((rule) => rule.label);
 
+// ================= ẢNH GIẤY TỜ =================
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const IMAGE_MAX_LABEL = "10 MB";
+const ALLOWED_IMAGE_MIME = ["image/png", "image/jpeg"];
+const ALLOWED_IMAGE_EXT = [".png", ".jpg", ".jpeg"];
+/** Chuỗi cho thuộc tính accept — chặn từ hộp thoại chọn file cho đỡ mất công. */
+const IMAGE_ACCEPT = [...ALLOWED_IMAGE_EXT, ...ALLOWED_IMAGE_MIME].join(",");
+
+const formatFileSize = (bytes: number) => {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
+/**
+ * Kiểm tra ảnh giấy tờ. Trả về câu lỗi cụ thể (sai chỗ nào, file của bạn là gì)
+ * hoặc null nếu hợp lệ.
+ *
+ * Xét cả đuôi file lẫn MIME type: đuôi có thể bị đổi tay, còn MIME thì vài trình
+ * duyệt để trống với định dạng lạ — thiếu một trong hai là lọt.
+ */
+const getImageFileError = (file: File, label: string): string | null => {
+  const name = file.name || "the selected file";
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot).toLowerCase() : "";
+  const mime = (file.type || "").toLowerCase();
+
+  const extOk = ALLOWED_IMAGE_EXT.includes(ext);
+  const mimeOk = mime ? ALLOWED_IMAGE_MIME.includes(mime) : false;
+
+  if (!extOk || (mime && !mimeOk)) {
+    return `${label} must be a PNG or JPG image. "${name}" is ${
+      ext ? `a ${ext.replace(".", "").toUpperCase()} file` : "not a recognised image"
+    } — please pick a .png, .jpg or .jpeg photo.`;
+  }
+  if (file.size === 0) {
+    return `${label} ("${name}") is empty. Please pick the photo again.`;
+  }
+  if (file.size > IMAGE_MAX_BYTES) {
+    return `${label} is ${formatFileSize(file.size)}, over the ${IMAGE_MAX_LABEL} limit. Please compress it or take a smaller photo.`;
+  }
+  return null;
+};
+
 export function AuthLayout() {
   const setTokens = useAuthStore((state) => state.setTokens);
   const navigate = useNavigate();
@@ -84,6 +127,38 @@ export function AuthLayout() {
   const [regStudentCardImage, setRegStudentCardImage] = useState<File | null>(
     null,
   );
+
+  /**
+   * Nhận file từ input, chỉ giữ lại nếu hợp lệ. File sai thì báo rõ lý do và xoá
+   * luôn khỏi ô chọn — để nguyên tên file hỏng trong ô sẽ khiến người dùng tưởng
+   * đã chọn xong.
+   */
+  const handleImagePick = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    label: string,
+    setFile: (f: File | null) => void,
+  ) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return setFile(null);
+
+    const error = getImageFileError(file, label);
+    if (error) {
+      e.target.value = "";
+      setFile(null);
+      Swal.fire({
+        icon: "warning",
+        title: "This photo can't be used",
+        text: error,
+        confirmButtonColor: "#ea580c",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        },
+      });
+      return;
+    }
+    setFile(file);
+  };
 
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -275,9 +350,26 @@ export function AuthLayout() {
       return;
     }
 
-    const loadingToastId = toast.loading(
-      "Creating student account (Uploading images to Cloudinary)...",
-    );
+    // Lưới chắn cuối: input đã lọc lúc chọn, nhưng file vẫn có thể tới đây qua
+    // kéo-thả hoặc autofill của trình duyệt.
+    const imageError =
+      getImageFileError(regIdCardImage, "The ID card photo") ||
+      getImageFileError(regStudentCardImage, "The student card photo");
+    if (imageError) {
+      Swal.fire({
+        icon: "warning",
+        title: "This photo can't be used",
+        text: imageError,
+        confirmButtonColor: "#ea580c",
+        customClass: {
+          popup: "rounded-[2rem]",
+          confirmButton: "rounded-xl font-bold px-6 py-2.5",
+        },
+      });
+      return;
+    }
+
+    const loadingToastId = toast.loading("Creating your account...");
     try {
       const formData = new FormData();
       formData.append("Email", regEmail.trim());
@@ -661,35 +753,60 @@ export function AuthLayout() {
                 </div>
 
                 {/* UPLOAD IMAGES SECTION */}
-                <div className="flex gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div className="space-y-1.5 flex-1 overflow-hidden">
-                    <label className="text-[13px] font-bold text-slate-700">
-                      ID Card Image
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) =>
-                        setRegIdCardImage(e.target.files?.[0] || null)
-                      }
-                      className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
-                    />
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                  <div className="flex gap-4">
+                    <div className="space-y-1.5 flex-1 overflow-hidden">
+                      <label className="text-[13px] font-bold text-slate-700">
+                        ID Card Image
+                      </label>
+                      <input
+                        type="file"
+                        accept={IMAGE_ACCEPT}
+                        required
+                        onChange={(e) =>
+                          handleImagePick(
+                            e,
+                            "The ID card photo",
+                            setRegIdCardImage,
+                          )
+                        }
+                        className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
+                      />
+                      {regIdCardImage && (
+                        <p className="text-[11px] font-bold text-emerald-600 truncate">
+                          {regIdCardImage.name} ·{" "}
+                          {formatFileSize(regIdCardImage.size)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5 flex-1 overflow-hidden border-l border-slate-200 pl-4">
+                      <label className="text-[13px] font-bold text-slate-700">
+                        Student Card Image
+                      </label>
+                      <input
+                        type="file"
+                        accept={IMAGE_ACCEPT}
+                        required
+                        onChange={(e) =>
+                          handleImagePick(
+                            e,
+                            "The student card photo",
+                            setRegStudentCardImage,
+                          )
+                        }
+                        className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
+                      />
+                      {regStudentCardImage && (
+                        <p className="text-[11px] font-bold text-emerald-600 truncate">
+                          {regStudentCardImage.name} ·{" "}
+                          {formatFileSize(regStudentCardImage.size)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1.5 flex-1 overflow-hidden border-l border-slate-200 pl-4">
-                    <label className="text-[13px] font-bold text-slate-700">
-                      Student Card Image
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) =>
-                        setRegStudentCardImage(e.target.files?.[0] || null)
-                      }
-                      className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-600 hover:file:bg-orange-200 transition-all cursor-pointer"
-                    />
-                  </div>
+                  <p className="text-[11px] font-bold text-slate-400">
+                    PNG or JPG only · max {IMAGE_MAX_LABEL} per photo
+                  </p>
                 </div>
 
                 {/* CUSTOM UNIVERSITY DROPDOWN */}

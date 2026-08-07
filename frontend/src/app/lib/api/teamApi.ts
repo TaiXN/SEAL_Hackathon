@@ -41,8 +41,10 @@ export const teamApi = {
     return res.data;
   },
 
-  async getCountdown(teamId: string) {
-    const res = await apiClient.get(`/api/Team/${teamId}/countdown`);
+  async getCountdown(teamId: string, eventId: string) {
+    const res = await apiClient.get(
+      `/api/Team/${teamId}/event/${eventId}/countdown`,
+    );
     return res.data;
   },
 
