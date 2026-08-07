@@ -78,6 +78,13 @@ export const judgeApi = {
     return res.data;
   },
 
+  async getJudgeEvaluationAuditLogs(evaluationId: string) {
+    const res = await apiClient.get(
+      `/api/Evaluation/judge/audit-logs/${evaluationId}`,
+    );
+    return res.data;
+  },
+
   // ==========================================
   // APIs for assigning judges to tracks.
   // ==========================================

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   AlertCircle,
   ArrowLeft,
   CalendarDays,
@@ -31,6 +32,7 @@ import {
   type TeacherPortalTeam,
   type TeacherPortalTrack,
 } from "../../lib/api/teacher";
+import { judgeApi } from "../../lib/api/judgeApi";
 import { useAuthStore } from "../../stores/auth.store";
 
 type TeacherEventGroup = {
@@ -175,6 +177,9 @@ const getJudgeAssignmentId = (team: any) =>
 const getJudgeSubmissionId = (team: any) =>
   readString(team?.submissionId || team?.submissionID);
 
+const getJudgeEvaluationId = (team: any) =>
+  readString(team?.evaluationId || team?.evaluationID || team?.EvaluationID);
+
 const isJudgeSubmissionAvailable = (team: any) => {
   const status = readString(
     team?.submissionStatus || team?.SubmissionStatus,
@@ -211,6 +216,81 @@ const isUrgentScoringTeam = (team: any) =>
 
 const getUrgentMessage = (team: any) =>
   readString(team?.urgentMessage || team?.UrgentMessage);
+
+const normalizeApiList = (value: any): any[] => {
+  const data = value?.data ?? value;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.result)) return data.result;
+  return [];
+};
+
+const getAuditAction = (log: any) =>
+  readString(
+    log?.action ||
+      log?.Action ||
+      log?.activity ||
+      log?.Activity ||
+      log?.message ||
+      log?.Message,
+    "Evaluation updated",
+  );
+
+const getAuditReason = (log: any) =>
+  readString(
+    log?.reason ||
+      log?.Reason ||
+      log?.feedback ||
+      log?.Feedback ||
+      log?.note ||
+      log?.Note,
+  );
+
+const getAuditActor = (log: any) =>
+  readString(
+    log?.teacherName ||
+      log?.TeacherName ||
+      log?.judgeName ||
+      log?.JudgeName ||
+      log?.createdBy ||
+      log?.CreatedBy ||
+      log?.updatedBy ||
+      log?.UpdatedBy,
+  );
+
+const getAuditTimestamp = (log: any) =>
+  readString(
+    log?.createdAt ||
+      log?.CreatedAt ||
+      log?.updatedAt ||
+      log?.UpdatedAt ||
+      log?.timestamp ||
+      log?.Timestamp,
+  );
+
+const getAuditScoreText = (log: any) => {
+  const oldScore =
+    log?.oldScore ??
+    log?.OldScore ??
+    log?.previousScore ??
+    log?.PreviousScore ??
+    log?.oldValue ??
+    log?.OldValue;
+  const newScore =
+    log?.newScore ??
+    log?.NewScore ??
+    log?.score ??
+    log?.Score ??
+    log?.newValue ??
+    log?.NewValue;
+
+  if (oldScore !== undefined && oldScore !== null && newScore !== undefined && newScore !== null) {
+    return `${oldScore} -> ${newScore} pts`;
+  }
+  if (newScore !== undefined && newScore !== null) return `${newScore} pts`;
+  return "";
+};
 
 const hasSubmissionLink = (detail: MentorTeamDetail | TeacherPortalTeam | null) =>
   Boolean(detail?.urlGithub || detail?.urlDemo || detail?.urlSlide);
@@ -381,6 +461,10 @@ export function JudgeDashboard() {
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [detailSearch, setDetailSearch] = useState("");
   const [selectedJudgeTeam, setSelectedJudgeTeam] = useState<any | null>(null);
+  const [evaluationAuditLogs, setEvaluationAuditLogs] = useState<any[]>([]);
+  const [isEvaluationAuditLoading, setIsEvaluationAuditLoading] =
+    useState(false);
+  const [evaluationAuditError, setEvaluationAuditError] = useState("");
   const [selectedMentorTeam, setSelectedMentorTeam] =
     useState<TeacherPortalTeam | null>(null);
   const [mentorTeamDetail, setMentorTeamDetail] =
@@ -492,6 +576,43 @@ export function JudgeDashboard() {
   const selectedJudgeEvaluated = isJudgeEvaluated(selectedJudgeTeam);
   const displayedMentorDetail = mentorTeamDetail || selectedMentorTeam;
   const mentorTeamSubmitted = hasSubmissionLink(mentorTeamDetail);
+
+  useEffect(() => {
+    const evaluationId = getJudgeEvaluationId(selectedJudgeTeam);
+
+    if (!selectedJudgeTeam || !evaluationId) {
+      setEvaluationAuditLogs([]);
+      setEvaluationAuditError("");
+      setIsEvaluationAuditLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAuditLogs = async () => {
+      try {
+        setIsEvaluationAuditLoading(true);
+        setEvaluationAuditError("");
+        const response = await judgeApi.getJudgeEvaluationAuditLogs(evaluationId);
+        if (!cancelled) setEvaluationAuditLogs(normalizeApiList(response));
+      } catch (error: any) {
+        if (!cancelled) {
+          setEvaluationAuditLogs([]);
+          setEvaluationAuditError(
+            error.response?.data?.message || "Could not load audit logs.",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsEvaluationAuditLoading(false);
+      }
+    };
+
+    loadAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJudgeTeam]);
 
   const isLoading = isEventsLoading;
 
@@ -624,6 +745,9 @@ export function JudgeDashboard() {
           team={selectedJudgeTeam}
           isSubmitted={selectedJudgeSubmitted}
           isEvaluated={selectedJudgeEvaluated}
+          auditLogs={evaluationAuditLogs}
+          isAuditLoading={isEvaluationAuditLoading}
+          auditError={evaluationAuditError}
           onClose={() => setSelectedJudgeTeam(null)}
           onScore={() => goToScore(selectedJudgeTeam)}
         />
@@ -632,7 +756,6 @@ export function JudgeDashboard() {
       {selectedMentorTeam && (
         <MentorDetailModal
           displayedDetail={displayedMentorDetail}
-          selectedTeam={selectedMentorTeam}
           teamDetail={mentorTeamDetail}
           isLoading={isMentorDetailLoading}
           error={mentorDetailError}
@@ -1256,7 +1379,7 @@ function UrgentScoringCard({
       </div>
 
       <div className="mt-4 grid gap-2">
-        {teams.slice(0, 4).map((team) => {
+        {teams.map((team) => {
           const message =
             getUrgentMessage(team) ||
             "This submission is close to the scoring deadline.";
@@ -1300,13 +1423,6 @@ function UrgentScoringCard({
           );
         })}
       </div>
-
-      {teams.length > 4 && (
-        <p className="mt-3 text-xs font-bold text-red-700/70">
-          +{teams.length - 4} more urgent submission
-          {teams.length - 4 > 1 ? "s" : ""} in the scoring tab.
-        </p>
-      )}
     </section>
   );
 }
@@ -1315,12 +1431,18 @@ function JudgeDetailModal({
   team,
   isSubmitted,
   isEvaluated,
+  auditLogs,
+  isAuditLoading,
+  auditError,
   onClose,
   onScore,
 }: {
   team: any;
   isSubmitted: boolean;
   isEvaluated: boolean;
+  auditLogs: any[];
+  isAuditLoading: boolean;
+  auditError: string;
   onClose: () => void;
   onScore: () => void;
 }) {
@@ -1388,6 +1510,76 @@ function JudgeDetailModal({
           <div className="grid gap-3">
             <InfoBlock label="Score" value={isEvaluated ? String(team.score ?? "0") : "-"} />
           </div>
+
+          <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Audit Logs
+                </p>
+                <h3 className="mt-1 text-base font-extrabold text-slate-950">
+                  Evaluation history
+                </h3>
+              </div>
+              <Activity className="h-5 w-5 text-[#f26f21]" />
+            </div>
+
+            {!getJudgeEvaluationId(team) ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                No audit logs yet. This team has not been scored.
+              </p>
+            ) : isAuditLoading ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                Loading audit logs...
+              </p>
+            ) : auditError ? (
+              <p className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-600">
+                {auditError}
+              </p>
+            ) : auditLogs.length === 0 ? (
+              <p className="rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-500">
+                No score changes have been recorded yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {auditLogs.map((log, index) => {
+                  const scoreText = getAuditScoreText(log);
+                  const reason = getAuditReason(log);
+                  const actor = getAuditActor(log);
+                  const timestamp = getAuditTimestamp(log);
+
+                  return (
+                    <div
+                      key={`${timestamp || "audit"}-${index}`}
+                      className="rounded-lg border border-slate-200 bg-white p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-extrabold leading-5 text-slate-900">
+                            {getAuditAction(log)}
+                          </p>
+                          {scoreText && (
+                            <p className="mt-1 text-sm font-bold text-[#c2410c]">
+                              {scoreText}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 text-right text-xs font-bold text-slate-400">
+                          {formatEventDate(timestamp)}
+                        </span>
+                      </div>
+                      {(reason || actor) && (
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-5 text-slate-600">
+                          {reason || "Score updated"}
+                          {actor ? ` by ${actor}` : ""}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </div>
       </section>
     </div>
@@ -1396,7 +1588,6 @@ function JudgeDetailModal({
 
 function MentorDetailModal({
   displayedDetail,
-  selectedTeam,
   teamDetail,
   isLoading,
   error,
@@ -1404,7 +1595,6 @@ function MentorDetailModal({
   onClose,
 }: {
   displayedDetail: MentorTeamDetail | TeacherPortalTeam | null;
-  selectedTeam: TeacherPortalTeam;
   teamDetail: MentorTeamDetail | null;
   isLoading: boolean;
   error: string;

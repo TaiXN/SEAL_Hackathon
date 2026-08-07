@@ -983,7 +983,9 @@ export function Dashboard() {
       if (foundEventId || foundRoundId) {
         // Má»‘c thá»i gian Äáº¿m ngÆ°á»£c
         try {
-          const countdownRes = await teamApi.getCountdown(activeTeamId);
+          const countdownRes = foundEventId
+            ? await teamApi.getCountdown(activeTeamId, foundEventId)
+            : null;
           let dateStr = null;
           if (typeof countdownRes === "string") dateStr = countdownRes;
           else if (countdownRes && typeof countdownRes === "object") {
@@ -1198,6 +1200,62 @@ export function Dashboard() {
     teamNotice && teamNotice.tone !== "success"
       ? `${getParticipationKey(activeEventContext)}|${teamNotice.tone}|${teamNotice.title}|${teamNotice.message}`
       : "";
+
+  useEffect(() => {
+    const activeTeamId = getTeamId(dashboardData);
+    const activeEventId = extractEventId(activeEventContext);
+
+    if (!activeTeamId || !activeEventId) {
+      setDeadline(null);
+      setTimeLeft(emptyTimeLeft);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCountdown = async () => {
+      try {
+        const countdownRes = await teamApi.getCountdown(activeTeamId, activeEventId);
+        let dateStr = null;
+
+        if (typeof countdownRes === "string") dateStr = countdownRes;
+        else if (countdownRes && typeof countdownRes === "object") {
+          dateStr =
+            countdownRes.endDate ||
+            countdownRes.EndDate ||
+            countdownRes.targetDate ||
+            countdownRes.TargetDate ||
+            countdownRes.deadline ||
+            countdownRes.Deadline;
+        }
+
+        if (cancelled) return;
+
+        if (dateStr) {
+          const nextDeadline = new Date(dateStr);
+          if (!isNaN(nextDeadline.getTime())) {
+            setDeadline(nextDeadline);
+            setTimeLeft(calculateTimeLeft(nextDeadline));
+            return;
+          }
+        }
+
+        setDeadline(null);
+        setTimeLeft(emptyTimeLeft);
+      } catch {
+        if (!cancelled) {
+          setDeadline(null);
+          setTimeLeft(emptyTimeLeft);
+        }
+      }
+    };
+
+    loadCountdown();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardData, selectedParticipationKey]);
 
   // Logic kiá»ƒm tra Ä‘á»ƒ hiá»ƒn thá»‹ cho khung Current Round
   const hasSubmittedRegistration = Boolean(

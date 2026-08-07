@@ -11,6 +11,7 @@ import {
   Activity,
   CheckCircle2,
   FileText,
+  History,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { jwtDecode } from "jwt-decode";
@@ -37,6 +38,108 @@ const normalizeId = (id: any) =>
   String(id || "")
     .toLowerCase()
     .trim();
+
+const readString = (value: any, fallback = ""): string => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number") return String(value);
+  return fallback;
+};
+
+const normalizeAuditList = (value: any): any[] => {
+  const data = value?.data ?? value;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.result)) return data.result;
+  return [];
+};
+
+const formatAuditDate = (value: any) => {
+  const raw = readString(value);
+  if (!raw) return "-";
+
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const getAuditAction = (log: any) =>
+  readString(
+    log?.action ||
+      log?.Action ||
+      log?.activity ||
+      log?.Activity ||
+      log?.message ||
+      log?.Message,
+    "Evaluation updated",
+  );
+
+const getAuditReason = (log: any) =>
+  readString(
+    log?.reason ||
+      log?.Reason ||
+      log?.feedback ||
+      log?.Feedback ||
+      log?.note ||
+      log?.Note,
+  );
+
+const getAuditActor = (log: any) =>
+  readString(
+    log?.teacherName ||
+      log?.TeacherName ||
+      log?.judgeName ||
+      log?.JudgeName ||
+      log?.createdBy ||
+      log?.CreatedBy ||
+      log?.updatedBy ||
+      log?.UpdatedBy,
+  );
+
+const getAuditTimestamp = (log: any) =>
+  readString(
+    log?.createdAt ||
+      log?.CreatedAt ||
+      log?.updatedAt ||
+      log?.UpdatedAt ||
+      log?.timestamp ||
+      log?.Timestamp,
+  );
+
+const getAuditScoreText = (log: any) => {
+  const oldScore =
+    log?.oldScore ??
+    log?.OldScore ??
+    log?.previousScore ??
+    log?.PreviousScore ??
+    log?.oldValue ??
+    log?.OldValue;
+  const newScore =
+    log?.newScore ??
+    log?.NewScore ??
+    log?.score ??
+    log?.Score ??
+    log?.newValue ??
+    log?.NewValue;
+
+  if (
+    oldScore !== undefined &&
+    oldScore !== null &&
+    newScore !== undefined &&
+    newScore !== null
+  ) {
+    return `${oldScore} -> ${newScore} pts`;
+  }
+  if (newScore !== undefined && newScore !== null) return `${newScore} pts`;
+  return "";
+};
 
 export function ScoringPage() {
   const navigate = useNavigate();
@@ -96,6 +199,9 @@ export function ScoringPage() {
 
   const [feedback, setFeedback] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState("");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -398,6 +504,41 @@ export function ScoringPage() {
     fetchScoringData();
   }, [actualSubmissionId, teamFromList]);
 
+  useEffect(() => {
+    if (!evaluationId) {
+      setAuditLogs([]);
+      setAuditError("");
+      setIsAuditLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAuditLogs = async () => {
+      try {
+        setIsAuditLoading(true);
+        setAuditError("");
+        const response = await judgeApi.getJudgeEvaluationAuditLogs(evaluationId);
+        if (!cancelled) setAuditLogs(normalizeAuditList(response));
+      } catch (error: any) {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setAuditError(
+            error.response?.data?.message || "Could not load audit logs.",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsAuditLoading(false);
+      }
+    };
+
+    loadAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [evaluationId]);
+
   // Score calculation
   const inputTotalScore = criteriaList.reduce(
     (acc, curr) => acc + (curr.judgeScore || 0),
@@ -462,10 +603,7 @@ export function ScoringPage() {
           evaluationID: String(evaluationId),
         };
 
-        await apiClient.put(
-          `/api/Evaluation/${currentTeacherId}`,
-          updatePayload,
-        );
+        await judgeApi.updateEvaluation(currentTeacherId, updatePayload);
       } else {
         // Create a new evaluation.
         const createPayload = {
@@ -474,10 +612,7 @@ export function ScoringPage() {
           reason: feedback.trim(),
         };
 
-        await apiClient.post(
-          `/api/Evaluation/${currentTeacherId}`,
-          createPayload,
-        );
+        await judgeApi.createEvaluation(currentTeacherId, createPayload);
       }
 
       Swal.fire({
@@ -725,6 +860,82 @@ export function ScoringPage() {
                     : "Submit Score"}
               </button>
             </div>
+
+            <section className="pt-6 mt-6 border-t border-slate-100">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Audit Logs
+                  </p>
+                  <h3 className="mt-1 flex items-center gap-2 text-lg font-extrabold text-slate-900">
+                    <History className="h-5 w-5 text-blue-600" />
+                    Evaluation history
+                  </h3>
+                </div>
+                {auditLogs.length > 0 && (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+                    {auditLogs.length} logs
+                  </span>
+                )}
+              </div>
+
+              {!evaluationId ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  No audit logs yet. Submit a score first to create an
+                  evaluation history.
+                </div>
+              ) : isAuditLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  Loading audit logs...
+                </div>
+              ) : auditError ? (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-600">
+                  {auditError}
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  No score changes have been recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log, index) => {
+                    const scoreText = getAuditScoreText(log);
+                    const reason = getAuditReason(log);
+                    const actor = getAuditActor(log);
+                    const timestamp = getAuditTimestamp(log);
+
+                    return (
+                      <article
+                        key={`${timestamp || "audit"}-${index}`}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-extrabold leading-5 text-slate-900">
+                              {getAuditAction(log)}
+                            </p>
+                            {scoreText && (
+                              <p className="mt-1 text-sm font-bold text-blue-700">
+                                {scoreText}
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-right text-xs font-bold text-slate-400">
+                            {formatAuditDate(timestamp)}
+                          </span>
+                        </div>
+                        {(reason || actor) && (
+                          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-5 text-slate-600">
+                            {reason || "Score updated"}
+                            {actor ? ` by ${actor}` : ""}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </section>
         </div>
       </main>
